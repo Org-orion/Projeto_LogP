@@ -30,12 +30,16 @@ const MENU_ITEMS = [
 
 interface AppSidebarProps {
   activeMachine: string;
+  activeSection: string;
   onMachineSelect: (id: string) => void;
+  onSectionSelect: (id: string) => void;
 }
 
-export function AppSidebar({ activeMachine, onMachineSelect }: AppSidebarProps) {
+export function AppSidebar({ activeMachine, activeSection, onMachineSelect, onSectionSelect }: AppSidebarProps) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+
+  const isMachineView = activeSection === "machines";
 
   return (
     <Sidebar collapsible="icon">
@@ -61,8 +65,11 @@ export function AppSidebar({ activeMachine, onMachineSelect }: AppSidebarProps) 
               {MACHINES.map((machine) => (
                 <SidebarMenuItem key={machine.id}>
                   <SidebarMenuButton
-                    onClick={() => onMachineSelect(machine.id)}
-                    isActive={activeMachine === machine.id}
+                    onClick={() => {
+                      onMachineSelect(machine.id);
+                      onSectionSelect("machines");
+                    }}
+                    isActive={isMachineView && activeMachine === machine.id}
                     tooltip={machine.name}
                   >
                     <machine.icon className="h-4 w-4" />
@@ -80,7 +87,11 @@ export function AppSidebar({ activeMachine, onMachineSelect }: AppSidebarProps) 
             <SidebarMenu>
               {MENU_ITEMS.map((item) => (
                 <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton tooltip={item.name}>
+                  <SidebarMenuButton
+                    onClick={() => onSectionSelect(item.id)}
+                    isActive={activeSection === item.id}
+                    tooltip={item.name}
+                  >
                     <item.icon className="h-4 w-4" />
                     {!collapsed && <span>{item.name}</span>}
                   </SidebarMenuButton>
