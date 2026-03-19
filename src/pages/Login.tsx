@@ -18,7 +18,11 @@ const Login = ({ onLogin }: LoginProps) => {
       toast.error("Preencha email e senha.");
       return;
     }
-    onLogin();
+    if (email === "admin1" && password === "admin1") {
+      onLogin();
+    } else {
+      toast.error("Email ou senha incorretos.");
+    }
   };
 
   return (
