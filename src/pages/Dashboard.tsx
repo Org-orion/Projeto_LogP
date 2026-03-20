@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RelatoriosPage, RegistrosPage, ConfiguracoesPage, AjudaPage } from "@/components/PlaceholderPages";
 
 const MACHINES = [
@@ -16,7 +17,7 @@ const MACHINES = [
 ];
 
 const SECTION_TITLES: Record<string, string> = {
-  machines: "",
+  machines: "Máquinas",
   relatorios: "Relatórios",
   registros: "Registros",
   configuracoes: "Configurações",
@@ -32,10 +33,6 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
   const [activeSection, setActiveSection] = useState("machines");
   const currentMachine = MACHINES.find((m) => m.id === activeMachine)!;
 
-  const headerTitle = activeSection === "machines"
-    ? currentMachine.name
-    : SECTION_TITLES[activeSection] || "";
-
   const renderContent = () => {
     switch (activeSection) {
       case "relatorios":
@@ -50,9 +47,21 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
         return (
           <div className="max-w-5xl mx-auto">
             <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="h-2 w-2 rounded-full bg-primary" />
-                <h2 className="text-lg font-bold text-foreground">{currentMachine.name}</h2>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-primary" />
+                  <h2 className="text-lg font-bold text-foreground">Registro de Produção</h2>
+                </div>
+                <Select value={activeMachine} onValueChange={setActiveMachine}>
+                  <SelectTrigger className="w-[260px]">
+                    <SelectValue placeholder="Selecione a máquina" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MACHINES.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <ProductionForm key={activeMachine} machineName={currentMachine.name} />
             </div>
@@ -65,9 +74,7 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar
-          activeMachine={activeMachine}
           activeSection={activeSection}
-          onMachineSelect={setActiveMachine}
           onSectionSelect={setActiveSection}
         />
 
@@ -76,7 +83,7 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
             <div className="flex items-center gap-2">
               <SidebarTrigger />
               <div className="h-5 w-px bg-border" />
-              <h1 className="text-sm font-semibold text-foreground">{headerTitle}</h1>
+              <h1 className="text-sm font-semibold text-foreground">{SECTION_TITLES[activeSection]}</h1>
             </div>
             <div className="flex items-center gap-3">
               <ConnectionBadge />
