@@ -13,15 +13,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const MACHINES = [
-  { id: "AQ017", name: "AQ017 - Prensa Fria", icon: Cog },
-  { id: "AQ009", name: "AQ009 - Seccionadora", icon: Cog },
-  { id: "AQ012", name: "AQ012 - Coladeira", icon: Cog },
-  { id: "AQ005", name: "AQ005 - Esquadrejadeira", icon: Cog },
-  { id: "AQ021", name: "AQ021 - Tupia", icon: Cog },
-];
-
 const MENU_ITEMS = [
+  { id: "machines", name: "Máquinas", icon: Cog },
   { id: "relatorios", name: "Relatórios", icon: BarChart3 },
   { id: "registros", name: "Registros", icon: ClipboardList },
   { id: "configuracoes", name: "Configurações", icon: Settings },
@@ -29,17 +22,13 @@ const MENU_ITEMS = [
 ];
 
 interface AppSidebarProps {
-  activeMachine: string;
   activeSection: string;
-  onMachineSelect: (id: string) => void;
   onSectionSelect: (id: string) => void;
 }
 
-export function AppSidebar({ activeMachine, activeSection, onMachineSelect, onSectionSelect }: AppSidebarProps) {
+export function AppSidebar({ activeSection, onSectionSelect }: AppSidebarProps) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-
-  const isMachineView = activeSection === "machines";
 
   return (
     <Sidebar collapsible="icon">
@@ -58,29 +47,6 @@ export function AppSidebar({ activeMachine, activeSection, onMachineSelect, onSe
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Máquinas</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {MACHINES.map((machine) => (
-                <SidebarMenuItem key={machine.id}>
-                  <SidebarMenuButton
-                    onClick={() => {
-                      onMachineSelect(machine.id);
-                      onSectionSelect("machines");
-                    }}
-                    isActive={isMachineView && activeMachine === machine.id}
-                    tooltip={machine.name}
-                  >
-                    <machine.icon className="h-4 w-4" />
-                    {!collapsed && <span>{machine.name}</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
         <SidebarGroup>
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
