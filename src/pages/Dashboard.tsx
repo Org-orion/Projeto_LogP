@@ -7,6 +7,7 @@ import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RelatoriosPage, RegistrosPage, ConfiguracoesPage, AjudaPage } from "@/components/PlaceholderPages";
+import QualidadePage from "@/components/QualidadePage";
 
 const MACHINES = [
   { id: "AQ017", name: "AQ017 - Prensa Fria" },
