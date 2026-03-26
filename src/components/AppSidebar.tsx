@@ -1,4 +1,4 @@
-import { Factory, Cog, BarChart3, ClipboardList, Settings, HelpCircle } from "lucide-react";
+import { Factory, Cog, BarChart3, ClipboardList, Settings, HelpCircle, ShieldCheck } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
