@@ -7,6 +7,7 @@ import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RelatoriosPage, RegistrosPage, ConfiguracoesPage, AjudaPage } from "@/components/PlaceholderPages";
+import QualidadePage from "@/components/QualidadePage";
 
 const MACHINES = [
   { id: "AQ017", name: "AQ017 - Prensa Fria" },
@@ -18,6 +19,7 @@ const MACHINES = [
 
 const SECTION_TITLES: Record<string, string> = {
   machines: "Máquinas",
+  qualidade: "Controle de Qualidade",
   relatorios: "Relatórios",
   registros: "Registros",
   configuracoes: "Configurações",
@@ -35,6 +37,8 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
 
   const renderContent = () => {
     switch (activeSection) {
+      case "qualidade":
+        return <QualidadePage />;
       case "relatorios":
         return <RelatoriosPage />;
       case "registros":
