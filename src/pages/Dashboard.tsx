@@ -19,6 +19,7 @@ const MACHINES = [
 
 const SECTION_TITLES: Record<string, string> = {
   machines: "Máquinas",
+  qualidade: "Controle de Qualidade",
   relatorios: "Relatórios",
   registros: "Registros",
   configuracoes: "Configurações",
