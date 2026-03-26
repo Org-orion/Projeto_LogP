@@ -37,6 +37,8 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
 
   const renderContent = () => {
     switch (activeSection) {
+      case "qualidade":
+        return <QualidadePage />;
       case "relatorios":
         return <RelatoriosPage />;
       case "registros":
