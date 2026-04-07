@@ -1,10 +1,13 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import { Wifi, WifiOff } from "lucide-react";
 
 const ConnectionBadge = () => {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
+    setIsOnline(navigator.onLine);
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);

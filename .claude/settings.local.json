@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(taskkill /PID 10696 /F)",
+      "Bash(taskkill /PID 16016 /F)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(node:*)",
+      "Bash(node -e \":*)",
+      "Bash(mv /c/dev/producao-concrem/door-production-log/* /c/dev/producao-concrem/)",
+      "Bash(mv /c/dev/producao-concrem/door-production-log/.* /c/dev/producao-concrem/)",
+      "Bash(rmdir /c/dev/producao-concrem/door-production-log)"
+    ]
+  }
+}

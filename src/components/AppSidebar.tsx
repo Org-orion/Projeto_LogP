@@ -1,4 +1,6 @@
-import { Factory, Cog, BarChart3, ClipboardList, Settings, HelpCircle, ShieldCheck } from "lucide-react";
+"use client";
+
+import { Factory, Cog, BarChart3, ClipboardList, Settings, HelpCircle, ShieldCheck, Home, UserCog } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -14,10 +16,12 @@ import {
 } from "@/components/ui/sidebar";
 
 const MENU_ITEMS = [
+  { id: "home", name: "Home", icon: Home },
   { id: "machines", name: "Máquinas", icon: Cog },
   { id: "qualidade", name: "Controle de Qualidade", icon: ShieldCheck },
   { id: "relatorios", name: "Relatórios", icon: BarChart3 },
   { id: "registros", name: "Registros", icon: ClipboardList },
+  { id: "usuarios", name: "Usuários", icon: UserCog },
   { id: "configuracoes", name: "Configurações", icon: Settings },
   { id: "ajuda", name: "Ajuda", icon: HelpCircle },
 ];

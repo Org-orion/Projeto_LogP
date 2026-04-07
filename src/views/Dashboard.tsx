@@ -1,27 +1,24 @@
+"use client";
+
 import { useState } from "react";
 import ConnectionBadge from "@/components/ConnectionBadge";
-import ProductionForm from "@/components/ProductionForm";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RelatoriosPage, RegistrosPage, ConfiguracoesPage, AjudaPage } from "@/components/PlaceholderPages";
 import QualidadePage from "@/components/QualidadePage";
-
-const MACHINES = [
-  { id: "AQ017", name: "AQ017 - Prensa Fria" },
-  { id: "AQ009", name: "AQ009 - Seccionadora" },
-  { id: "AQ012", name: "AQ012 - Coladeira" },
-  { id: "AQ005", name: "AQ005 - Esquadrejadeira" },
-  { id: "AQ021", name: "AQ021 - Tupia" },
-];
+import HomePage from "@/components/HomePage";
+import MaquinasPage from "@/components/MaquinasPage";
+import UsuariosPage from "@/components/UsuariosPage";
 
 const SECTION_TITLES: Record<string, string> = {
+  home: "Home",
   machines: "Máquinas",
   qualidade: "Controle de Qualidade",
   relatorios: "Relatórios",
   registros: "Registros",
+  usuarios: "Usuários",
   configuracoes: "Configurações",
   ajuda: "Ajuda",
 };
@@ -31,14 +28,18 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ onLogout }: DashboardProps) => {
-  const [activeMachine, setActiveMachine] = useState(MACHINES[0].id);
-  const [activeSection, setActiveSection] = useState("machines");
-  const currentMachine = MACHINES.find((m) => m.id === activeMachine)!;
+  const [activeSection, setActiveSection] = useState("home");
 
   const renderContent = () => {
     switch (activeSection) {
+      case "home":
+        return <HomePage />;
+      case "machines":
+        return <MaquinasPage />;
       case "qualidade":
         return <QualidadePage />;
+      case "usuarios":
+        return <UsuariosPage />;
       case "relatorios":
         return <RelatoriosPage />;
       case "registros":
@@ -48,29 +49,7 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
       case "ajuda":
         return <AjudaPage />;
       default:
-        return (
-          <div className="max-w-5xl mx-auto">
-            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary" />
-                  <h2 className="text-lg font-bold text-foreground">Registro de Produção</h2>
-                </div>
-                <Select value={activeMachine} onValueChange={setActiveMachine}>
-                  <SelectTrigger className="w-[260px]">
-                    <SelectValue placeholder="Selecione a máquina" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MACHINES.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <ProductionForm key={activeMachine} machineName={currentMachine.name} />
-            </div>
-          </div>
-        );
+        return <HomePage />;
     }
   };
 
