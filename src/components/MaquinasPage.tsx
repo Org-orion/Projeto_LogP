@@ -35,6 +35,7 @@ interface Maquina {
 
 interface RegistroProducao {
   data: string;
+  hora_final: string | null;
   maquina: string | null;
   qtd_conforme: number | null;
   qtd_nao_conforme_1: number | null;
@@ -153,7 +154,7 @@ function HistoricoSheet({ maquina, open, onClose }: {
     const nomeMaquina = (maquina.nome as string).trim();
     const { data, error } = await supabase
       .from("registros_producao")
-      .select("data, maquina, qtd_conforme, qtd_nao_conforme_1, produto, linha, nucleo, padrao")
+      .select("data, hora_final, maquina, qtd_conforme, qtd_nao_conforme_1, produto, linha, nucleo, padrao")
       .ilike("maquina", nomeMaquina)
       .gte("data", dataInicio)
       .lte("data", dataFim)
@@ -272,9 +273,10 @@ function HistoricoSheet({ maquina, open, onClose }: {
     const colunasPDF = getColunasParaMaquina(nomeMaquina);
     autoTable(doc, {
       startY: yPos + 4,
-      head: [["Data", ...colunasPDF.map((c) => c.label)]],
+      head: [["Data", "Hora Final", ...colunasPDF.map((c) => c.label)]],
       body: registros.map((r) => [
         format(parseISO(r.data), "dd/MM/yyyy"),
+        r.hora_final ?? "—",
         ...colunasPDF.map((c) => {
           const val = r[c.key];
           if (val === null || val === undefined || val === "") return "—";
@@ -415,6 +417,7 @@ function HistoricoSheet({ maquina, open, onClose }: {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-xs">Data</TableHead>
+                    <TableHead className="text-xs">Hora Final</TableHead>
                     {colunas.map((c) => (
                       <TableHead key={c.key} className={`text-xs ${c.numeric ? "text-right" : ""}`}>
                         {c.label}
@@ -426,6 +429,7 @@ function HistoricoSheet({ maquina, open, onClose }: {
                   {registros.map((r, i) => (
                     <TableRow key={i}>
                       <TableCell className="text-xs">{format(parseISO(r.data), "dd/MM/yyyy")}</TableCell>
+                      <TableCell className="text-xs">{r.hora_final ?? "—"}</TableCell>
                       {colunas.map((c) => {
                         const val = r[c.key];
                         const display = val === null || val === undefined || val === ""
