@@ -41,7 +41,7 @@ interface RegistroProducao {
   produto: string | null;
   linha: string | null;
   nucleo: string | null;
-  acabamento: string | null;
+  padrao: string | null;
 }
 
 interface ColunaDef {
@@ -54,20 +54,20 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
   "prensa fria": [
     { key: "produto", label: "Produto" },
     { key: "nucleo", label: "Núcleo" },
-    { key: "acabamento", label: "Cor" },
+    { key: "padrao", label: "Cor" },
     { key: "qtd_conforme", label: "Quantidade", numeric: true },
   ],
   "colagem de borda": [
     { key: "linha", label: "Linha" },
     { key: "nucleo", label: "Núcleo" },
-    { key: "acabamento", label: "Cor" },
+    { key: "padrao", label: "Cor" },
     { key: "qtd_conforme", label: "Quantidade", numeric: true },
     { key: "qtd_nao_conforme_1", label: "Qtd. Não Conforme", numeric: true },
   ],
   "esquadro": [
     { key: "linha", label: "Linha" },
     { key: "nucleo", label: "Núcleo" },
-    { key: "acabamento", label: "Cor" },
+    { key: "padrao", label: "Cor" },
     { key: "qtd_conforme", label: "Quantidade", numeric: true },
   ],
 };
@@ -153,7 +153,7 @@ function HistoricoSheet({ maquina, open, onClose }: {
     const nomeMaquina = (maquina.nome as string).trim();
     const { data, error } = await supabase
       .from("registros_producao")
-      .select("data, maquina, qtd_conforme, qtd_nao_conforme_1, produto, linha, nucleo, acabamento")
+      .select("data, maquina, qtd_conforme, qtd_nao_conforme_1, produto, linha, nucleo, padrao")
       .ilike("maquina", nomeMaquina)
       .gte("data", dataInicio)
       .lte("data", dataFim)
