@@ -28,7 +28,14 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ onLogout }: DashboardProps) => {
-  const [activeSection, setActiveSection] = useState("home");
+  const [activeSection, setActiveSection] = useState(
+    () => typeof window !== "undefined" ? localStorage.getItem("logp_section") || "home" : "home"
+  );
+
+  const handleSectionSelect = (section: string) => {
+    localStorage.setItem("logp_section", section);
+    setActiveSection(section);
+  };
 
   const renderContent = () => {
     switch (activeSection) {
@@ -58,7 +65,7 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
       <div className="min-h-screen flex w-full">
         <AppSidebar
           activeSection={activeSection}
-          onSectionSelect={setActiveSection}
+          onSectionSelect={handleSectionSelect}
         />
 
         <div className="flex-1 flex flex-col min-w-0">
