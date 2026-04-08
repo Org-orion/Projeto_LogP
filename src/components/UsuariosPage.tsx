@@ -486,7 +486,7 @@ function OperadoresTab() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Matrícula</Label>
-                <Input placeholder="Ex: 00123" value={form.matricula} onChange={(e) => setForm({ ...form, matricula: e.target.value })} />
+                <Input placeholder="Ex: 00123" autoComplete="off" value={form.matricula} onChange={(e) => setForm({ ...form, matricula: e.target.value })} />
               </div>
               <div className="space-y-1.5">
                 <Label>Status</Label>
@@ -514,6 +514,7 @@ function OperadoresTab() {
                 <Input
                   type={senhaDialogVisivel ? "text" : "password"}
                   placeholder="Senha para login no aplicativo"
+                  autoComplete="new-password"
                   value={form.senha}
                   onChange={(e) => setForm({ ...form, senha: e.target.value })}
                   className="pr-10"
