@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Cog, Loader2, AlertCircle, RefreshCw, Plus, History, Pencil, FileText, Search } from "lucide-react";
+import { Cog, Loader2, AlertCircle, RefreshCw, Plus, History, Pencil, FileText, Search, FileSpreadsheet } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -292,6 +293,35 @@ function HistoricoSheet({ maquina, open, onClose }: {
     doc.save(nomeArquivo);
   }
 
+  function gerarExcel() {
+    const nomeMaquina = (maquina?.nome as string) ?? "Máquina";
+    const colunas = getColunasParaMaquina(nomeMaquina);
+
+    let periodoLabel = "";
+    if (filtro === "dia") periodoLabel = `${dia}-${mes}-${ano}`;
+    else if (filtro === "mes") periodoLabel = `${MESES[Number(mes) - 1]}-${ano}`;
+    else periodoLabel = ano;
+
+    const cabecalho = ["Data", "Hora Final", ...colunas.map((c) => c.label)];
+    const linhas = registros.map((r) => [
+      format(parseISO(r.data), "dd/MM/yyyy"),
+      r.hora_final ?? "",
+      ...colunas.map((c) => {
+        const val = r[c.key];
+        if (val === null || val === undefined || val === "") return "";
+        if (c.numeric) return Number(val);
+        return String(val);
+      }),
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([cabecalho, ...linhas]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, nomeMaquina.slice(0, 31));
+
+    const nomeArquivo = `relatorio-${norm(nomeMaquina).replace(/\s+/g, "-")}-${periodoLabel}.xlsx`;
+    XLSX.writeFile(wb, nomeArquivo);
+  }
+
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col gap-0 p-0">
@@ -371,10 +401,16 @@ function HistoricoSheet({ maquina, open, onClose }: {
             </Button>
 
             {registros.length > 0 && (
-              <Button size="sm" variant="outline" onClick={gerarPDF} className="h-8 gap-1.5">
-                <FileText className="h-3.5 w-3.5" />
-                Gerar PDF
-              </Button>
+              <>
+                <Button size="sm" variant="outline" onClick={gerarPDF} className="h-8 gap-1.5">
+                  <FileText className="h-3.5 w-3.5" />
+                  PDF
+                </Button>
+                <Button size="sm" variant="outline" onClick={gerarExcel} className="h-8 gap-1.5 text-emerald-700 border-emerald-300 hover:bg-emerald-50">
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  Excel
+                </Button>
+              </>
             )}
           </div>
 
