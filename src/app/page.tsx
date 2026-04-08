@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Login from "@/views/Login";
 import Dashboard from "@/views/Dashboard";
 
@@ -13,11 +13,16 @@ interface UsuarioLogado {
 }
 
 export default function Home() {
-  const [user, setUser] = useState<UsuarioLogado | null>(() => {
-    if (typeof window === "undefined") return null;
+  const [user, setUser] = useState<UsuarioLogado | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
     const stored = localStorage.getItem("logp_user");
-    return stored ? JSON.parse(stored) : null;
-  });
+    if (stored) setUser(JSON.parse(stored));
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   const handleLogin = (userData: UsuarioLogado) => {
     localStorage.setItem("logp_user", JSON.stringify(userData));
