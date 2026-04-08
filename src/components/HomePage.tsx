@@ -113,6 +113,10 @@ export default function HomePage() {
   const [maquinasFiltro, setMaquinasFiltro] = useState<string[]>([]);
   const [maquinaPickerOpen, setMaquinaPickerOpen] = useState(false);
 
+  // ── Seleções interativas dos gráficos (cross-filter) ──
+  const [chartMes, setChartMes] = useState<number | null>(null);
+  const [chartMaquina, setChartMaquina] = useState<string | null>(null);
+
   // ── Aba ──
   const [abaAtiva, setAbaAtiva] = useState<"portas" | "guarnicao">("portas");
 
@@ -186,13 +190,32 @@ export default function HomePage() {
     return true;
   });
 
+  // Aplica seleções interativas dos gráficos sobre os dados já filtrados pelos controles
+  const registrosCross = registrosFiltrados.filter((r) => {
+    if (chartMes !== null && r.data) {
+      const mes = parseInt(r.data.split("-")[1]) - 1;
+      if (mes !== chartMes) return false;
+    }
+    if (chartMaquina !== null && r.maquina !== chartMaquina) return false;
+    return true;
+  });
+
+  // Para o gráfico de máquinas: aplica só o chartMes (não o chartMaquina, pois é a fonte)
+  const registrosParaMaquina = registrosFiltrados.filter((r) => {
+    if (chartMes !== null && r.data) {
+      const mes = parseInt(r.data.split("-")[1]) - 1;
+      if (mes !== chartMes) return false;
+    }
+    return true;
+  });
+
   // ─── Derivações ──────────────────────────────────────────────────────────────
 
-  const totalGeral = registrosFiltrados.reduce((acc, r) => acc + (Number(r.qtd_conforme) || 0), 0);
+  const totalGeral = registrosCross.reduce((acc, r) => acc + (Number(r.qtd_conforme) || 0), 0);
 
-  // Gráfico horizontal: Produção por Máquina
+  // Gráfico horizontal: Produção por Máquina (aplica chartMes, mas não chartMaquina)
   const porMaquina = Object.entries(
-    registrosFiltrados.reduce((acc, r) => {
+    registrosParaMaquina.reduce((acc, r) => {
       if (!r.maquina) return acc;
       acc[r.maquina] = (acc[r.maquina] ?? 0) + (Number(r.qtd_conforme) || 0);
       return acc;
@@ -201,21 +224,23 @@ export default function HomePage() {
     .map(([nome, total]) => ({ nome, total }))
     .sort((a, b) => b.total - a.total);
 
-  // Gráfico vertical: Produção por Mês (respeita filtro de máquina, mas não de mês)
+  // Gráfico vertical: Produção por Mês (aplica chartMaquina, mas não chartMes)
   const registrosPorAno = registros.filter((r) => {
     if (maquinasFiltro.length > 0 && r.maquina && !maquinasFiltro.includes(r.maquina)) return false;
+    if (chartMaquina !== null && r.maquina !== chartMaquina) return false;
     return true;
   });
 
   const porMes = MESES_CURTO.map((mes, i) => ({
     mes,
+    mesIdx: i,
     total: registrosPorAno
       .filter((r) => r.data && parseInt(r.data.split("-")[1]) - 1 === i)
       .reduce((acc, r) => acc + (Number(r.qtd_conforme) || 0), 0),
   })).filter((m) => m.total > 0);
 
   // Tabela Linha / Produto
-  const linhaMap = registrosFiltrados.reduce((acc, r) => {
+  const linhaMap = registrosCross.reduce((acc, r) => {
     const k = r.linha || "Outro";
     acc[k] = (acc[k] ?? 0) + (Number(r.qtd_conforme) || 0);
     return acc;
@@ -226,7 +251,7 @@ export default function HomePage() {
   const maxLinhaPct = Math.max(...porLinha.map((l) => l.pct), 0);
 
   // Tabela Produção por Padrão
-  const padraoMap = registrosFiltrados.reduce((acc, r) => {
+  const padraoMap = registrosCross.reduce((acc, r) => {
     const k = r.padrao || "N/D";
     acc[k] = (acc[k] ?? 0) + (Number(r.qtd_conforme) || 0);
     return acc;
@@ -238,7 +263,7 @@ export default function HomePage() {
   const maxPadraoPct = Math.max(...porPadrao.map((p) => p.pct), 0);
 
   // Tabela Produção por Largura
-  const larguraMap = registrosFiltrados.reduce((acc, r) => {
+  const larguraMap = registrosCross.reduce((acc, r) => {
     const k = r.largura_cm ? String(r.largura_cm) : "N/D";
     acc[k] = (acc[k] ?? 0) + (Number(r.qtd_conforme) || 0);
     return acc;
@@ -462,7 +487,17 @@ export default function HomePage() {
             {/* Gráfico Produção de Portas/Mês */}
             <Card>
               <CardHeader className="pb-1 pt-4 px-4">
-                <CardTitle className="text-xs font-semibold text-muted-foreground">Produção de Portas/Mês</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-semibold text-muted-foreground">Produção de Portas/Mês</CardTitle>
+                  {chartMes !== null && (
+                    <button
+                      onClick={() => setChartMes(null)}
+                      className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full border text-muted-foreground hover:bg-muted"
+                    >
+                      {MESES[chartMes]} ×
+                    </button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="px-2 pb-4">
                 {porMes.length === 0 ? (
@@ -479,9 +514,21 @@ export default function HomePage() {
                         formatter={(v: number) => [v.toLocaleString("pt-BR"), "Portas"]}
                         labelFormatter={(l) => `Mês: ${l}`}
                       />
-                      <Bar dataKey="total" fill={COR_VERDE} radius={[3, 3, 0, 0]} barSize={48}
+                      <Bar
+                        dataKey="total"
+                        radius={[3, 3, 0, 0]}
+                        barSize={48}
+                        style={{ cursor: "pointer" }}
+                        onClick={(data: { mesIdx: number }) => setChartMes(prev => prev === data.mesIdx ? null : data.mesIdx)}
                         label={{ position: "top", fontSize: 10, fill: COR_VERDE, formatter: (v: number) => v > 0 ? v.toLocaleString("pt-BR") : "" }}
-                      />
+                      >
+                        {porMes.map((entry) => (
+                          <Cell
+                            key={entry.mes}
+                            fill={chartMes === null || chartMes === entry.mesIdx ? COR_VERDE : "rgba(33,108,59,0.25)"}
+                          />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -492,8 +539,20 @@ export default function HomePage() {
           {/* ── Linha 2: Gráfico Horizontal por Máquina ── */}
           <Card>
             <CardHeader className="pb-1 pt-4 px-4">
-              <CardTitle className="text-xs font-semibold text-muted-foreground">Produção de Portas</CardTitle>
-              <p className="text-[10px] text-muted-foreground">Máquina · Soma de Qtd. Conforme</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xs font-semibold text-muted-foreground">Produção de Portas</CardTitle>
+                  <p className="text-[10px] text-muted-foreground">Máquina · Soma de Qtd. Conforme</p>
+                </div>
+                {chartMaquina !== null && (
+                  <button
+                    onClick={() => setChartMaquina(null)}
+                    className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full border text-muted-foreground hover:bg-muted"
+                  >
+                    {chartMaquina} ×
+                  </button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="px-2 pb-4">
               {porMaquina.length === 0 ? (
@@ -518,9 +577,21 @@ export default function HomePage() {
                       axisLine={false} tickLine={false}
                     />
                     <Tooltip formatter={(v: number) => [v.toLocaleString("pt-BR"), "Qtd. Conforme"]} />
-                    <Bar dataKey="total" fill={COR_VERDE} radius={[0, 3, 3, 0]} barSize={20}
+                    <Bar
+                      dataKey="total"
+                      radius={[0, 3, 3, 0]}
+                      barSize={20}
+                      style={{ cursor: "pointer" }}
+                      onClick={(data: { nome: string }) => setChartMaquina(prev => prev === data.nome ? null : data.nome)}
                       label={{ position: "right", fontSize: 10, fill: COR_VERDE, formatter: (v: number) => v.toLocaleString("pt-BR") }}
-                    />
+                    >
+                      {porMaquina.map((entry) => (
+                        <Cell
+                          key={entry.nome}
+                          fill={chartMaquina === null || chartMaquina === entry.nome ? COR_VERDE : "rgba(33,108,59,0.25)"}
+                        />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               )}
