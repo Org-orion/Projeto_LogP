@@ -129,23 +129,37 @@ export default function HomePage() {
     const dataInicio = `${anoFiltro}-01-01`;
     const dataFim = `${anoFiltro}-12-31`;
 
-    const { data, error } = await supabase
-      .from("registros_producao")
-      .select("maquina, data, qtd_conforme, produto, linha, padrao, largura_cm")
-      .gte("data", dataInicio)
-      .lte("data", dataFim);
+    const todos: Registro[] = [];
+    const TAM_PAG = 1000;
+    let pagina = 0;
 
-    if (!error) setRegistros(data ?? []);
+    while (true) {
+      const { data: lote, error } = await supabase
+        .from("registros_producao")
+        .select("maquina, data, qtd_conforme, produto, linha, padrao, largura_cm")
+        .gte("data", dataInicio)
+        .lte("data", dataFim)
+        .range(pagina * TAM_PAG, (pagina + 1) * TAM_PAG - 1);
+
+      if (error) break;
+      if (!lote || lote.length === 0) break;
+      todos.push(...lote);
+      if (lote.length < TAM_PAG) break;
+      pagina++;
+    }
+
+    setRegistros(todos);
     setLoading(false);
   }, [anoFiltro]);
 
   useEffect(() => {
     async function fetchMaquinas() {
       const { data } = await supabase
-        .from("registros_producao")
-        .select("maquina");
+        .from("maquinas")
+        .select("nome")
+        .order("nome");
       if (data) {
-        const lista = [...new Set(data.map((r) => r.maquina).filter(Boolean))].sort() as string[];
+        const lista = data.map((r) => r.nome).filter(Boolean) as string[];
         setMaquinasDisponiveis(lista);
       }
     }
