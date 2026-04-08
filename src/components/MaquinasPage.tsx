@@ -37,8 +37,53 @@ interface RegistroProducao {
   data: string;
   maquina: string | null;
   qtd_conforme: number | null;
+  qtd_nao_conforme: number | null;
   produto: string | null;
   linha: string | null;
+  nucleo: string | null;
+  cor: string | null;
+}
+
+interface ColunaDef {
+  key: keyof RegistroProducao;
+  label: string;
+  numeric?: boolean;
+}
+
+const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
+  "prensa fria": [
+    { key: "produto", label: "Produto" },
+    { key: "nucleo", label: "Núcleo" },
+    { key: "cor", label: "Cor" },
+    { key: "qtd_conforme", label: "Quantidade", numeric: true },
+  ],
+  "colagem de borda": [
+    { key: "linha", label: "Linha" },
+    { key: "nucleo", label: "Núcleo" },
+    { key: "cor", label: "Cor" },
+    { key: "qtd_conforme", label: "Quantidade", numeric: true },
+    { key: "qtd_nao_conforme", label: "Qtd. Não Conforme", numeric: true },
+  ],
+  "esquadro": [
+    { key: "linha", label: "Linha" },
+    { key: "nucleo", label: "Núcleo" },
+    { key: "cor", label: "Cor" },
+    { key: "qtd_conforme", label: "Quantidade", numeric: true },
+  ],
+};
+
+const COLUNAS_DEFAULT: ColunaDef[] = [
+  { key: "produto", label: "Produto" },
+  { key: "linha", label: "Linha" },
+  { key: "qtd_conforme", label: "Qtd. Conforme", numeric: true },
+];
+
+function getColunasParaMaquina(nomeMaquina: string): ColunaDef[] {
+  const chave = nomeMaquina.trim().toLowerCase();
+  for (const [k, cols] of Object.entries(COLUNAS_MAQUINA)) {
+    if (chave.includes(k)) return cols;
+  }
+  return COLUNAS_DEFAULT;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -108,7 +153,7 @@ function HistoricoSheet({ maquina, open, onClose }: {
     const nomeMaquina = (maquina.nome as string).trim();
     const { data, error } = await supabase
       .from("registros_producao")
-      .select("data, maquina, qtd_conforme, produto, linha")
+      .select("data, maquina, qtd_conforme, qtd_nao_conforme, produto, linha, nucleo, cor")
       .ilike("maquina", nomeMaquina)
       .gte("data", dataInicio)
       .lte("data", dataFim)
@@ -224,18 +269,21 @@ function HistoricoSheet({ maquina, open, onClose }: {
     doc.setFont("helvetica", "bold");
     doc.text("Registros detalhados", 14, yPos);
 
+    const colunasPDF = getColunasParaMaquina(nomeMaquina);
     autoTable(doc, {
       startY: yPos + 4,
-      head: [["Data", "Produto", "Linha", "Qtd. Conforme"]],
+      head: [["Data", ...colunasPDF.map((c) => c.label)]],
       body: registros.map((r) => [
         format(parseISO(r.data), "dd/MM/yyyy"),
-        r.produto ?? "—",
-        r.linha ?? "—",
-        (Number(r.qtd_conforme) || 0).toLocaleString("pt-BR"),
+        ...colunasPDF.map((c) => {
+          const val = r[c.key];
+          if (val === null || val === undefined || val === "") return "—";
+          if (c.numeric) return Number(val).toLocaleString("pt-BR");
+          return String(val);
+        }),
       ]),
       styles: { fontSize: 9 },
       headStyles: { fillColor: [59, 130, 246] },
-      columnStyles: { 3: { halign: "right" } },
     });
 
     const nomeArquivo = `relatorio-${norm(nomeMaquina).replace(/\s+/g, "-")}-${periodoLabel.replace(/[\s/]+/g, "-")}.pdf`;
@@ -360,32 +408,43 @@ function HistoricoSheet({ maquina, open, onClose }: {
             <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
               Nenhum registro encontrado para o período.
             </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs">Data</TableHead>
-                  <TableHead className="text-xs">Produto</TableHead>
-                  <TableHead className="text-xs">Linha</TableHead>
-                  <TableHead className="text-xs text-right">Qtd. Conforme</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {registros.map((r, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-xs">
-                      {format(parseISO(r.data), "dd/MM/yyyy")}
-                    </TableCell>
-                    <TableCell className="text-xs">{r.produto ?? "—"}</TableCell>
-                    <TableCell className="text-xs">{r.linha ?? "—"}</TableCell>
-                    <TableCell className="text-xs text-right font-medium">
-                      {(Number(r.qtd_conforme) || 0).toLocaleString("pt-BR")}
-                    </TableCell>
+          ) : (() => {
+            const colunas = getColunasParaMaquina(maquina?.nome as string ?? "");
+            return (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Data</TableHead>
+                    {colunas.map((c) => (
+                      <TableHead key={c.key} className={`text-xs ${c.numeric ? "text-right" : ""}`}>
+                        {c.label}
+                      </TableHead>
+                    ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                </TableHeader>
+                <TableBody>
+                  {registros.map((r, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-xs">{format(parseISO(r.data), "dd/MM/yyyy")}</TableCell>
+                      {colunas.map((c) => {
+                        const val = r[c.key];
+                        const display = val === null || val === undefined || val === ""
+                          ? "—"
+                          : c.numeric
+                          ? Number(val).toLocaleString("pt-BR")
+                          : String(val);
+                        return (
+                          <TableCell key={c.key} className={`text-xs ${c.numeric ? "text-right font-medium" : ""}`}>
+                            {display}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            );
+          })()}
         </div>
       </SheetContent>
     </Sheet>
