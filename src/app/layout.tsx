@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
-  title: "Controle de Produção - Fábrica de Portas",
+  title: "LogP",
   description: "Sistema industrial de controle de produção",
 };
 
