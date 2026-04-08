@@ -109,6 +109,7 @@ export default function HomePage() {
   // ── Filtros BI ──
   const [anoFiltro, setAnoFiltro] = useState(anoAtual);
   const [mesFiltro, setMesFiltro] = useState<number | null>(mesAtual);
+  const [diaFiltro, setDiaFiltro] = useState<number | null>(null);
   const [maquinasFiltro, setMaquinasFiltro] = useState<string[]>([]);
   const [maquinaPickerOpen, setMaquinaPickerOpen] = useState(false);
 
@@ -174,6 +175,10 @@ export default function HomePage() {
     if (mesFiltro !== null && r.data) {
       const mes = parseInt(r.data.split("-")[1]) - 1;
       if (mes !== mesFiltro) return false;
+    }
+    if (diaFiltro !== null && r.data) {
+      const dia = parseInt(r.data.split("-")[2]);
+      if (dia !== diaFiltro) return false;
     }
     if (maquinasFiltro.length > 0 && r.maquina && !maquinasFiltro.includes(r.maquina)) {
       return false;
@@ -345,10 +350,13 @@ export default function HomePage() {
 
         {/* Mês */}
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Mês / Dia</Label>
+          <Label className="text-xs text-muted-foreground">Mês</Label>
           <Select
             value={mesFiltro === null ? "__todos__" : String(mesFiltro)}
-            onValueChange={(v) => setMesFiltro(v === "__todos__" ? null : Number(v))}
+            onValueChange={(v) => {
+              setMesFiltro(v === "__todos__" ? null : Number(v));
+              setDiaFiltro(null);
+            }}
           >
             <SelectTrigger className="h-8 w-36 text-xs">
               <SelectValue />
@@ -357,6 +365,26 @@ export default function HomePage() {
               <SelectItem value="__todos__">Todos os meses</SelectItem>
               {MESES.map((m, i) => (
                 <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Dia */}
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Dia</Label>
+          <Select
+            value={diaFiltro === null ? "__todos__" : String(diaFiltro)}
+            onValueChange={(v) => setDiaFiltro(v === "__todos__" ? null : Number(v))}
+            disabled={mesFiltro === null}
+          >
+            <SelectTrigger className="h-8 w-28 text-xs">
+              <SelectValue placeholder="Todos os dias" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__todos__">Todos os dias</SelectItem>
+              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                <SelectItem key={d} value={String(d)}>{String(d).padStart(2, "0")}</SelectItem>
               ))}
             </SelectContent>
           </Select>
