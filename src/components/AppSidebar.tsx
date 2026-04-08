@@ -29,11 +29,13 @@ const MENU_ITEMS = [
 interface AppSidebarProps {
   activeSection: string;
   onSectionSelect: (id: string) => void;
+  allowedSections: string[];
 }
 
-export function AppSidebar({ activeSection, onSectionSelect }: AppSidebarProps) {
+export function AppSidebar({ activeSection, onSectionSelect, allowedSections }: AppSidebarProps) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const visibleItems = MENU_ITEMS.filter((item) => allowedSections.includes(item.id));
 
   return (
     <Sidebar collapsible="icon">
@@ -56,7 +58,7 @@ export function AppSidebar({ activeSection, onSectionSelect }: AppSidebarProps) 
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {MENU_ITEMS.map((item) => (
+              {visibleItems.map((item) => (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton
                     onClick={() => onSectionSelect(item.id)}

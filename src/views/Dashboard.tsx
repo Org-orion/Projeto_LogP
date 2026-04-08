@@ -12,6 +12,8 @@ import HomePage from "@/components/HomePage";
 import MaquinasPage from "@/components/MaquinasPage";
 import UsuariosPage from "@/components/UsuariosPage";
 
+const ALL_SECTIONS = ["home", "machines", "qualidade", "relatorios", "registros", "usuarios", "configuracoes", "ajuda"];
+
 const SECTION_TITLES: Record<string, string> = {
   home: "Home",
   machines: "Máquinas",
@@ -23,14 +25,28 @@ const SECTION_TITLES: Record<string, string> = {
   ajuda: "Ajuda",
 };
 
+interface UsuarioLogado {
+  id: number;
+  nome: string;
+  email: string;
+  perfil?: string;
+  paginas?: string[];
+}
+
 interface DashboardProps {
+  user: UsuarioLogado;
   onLogout: () => void;
 }
 
-const Dashboard = ({ onLogout }: DashboardProps) => {
-  const [activeSection, setActiveSection] = useState(
-    () => typeof window !== "undefined" ? localStorage.getItem("logp_section") || "home" : "home"
-  );
+const Dashboard = ({ user, onLogout }: DashboardProps) => {
+  const isAdmin = user.perfil?.toLowerCase() === "administrador";
+  const allowedSections = isAdmin ? ALL_SECTIONS : (user.paginas ?? ["home"]);
+
+  const [activeSection, setActiveSection] = useState(() => {
+    if (typeof window === "undefined") return "home";
+    const stored = localStorage.getItem("logp_section") || "home";
+    return allowedSections.includes(stored) ? stored : allowedSections[0] || "home";
+  });
 
   const handleSectionSelect = (section: string) => {
     localStorage.setItem("logp_section", section);
@@ -39,24 +55,15 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
 
   const renderContent = () => {
     switch (activeSection) {
-      case "home":
-        return <HomePage />;
-      case "machines":
-        return <MaquinasPage />;
-      case "qualidade":
-        return <QualidadePage />;
-      case "usuarios":
-        return <UsuariosPage />;
-      case "relatorios":
-        return <RelatoriosPage />;
-      case "registros":
-        return <RegistrosPage />;
-      case "configuracoes":
-        return <ConfiguracoesPage />;
-      case "ajuda":
-        return <AjudaPage />;
-      default:
-        return <HomePage />;
+      case "home": return <HomePage />;
+      case "machines": return <MaquinasPage />;
+      case "qualidade": return <QualidadePage />;
+      case "usuarios": return <UsuariosPage />;
+      case "relatorios": return <RelatoriosPage />;
+      case "registros": return <RegistrosPage />;
+      case "configuracoes": return <ConfiguracoesPage />;
+      case "ajuda": return <AjudaPage />;
+      default: return <HomePage />;
     }
   };
 
@@ -66,6 +73,7 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
         <AppSidebar
           activeSection={activeSection}
           onSectionSelect={handleSectionSelect}
+          allowedSections={allowedSections}
         />
 
         <div className="flex-1 flex flex-col min-w-0">
@@ -76,6 +84,7 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
               <h1 className="text-sm font-semibold text-foreground">{SECTION_TITLES[activeSection]}</h1>
             </div>
             <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground hidden sm:block">{user.nome}</span>
               <ConnectionBadge />
               <Button variant="ghost" size="sm" onClick={onLogout} className="gap-1.5 text-muted-foreground">
                 <LogOut className="h-4 w-4" />

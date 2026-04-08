@@ -5,8 +5,16 @@ import { LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 
+interface UsuarioLogado {
+  id: number;
+  nome: string;
+  email: string;
+  perfil?: string;
+  paginas?: string[];
+}
+
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (user: UsuarioLogado) => void;
 }
 
 const Login = ({ onLogin }: LoginProps) => {
@@ -24,14 +32,14 @@ const Login = ({ onLogin }: LoginProps) => {
     try {
       const { data, error } = await supabase
         .from("usuarios")
-        .select("id, senha")
+        .select("id, nome, email, senha, perfil, paginas")
         .eq("email", email)
         .single();
 
       if (error || !data || data.senha !== password) {
         toast.error("Email ou senha incorretos.");
       } else {
-        onLogin();
+        onLogin({ id: data.id, nome: data.nome, email: data.email, perfil: data.perfil, paginas: data.paginas });
       }
     } catch {
       toast.error("Erro ao conectar. Tente novamente.");

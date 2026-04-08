@@ -4,25 +4,35 @@ import { useState } from "react";
 import Login from "@/views/Login";
 import Dashboard from "@/views/Dashboard";
 
-export default function Home() {
-  const [loggedIn, setLoggedIn] = useState(
-    () => typeof window !== "undefined" && localStorage.getItem("logp_logged_in") === "true"
-  );
+interface UsuarioLogado {
+  id: number;
+  nome: string;
+  email: string;
+  perfil?: string;
+  paginas?: string[];
+}
 
-  const handleLogin = () => {
-    localStorage.setItem("logp_logged_in", "true");
-    setLoggedIn(true);
+export default function Home() {
+  const [user, setUser] = useState<UsuarioLogado | null>(() => {
+    if (typeof window === "undefined") return null;
+    const stored = localStorage.getItem("logp_user");
+    return stored ? JSON.parse(stored) : null;
+  });
+
+  const handleLogin = (userData: UsuarioLogado) => {
+    localStorage.setItem("logp_user", JSON.stringify(userData));
+    setUser(userData);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("logp_logged_in");
+    localStorage.removeItem("logp_user");
     localStorage.removeItem("logp_section");
-    setLoggedIn(false);
+    setUser(null);
   };
 
-  if (!loggedIn) {
+  if (!user) {
     return <Login onLogin={handleLogin} />;
   }
 
-  return <Dashboard onLogout={handleLogout} />;
+  return <Dashboard user={user} onLogout={handleLogout} />;
 }

@@ -16,10 +16,22 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Pencil, Trash2, Loader2, AlertCircle, Users, HardHat, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
+
+const ALL_PAGES = [
+  { id: "home", label: "Home" },
+  { id: "machines", label: "Máquinas" },
+  { id: "qualidade", label: "Controle de Qualidade" },
+  { id: "relatorios", label: "Relatórios" },
+  { id: "registros", label: "Registros" },
+  { id: "usuarios", label: "Usuários" },
+  { id: "configuracoes", label: "Configurações" },
+  { id: "ajuda", label: "Ajuda" },
+];
 
 interface Usuario {
   id: number;
@@ -27,6 +39,7 @@ interface Usuario {
   email: string;
   senha: string;
   perfil?: string;
+  paginas?: string[];
 }
 
 interface Operador {
@@ -62,7 +75,7 @@ function ErrorState({ message }: { message: string }) {
 
 const PERFIS = ["Administrador", "Supervisor", "Operador", "Visualizador"];
 
-const EMPTY_USUARIO = { nome: "", email: "", senha: "", perfil: "Visualizador" };
+const EMPTY_USUARIO = { nome: "", email: "", senha: "", perfil: "Visualizador", paginas: ["home"] as string[] };
 
 function UsuariosWebTab() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -93,7 +106,7 @@ function UsuariosWebTab() {
 
   function openEdit(u: Usuario) {
     setEditingId(u.id);
-    setForm({ nome: u.nome, email: u.email, senha: u.senha, perfil: u.perfil ?? "Visualizador" });
+    setForm({ nome: u.nome, email: u.email, senha: u.senha, perfil: u.perfil ?? "Visualizador", paginas: u.paginas ?? ["home"] });
     setDialogOpen(true);
   }
 
@@ -103,17 +116,19 @@ function UsuariosWebTab() {
       return;
     }
     setSaving(true);
+    const isAdmin = form.perfil === "Administrador";
+    const paginasSalvar = isAdmin ? ALL_PAGES.map((p) => p.id) : form.paginas;
     if (editingId !== null) {
       const { error } = await supabase
         .from("usuarios")
-        .update({ nome: form.nome.trim(), email: form.email.trim(), senha: form.senha.trim(), perfil: form.perfil })
+        .update({ nome: form.nome.trim(), email: form.email.trim(), senha: form.senha.trim(), perfil: form.perfil, paginas: paginasSalvar })
         .eq("id", editingId);
       if (error) { toast.error("Erro ao atualizar: " + error.message); }
       else { toast.success("Usuário atualizado."); setDialogOpen(false); fetchUsuarios(); }
     } else {
       const { error } = await supabase
         .from("usuarios")
-        .insert({ nome: form.nome.trim(), email: form.email.trim(), senha: form.senha.trim(), perfil: form.perfil });
+        .insert({ nome: form.nome.trim(), email: form.email.trim(), senha: form.senha.trim(), perfil: form.perfil, paginas: paginasSalvar });
       if (error) { toast.error("Erro ao cadastrar: " + error.message); }
       else { toast.success("Usuário cadastrado."); setDialogOpen(false); fetchUsuarios(); }
     }
@@ -216,6 +231,40 @@ function UsuariosWebTab() {
                   {PERFIS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>
+                Páginas permitidas
+                {form.perfil === "Administrador" && (
+                  <span className="ml-2 text-xs text-muted-foreground">(Administrador acessa tudo)</span>
+                )}
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                {ALL_PAGES.map((page) => {
+                  const isAdmin = form.perfil === "Administrador";
+                  const checked = isAdmin || form.paginas.includes(page.id);
+                  return (
+                    <div key={page.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`page-${page.id}`}
+                        checked={checked}
+                        disabled={isAdmin}
+                        onCheckedChange={(c) => {
+                          setForm((prev) => ({
+                            ...prev,
+                            paginas: c
+                              ? [...prev.paginas, page.id]
+                              : prev.paginas.filter((p) => p !== page.id),
+                          }));
+                        }}
+                      />
+                      <label htmlFor={`page-${page.id}`} className="text-sm cursor-pointer select-none">
+                        {page.label}
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <DialogFooter>
