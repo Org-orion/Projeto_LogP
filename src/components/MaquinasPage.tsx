@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Cog, Loader2, AlertCircle, RefreshCw, Plus, History, Pencil, FileText } from "lucide-react";
+import { Cog, Loader2, AlertCircle, RefreshCw, Plus, History, Pencil, FileText, Search } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
@@ -512,6 +512,7 @@ export default function MaquinasPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editMaquina, setEditMaquina] = useState<Maquina | null>(null);
   const [editNome, setEditNome] = useState("");
+  const [busca, setBusca] = useState("");
 
   const semanas = getSemanasMes();
 
@@ -663,7 +664,16 @@ export default function MaquinasPage() {
         </Card>
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex items-center justify-end gap-2">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Buscar máquina..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-8 h-8 w-48 text-sm"
+          />
+        </div>
         <Button
           size="sm"
           variant="outline"
@@ -751,7 +761,7 @@ export default function MaquinasPage() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {maquinas.map((m) => {
+        {maquinas.filter((m) => norm(m.nome ?? "").includes(norm(busca))).map((m) => {
           const chave = norm(m.nome ?? "");
           const dadosMaquina = producao[chave] ?? {};
           const producaoPorSemana = semanas.map((s) => ({
