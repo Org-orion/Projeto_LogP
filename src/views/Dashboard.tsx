@@ -58,7 +58,7 @@ const Dashboard = ({ user, onLogout }: DashboardProps) => {
       case "home": return <HomePage />;
       case "machines": return <MaquinasPage />;
       case "qualidade": return <QualidadePage />;
-      case "usuarios": return <UsuariosPage />;
+      case "usuarios": return <UsuariosPage isAdmin={isAdmin} />;
       case "relatorios": return <RelatoriosPage />;
       case "registros": return <RegistrosPage />;
       case "configuracoes": return <ConfiguracoesPage />;

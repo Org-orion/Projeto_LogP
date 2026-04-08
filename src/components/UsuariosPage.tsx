@@ -77,7 +77,7 @@ const PERFIS = ["Administrador", "Supervisor", "Operador", "Visualizador"];
 
 const EMPTY_USUARIO = { nome: "", email: "", senha: "", perfil: "Visualizador", paginas: ["home"] as string[] };
 
-function UsuariosWebTab() {
+function UsuariosWebTab({ isAdmin }: { isAdmin: boolean }) {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -152,9 +152,11 @@ function UsuariosWebTab() {
               <Users className="h-4 w-4 text-primary" />
               Usuários do Sistema Web
             </CardTitle>
-            <Button size="sm" onClick={openAdd} className="gap-1.5">
-              <Plus className="h-4 w-4" /> Novo Usuário
-            </Button>
+            {isAdmin && (
+              <Button size="sm" onClick={openAdd} className="gap-1.5">
+                <Plus className="h-4 w-4" /> Novo Usuário
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -165,13 +167,13 @@ function UsuariosWebTab() {
                   <TableHead>Nome</TableHead>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Perfil</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  {isAdmin && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {usuarios.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={isAdmin ? 4 : 3} className="text-center text-muted-foreground py-10">
                       Nenhum usuário cadastrado.
                     </TableCell>
                   </TableRow>
@@ -187,14 +189,16 @@ function UsuariosWebTab() {
                       ) : "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(u)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(u.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+                      {isAdmin && (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(u)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(u.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -557,7 +561,7 @@ function OperadoresTab() {
 
 // ─── Página principal ────────────────────────────────────────────────────────
 
-export default function UsuariosPage() {
+export default function UsuariosPage({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div className="max-w-5xl mx-auto space-y-4">
       <Tabs defaultValue="usuarios">
@@ -570,7 +574,7 @@ export default function UsuariosPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="usuarios">
-          <UsuariosWebTab />
+          <UsuariosWebTab isAdmin={isAdmin} />
         </TabsContent>
         <TabsContent value="operadores">
           <OperadoresTab />
