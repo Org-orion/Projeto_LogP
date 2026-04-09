@@ -610,9 +610,9 @@ export default function HomePage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold px-4 py-1.5" className="text-foreground">Linha</TableHead>
-                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right" className="text-foreground">Qtd. Conforme</TableHead>
-                      <TableHead className="text-xs font-semibold px-4 py-1.5" className="text-foreground">% Linha Geral</TableHead>
+                      <TableHead className="text-xs font-semibold px-4 py-1.5 text-foreground">Linha</TableHead>
+                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right text-foreground">Qtd. Conforme</TableHead>
+                      <TableHead className="text-xs font-semibold px-4 py-1.5 text-foreground">% Linha Geral</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -636,11 +636,11 @@ export default function HomePage() {
                           </TableRow>
                         ))}
                         <TableRow className="border-t font-semibold bg-muted/30">
-                          <TableCell className="text-xs px-4 py-1.5" className="text-foreground">Total</TableCell>
-                          <TableCell className="text-xs px-2 py-1.5 text-right" className="text-foreground">
+                          <TableCell className="text-xs px-4 py-1.5 text-foreground">Total</TableCell>
+                          <TableCell className="text-xs px-2 py-1.5 text-right text-foreground">
                             {totalGeral.toLocaleString("pt-BR")}
                           </TableCell>
-                          <TableCell className="text-xs px-4 py-1.5" className="text-foreground">
+                          <TableCell className="text-xs px-4 py-1.5 text-foreground">
                             {porLinha.reduce((a, b) => a + b.pct, 0).toFixed(2)}%
                           </TableCell>
                         </TableRow>
@@ -660,9 +660,9 @@ export default function HomePage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold px-4 py-1.5" className="text-foreground">Padrão</TableHead>
-                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right" className="text-foreground">Qtd. Conforme</TableHead>
-                      <TableHead className="text-xs font-semibold px-4 py-1.5" className="text-foreground">% Padrão</TableHead>
+                      <TableHead className="text-xs font-semibold px-4 py-1.5 text-foreground">Padrão</TableHead>
+                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right text-foreground">Qtd. Conforme</TableHead>
+                      <TableHead className="text-xs font-semibold px-4 py-1.5 text-foreground">% Padrão</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -686,11 +686,11 @@ export default function HomePage() {
                           </TableRow>
                         ))}
                         <TableRow className="border-t font-semibold bg-muted/30">
-                          <TableCell className="text-xs px-4 py-1.5" className="text-foreground">Total</TableCell>
-                          <TableCell className="text-xs px-2 py-1.5 text-right" className="text-foreground">
+                          <TableCell className="text-xs px-4 py-1.5 text-foreground">Total</TableCell>
+                          <TableCell className="text-xs px-2 py-1.5 text-right text-foreground">
                             {totalPadrao.toLocaleString("pt-BR")}
                           </TableCell>
-                          <TableCell className="text-xs px-4 py-1.5" className="text-foreground">
+                          <TableCell className="text-xs px-4 py-1.5 text-foreground">
                             {porPadrao.reduce((a, b) => a + b.pct, 0).toFixed(2)}%
                           </TableCell>
                         </TableRow>
@@ -710,9 +710,9 @@ export default function HomePage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold px-4 py-1.5" className="text-foreground">Largura (cm)</TableHead>
-                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right" className="text-foreground">Qtd. Conforme</TableHead>
-                      <TableHead className="text-xs font-semibold px-4 py-1.5" className="text-foreground">% Largura (cm)</TableHead>
+                      <TableHead className="text-xs font-semibold px-4 py-1.5 text-foreground">Largura (cm)</TableHead>
+                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right text-foreground">Qtd. Conforme</TableHead>
+                      <TableHead className="text-xs font-semibold px-4 py-1.5 text-foreground">% Largura (cm)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -736,11 +736,11 @@ export default function HomePage() {
                           </TableRow>
                         ))}
                         <TableRow className="border-t font-semibold bg-muted/30">
-                          <TableCell className="text-xs px-4 py-1.5" className="text-foreground">Total</TableCell>
-                          <TableCell className="text-xs px-2 py-1.5 text-right" className="text-foreground">
+                          <TableCell className="text-xs px-4 py-1.5 text-foreground">Total</TableCell>
+                          <TableCell className="text-xs px-2 py-1.5 text-right text-foreground">
                             {totalLargura.toLocaleString("pt-BR")}
                           </TableCell>
-                          <TableCell className="text-xs px-4 py-1.5" className="text-foreground">
+                          <TableCell className="text-xs px-4 py-1.5 text-foreground">
                             {porLargura.reduce((a, b) => a + b.pct, 0).toFixed(2)}%
                           </TableCell>
                         </TableRow>
