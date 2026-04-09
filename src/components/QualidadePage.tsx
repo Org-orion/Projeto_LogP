@@ -384,7 +384,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   async function handleRQ40Delete(id: number) {
     const { error } = await supabase.from("controle_qualidade").delete().eq("id", id);
     if (error) { toast.error("Erro ao remover: " + error.message); return; }
-    toast.success("Registro removido."); fetchRQ40();
+    toast.success("Registro removido."); fetchRQ40(); fetchAllRecebimentos();
   }
 
   async function handleRQ40Save() {
@@ -417,7 +417,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
     setSavingRQ40(false);
     if (error) { toast.error("Erro ao salvar: " + error.message); return; }
     toast.success(rq40EditId !== null ? "Registro atualizado." : "Recebimento registrado.");
-    setRq40Dialog(false); setRq40Form(EMPTY_RQ40_FORM); setRq40EditId(null); fetchRQ40();
+    setRq40Dialog(false); setRq40Form(EMPTY_RQ40_FORM); setRq40EditId(null); fetchRQ40(); fetchAllRecebimentos();
   }
 
   // ─── Handlers RQ41 ───────────────────────────────────────────────────────
@@ -447,7 +447,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   async function handleRQ41Delete(id: number) {
     const { error } = await supabase.from("controle_qualidade").delete().eq("id", id);
     if (error) { toast.error("Erro ao remover: " + error.message); return; }
-    toast.success("Registro removido."); fetchRQ41();
+    toast.success("Registro removido."); fetchRQ41(); fetchAllRecebimentos();
   }
 
   async function handleRQ41Save() {
@@ -479,7 +479,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
     setSavingRQ41(false);
     if (error) { toast.error("Erro ao salvar: " + error.message); return; }
     toast.success(rq41EditId !== null ? "Registro atualizado." : "Recebimento registrado.");
-    setRq41Dialog(false); setRq41Form(EMPTY_RQ41_FORM); setRq41EditId(null); fetchRQ41();
+    setRq41Dialog(false); setRq41Form(EMPTY_RQ41_FORM); setRq41EditId(null); fetchRQ41(); fetchAllRecebimentos();
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
