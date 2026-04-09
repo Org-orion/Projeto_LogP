@@ -38,14 +38,6 @@ export const RegistrosPage = () => (
   />
 );
 
-export const ConfiguracoesPage = () => (
-  <PlaceholderPage
-    title="Configurações"
-    description="Gerencie máquinas, fornecedores, produtos e parâmetros do sistema."
-    icon={<Construction className="h-8 w-8 text-primary" />}
-  />
-);
-
 export const AjudaPage = () => (
   <PlaceholderPage
     title="Ajuda"
