@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,8 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+} from "recharts";
+import {
   CheckCircle2, XCircle, AlertTriangle, Package,
-  ClipboardCheck, Plus, Pencil, Trash2, CalendarIcon, Scale,
+  ClipboardCheck, Plus, Pencil, Trash2, CalendarIcon, Scale, Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -23,9 +27,43 @@ import { toast } from "sonner";
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const COR_VERDE = "#216C3B";
-const TOLERANCIA_PCT = 5; // ±5% de tolerância para conformidade de gramatura
+const COR_VERDE_CLARO = "rgba(33,108,59,0.22)";
+
+const MAQUINAS_GRAMATURA = [
+  "Coladeira de Alizar 1",
+  "Coladeira de Alizar 2",
+  "Recobridora de Perfil - Unesa 1",
+  "Recobridora de Perfil - Unesa 2",
+  "Recobridora de Perfil - Gaidzinks",
+  "Recobridora de Tampo",
+];
+
+const PRODUTOS_GRAMATURA = [
+  "Bianco", "Blue", "Capuccino", "Carvalho", "Elo Curupixá", "Elo Branco",
+  "ML Curupixá", "Fendi", "Velar", "Freijó Natural", "FL 100", "FL 120",
+  "FL 140", "FL 180", "ML Freijó", "Grafite", "Green", "ML Imbuia", "Italy",
+  "Marfin", "Mocaccino", "MTX", "Nero", "Lacca Pet Blanco", "Urban",
+  "Marrone", "Curupixa Terra", "Outro",
+];
+
+// Abreviações para o gráfico (nomes longos ficam ilegíveis)
+function abreviarMaquina(nome: string): string {
+  return nome
+    .replace("Recobridora de Perfil - ", "Recob. ")
+    .replace("Coladeira de Alizar", "Col. Alizar");
+}
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
+
+interface GramaturaEntry {
+  id: number;
+  data: string;        // "yyyy-MM-dd"
+  maquina: string;
+  produto: string;
+  gramatura: number;   // g/m²
+  operador: string;
+  observacao: string;
+}
 
 interface MaterialEntry {
   id: string;
@@ -39,18 +77,7 @@ interface MaterialEntry {
   conforme: boolean | null;
 }
 
-interface GramaturaEntry {
-  id: string;
-  data: Date;
-  maquina: string;
-  produto: string;
-  gramaturaEsperada: number;
-  gramaturaMedida: number;
-  operador: string;
-  observacao: string;
-}
-
-// ─── Dados iniciais ───────────────────────────────────────────────────────────
+// ─── Dados estáticos (aba Materiais ainda usa mock) ───────────────────────────
 
 const INITIAL_MATERIALS: MaterialEntry[] = [
   { id: "1", date: new Date(2026, 2, 26), material: "MDF 15mm", lote: "L-2026-0341", quantidade: 120, unidade: "chapas", fornecedor: "Eucatex", verificado: true, conforme: true },
@@ -63,38 +90,21 @@ const INITIAL_MATERIALS: MaterialEntry[] = [
   { id: "8", date: new Date(2026, 2, 20), material: "MDF 6mm", lote: "L-2026-0325", quantidade: 60, unidade: "chapas", fornecedor: "Eucatex", verificado: true, conforme: true },
 ];
 
-const INITIAL_GRAMATURA: GramaturaEntry[] = [
-  { id: "g1", data: new Date(2026, 3, 7), maquina: "Prensa Fria", produto: "Papel Melamínico 80g", gramaturaEsperada: 80, gramaturaMedida: 81.2, operador: "João Silva", observacao: "" },
-  { id: "g2", data: new Date(2026, 3, 7), maquina: "Prensa Fria", produto: "Papel Melamínico 80g", gramaturaEsperada: 80, gramaturaMedida: 75.0, operador: "João Silva", observacao: "Rolo com variação acentuada" },
-  { id: "g3", data: new Date(2026, 3, 6), maquina: "Laminadora", produto: "Foil 60g", gramaturaEsperada: 60, gramaturaMedida: 60.5, operador: "Maria Santos", observacao: "" },
-  { id: "g4", data: new Date(2026, 3, 5), maquina: "Laminadora", produto: "Foil 60g", gramaturaEsperada: 60, gramaturaMedida: 58.8, operador: "Carlos Lima", observacao: "" },
-  { id: "g5", data: new Date(2026, 3, 4), maquina: "Prensa Fria", produto: "Papel Melamínico 120g", gramaturaEsperada: 120, gramaturaMedida: 122.1, operador: "João Silva", observacao: "" },
-];
+// ─── Formulários vazios ───────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function isGramaturaConforme(g: GramaturaEntry): boolean {
-  if (g.gramaturaEsperada === 0) return false;
-  const variacao = Math.abs(g.gramaturaMedida - g.gramaturaEsperada) / g.gramaturaEsperada * 100;
-  return variacao <= TOLERANCIA_PCT;
-}
-
-function variacaoPct(g: GramaturaEntry): string {
-  if (g.gramaturaEsperada === 0) return "—";
-  const v = (g.gramaturaMedida - g.gramaturaEsperada) / g.gramaturaEsperada * 100;
-  return `${v > 0 ? "+" : ""}${v.toFixed(1)}%`;
-}
+const EMPTY_GRAM_FORM = {
+  data: new Date(),
+  maquina: "",
+  produto: "",
+  gramatura: "",
+  operador: "",
+  observacao: "",
+};
 
 const EMPTY_MAT_FORM = {
   material: "", lote: "", quantidade: "", unidade: "pcs",
   fornecedor: "", verificado: "pendente" as "pendente" | "conforme" | "nao_conforme",
   date: new Date(),
-};
-
-const EMPTY_GRAM_FORM = {
-  data: new Date(), maquina: "", produto: "",
-  gramaturaEsperada: "", gramaturaMedida: "",
-  operador: "", observacao: "",
 };
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -106,14 +116,16 @@ interface QualidadePageProps {
 export default function QualidadePage({ subSection = "gramatura" }: QualidadePageProps) {
   const aba = subSection;
 
-  // ── Gramatura ──
-  const [gramaturas, setGramaturas] = useState<GramaturaEntry[]>(INITIAL_GRAMATURA);
+  // ── Gramatura (Supabase) ──
+  const [gramaturas, setGramaturas] = useState<GramaturaEntry[]>([]);
+  const [loadingGram, setLoadingGram] = useState(false);
   const [gramDialogOpen, setGramDialogOpen] = useState(false);
-  const [gramEditingId, setGramEditingId] = useState<string | null>(null);
+  const [gramEditingId, setGramEditingId] = useState<number | null>(null);
   const [gramForm, setGramForm] = useState(EMPTY_GRAM_FORM);
   const [gramDatePickerOpen, setGramDatePickerOpen] = useState(false);
+  const [savingGram, setSavingGram] = useState(false);
 
-  // ── Materiais ──
+  // ── Materiais (mock) ──
   const [materials, setMaterials] = useState<MaterialEntry[]>(INITIAL_MATERIALS);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [matDialogOpen, setMatDialogOpen] = useState(false);
@@ -121,23 +133,57 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   const [matForm, setMatForm] = useState(EMPTY_MAT_FORM);
   const [matDatePickerOpen, setMatDatePickerOpen] = useState(false);
 
+  // ─── Fetch Gramatura ─────────────────────────────────────────────────────
+
+  const fetchGramaturas = useCallback(async () => {
+    setLoadingGram(true);
+    const { data, error } = await supabase
+      .from("qualidade_gramatura")
+      .select("*")
+      .order("data", { ascending: false })
+      .order("id", { ascending: false });
+    if (error) {
+      toast.error("Erro ao carregar medições: " + error.message);
+    } else {
+      setGramaturas(data ?? []);
+    }
+    setLoadingGram(false);
+  }, []);
+
+  useEffect(() => {
+    if (aba === "gramatura") fetchGramaturas();
+  }, [aba, fetchGramaturas]);
+
   // ─── Derivações Gramatura ─────────────────────────────────────────────────
 
-  const gramConformes = gramaturas.filter(isGramaturaConforme);
-  const gramNaoConformes = gramaturas.filter((g) => !isGramaturaConforme(g));
-  const taxaConformidade = gramaturas.length > 0
-    ? Math.round((gramConformes.length / gramaturas.length) * 100)
+  const totalMedicoes = gramaturas.length;
+  const mediaGeral = totalMedicoes > 0
+    ? gramaturas.reduce((s, g) => s + Number(g.gramatura), 0) / totalMedicoes
     : 0;
+
+  // Média por máquina para o gráfico
+  const mediaPorMaquina = Object.entries(
+    gramaturas.reduce((acc, g) => {
+      if (!acc[g.maquina]) acc[g.maquina] = { soma: 0, n: 0 };
+      acc[g.maquina].soma += Number(g.gramatura);
+      acc[g.maquina].n += 1;
+      return acc;
+    }, {} as Record<string, { soma: number; n: number }>)
+  )
+    .map(([maquina, { soma, n }]) => ({
+      label: abreviarMaquina(maquina),
+      maquina,
+      media: Math.round((soma / n) * 100) / 100,
+    }))
+    .sort((a, b) => b.media - a.media);
 
   // ─── Derivações Materiais ─────────────────────────────────────────────────
 
   const naoConformes = materials.filter((m) => m.conforme === false);
   const pendentes = materials.filter((m) => !m.verificado);
-
   const entriesForDate = selectedDate
     ? materials.filter((m) => format(m.date, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd"))
     : [];
-
   const modifiers = { hasEntries: materials.map((m) => m.date) };
   const modifiersStyles = {
     hasEntries: {
@@ -159,51 +205,50 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   function openGramEdit(g: GramaturaEntry) {
     setGramEditingId(g.id);
     setGramForm({
-      data: g.data,
+      data: new Date(g.data + "T00:00:00"),
       maquina: g.maquina,
       produto: g.produto,
-      gramaturaEsperada: String(g.gramaturaEsperada),
-      gramaturaMedida: String(g.gramaturaMedida),
+      gramatura: String(g.gramatura),
       operador: g.operador,
       observacao: g.observacao,
     });
     setGramDialogOpen(true);
   }
 
-  function handleGramDelete(id: string) {
-    setGramaturas((prev) => prev.filter((g) => g.id !== id));
+  async function handleGramDelete(id: number) {
+    const { error } = await supabase.from("qualidade_gramatura").delete().eq("id", id);
+    if (error) { toast.error("Erro ao remover: " + error.message); return; }
     toast.success("Registro removido.");
+    fetchGramaturas();
   }
 
-  function handleGramSave() {
-    const esp = Number(gramForm.gramaturaEsperada);
-    const med = Number(gramForm.gramaturaMedida);
-    if (!gramForm.maquina.trim() || !gramForm.produto.trim() || !gramForm.operador.trim()) {
+  async function handleGramSave() {
+    const gramValue = Number(gramForm.gramatura);
+    if (!gramForm.maquina || !gramForm.produto || !gramForm.operador.trim()) {
       toast.error("Preencha todos os campos obrigatórios."); return;
     }
-    if (isNaN(esp) || esp <= 0 || isNaN(med) || med <= 0) {
+    if (isNaN(gramValue) || gramValue <= 0) {
       toast.error("Gramatura inválida."); return;
     }
-    const entry: GramaturaEntry = {
-      id: gramEditingId ?? crypto.randomUUID(),
-      data: gramForm.data,
-      maquina: gramForm.maquina.trim(),
-      produto: gramForm.produto.trim(),
-      gramaturaEsperada: esp,
-      gramaturaMedida: med,
+    setSavingGram(true);
+    const payload = {
+      data: format(gramForm.data, "yyyy-MM-dd"),
+      maquina: gramForm.maquina,
+      produto: gramForm.produto,
+      gramatura: gramValue,
       operador: gramForm.operador.trim(),
       observacao: gramForm.observacao.trim(),
     };
-    if (gramEditingId) {
-      setGramaturas((prev) => prev.map((g) => g.id === gramEditingId ? entry : g));
-      toast.success("Registro atualizado.");
-    } else {
-      setGramaturas((prev) => [entry, ...prev]);
-      toast.success("Medição registrada.");
-    }
+    const { error } = gramEditingId !== null
+      ? await supabase.from("qualidade_gramatura").update(payload).eq("id", gramEditingId)
+      : await supabase.from("qualidade_gramatura").insert(payload);
+    setSavingGram(false);
+    if (error) { toast.error("Erro ao salvar: " + error.message); return; }
+    toast.success(gramEditingId !== null ? "Registro atualizado." : "Medição registrada.");
     setGramDialogOpen(false);
     setGramForm(EMPTY_GRAM_FORM);
     setGramEditingId(null);
+    fetchGramaturas();
   }
 
   // ─── Handlers Materiais ───────────────────────────────────────────────────
@@ -271,116 +316,164 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       ════════════════════════════════════════════════════════════ */}
       {aba === "gramatura" && (
         <>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Card className="border" style={{ borderColor: "rgba(33,108,59,0.2)" }}>
-              <CardContent className="flex items-center gap-4 p-5">
-                <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(33,108,59,0.1)" }}>
-                  <Scale className="h-5 w-5" style={{ color: COR_VERDE }} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{gramaturas.length}</p>
-                  <p className="text-xs text-muted-foreground">Total de Medições</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="flex items-center gap-4 p-5">
-                <div className="h-11 w-11 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
-                  <XCircle className="h-5 w-5 text-destructive" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{gramNaoConformes.length}</p>
-                  <p className="text-xs text-muted-foreground">Não Conformes</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="flex items-center gap-4 p-5">
-                <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(33,108,59,0.1)" }}>
-                  <CheckCircle2 className="h-5 w-5" style={{ color: COR_VERDE }} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold" style={{ color: COR_VERDE }}>{taxaConformidade}%</p>
-                  <p className="text-xs text-muted-foreground">Taxa de Conformidade</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Tabela de medições */}
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Scale className="h-4 w-4" style={{ color: COR_VERDE }} />
-                  Registros de Gramatura
-                  <span className="text-xs font-normal text-muted-foreground">(tolerância ±{TOLERANCIA_PCT}%)</span>
-                </CardTitle>
-                <Button size="sm" onClick={openGramAdd} className="gap-1.5">
-                  <Plus className="h-4 w-4" /> Registrar Medição
-                </Button>
+          {loadingGram ? (
+            <div className="flex items-center justify-center h-48 gap-2 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" /> Carregando medições...
+            </div>
+          ) : (
+            <>
+              {/* KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Card className="border" style={{ borderColor: "rgba(33,108,59,0.2)" }}>
+                  <CardContent className="flex items-center gap-4 p-5">
+                    <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(33,108,59,0.1)" }}>
+                      <Scale className="h-5 w-5" style={{ color: COR_VERDE }} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{totalMedicoes}</p>
+                      <p className="text-xs text-muted-foreground">Total de Medições</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border" style={{ borderColor: "rgba(33,108,59,0.2)" }}>
+                  <CardContent className="flex items-center gap-4 p-5">
+                    <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(33,108,59,0.1)" }}>
+                      <Scale className="h-5 w-5" style={{ color: COR_VERDE }} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold" style={{ color: COR_VERDE }}>
+                        {mediaGeral > 0 ? mediaGeral.toFixed(1) : "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Média Geral (g/m²)</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-5">
+                    <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Scale className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{mediaPorMaquina.length}</p>
+                      <p className="text-xs text-muted-foreground">Máquinas monitoradas</p>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </CardHeader>
-            <CardContent>
-              {gramaturas.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">Nenhuma medição registrada.</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Máquina</TableHead>
-                      <TableHead>Produto / Material</TableHead>
-                      <TableHead className="text-right">Esperado (g/m²)</TableHead>
-                      <TableHead className="text-right">Medido (g/m²)</TableHead>
-                      <TableHead className="text-right">Variação</TableHead>
-                      <TableHead>Operador</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {gramaturas.map((g) => {
-                      const conforme = isGramaturaConforme(g);
-                      return (
-                        <TableRow key={g.id}>
-                          <TableCell className="text-xs">{format(g.data, "dd/MM/yyyy")}</TableCell>
-                          <TableCell className="text-xs">{g.maquina}</TableCell>
-                          <TableCell className="font-medium text-xs">{g.produto}</TableCell>
-                          <TableCell className="text-xs text-right">{g.gramaturaEsperada.toFixed(1)}</TableCell>
-                          <TableCell className="text-xs text-right font-medium">{g.gramaturaMedida.toFixed(1)}</TableCell>
-                          <TableCell className={cn("text-xs text-right font-medium", conforme ? "" : "text-destructive")}>
-                            {variacaoPct(g)}
-                          </TableCell>
-                          <TableCell className="text-xs">{g.operador}</TableCell>
-                          <TableCell>
-                            {conforme ? (
-                              <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5">
-                                Conforme
-                              </Badge>
-                            ) : (
-                              <Badge variant="destructive" className="text-xs">Não Conforme</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openGramEdit(g)}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleGramDelete(g.id)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+
+              {/* Gráfico: Média por Máquina */}
+              {mediaPorMaquina.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-1 pt-4 px-4">
+                    <CardTitle className="text-xs font-semibold text-muted-foreground">
+                      Gramatura Média por Máquina (g/m²)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-2 pb-4">
+                    <ResponsiveContainer width="100%" height={Math.max(160, mediaPorMaquina.length * 42)}>
+                      <BarChart
+                        data={mediaPorMaquina}
+                        layout="vertical"
+                        margin={{ left: 8, right: 64, top: 4, bottom: 4 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                        <XAxis
+                          type="number"
+                          tick={{ fontSize: 10 }}
+                          tickFormatter={(v) => `${v}g`}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="label"
+                          tick={{ fontSize: 11 }}
+                          width={160}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          formatter={(v: number) => [`${v.toFixed(1)} g/m²`, "Média"]}
+                          labelFormatter={(l) => l}
+                        />
+                        <Bar dataKey="media" radius={[0, 3, 3, 0]} barSize={20}
+                          label={{ position: "right", fontSize: 10, fill: COR_VERDE, formatter: (v: number) => `${v.toFixed(1)}g` }}
+                        >
+                          {mediaPorMaquina.map((entry) => (
+                            <Cell key={entry.maquina} fill={COR_VERDE} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
               )}
-            </CardContent>
-          </Card>
+
+              {/* Tabela de medições */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Scale className="h-4 w-4" style={{ color: COR_VERDE }} />
+                      Registros de Gramatura
+                    </CardTitle>
+                    <Button size="sm" onClick={openGramAdd} className="gap-1.5">
+                      <Plus className="h-4 w-4" /> Nova Medição
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {gramaturas.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-8 text-center">
+                      Nenhuma medição registrada. Clique em "Nova Medição" para começar.
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Máquina</TableHead>
+                          <TableHead>Produto</TableHead>
+                          <TableHead className="text-right">Gramatura (g/m²)</TableHead>
+                          <TableHead>Operador</TableHead>
+                          <TableHead>Observação</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {gramaturas.map((g) => (
+                          <TableRow key={g.id}>
+                            <TableCell className="text-xs">
+                              {format(new Date(g.data + "T00:00:00"), "dd/MM/yyyy")}
+                            </TableCell>
+                            <TableCell className="text-xs">{g.maquina}</TableCell>
+                            <TableCell className="text-xs font-medium">{g.produto}</TableCell>
+                            <TableCell className="text-right font-medium" style={{ color: COR_VERDE }}>
+                              {Number(g.gramatura).toFixed(1)}
+                            </TableCell>
+                            <TableCell className="text-xs">{g.operador}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                              {g.observacao || "—"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openGramEdit(g)}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleGramDelete(g.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </>
       )}
 
@@ -446,17 +539,17 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
                       {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
                     </p>
                     {entriesForDate.map((entry) => (
-                      <div key={entry.id} className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2">
+                      <div key={entry.id} className="flex items-center justify-between rounded-lg border bg-muted/50 px-3 py-2">
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{entry.material}</p>
                           <p className="text-xs text-muted-foreground">Lote: {entry.lote} · {entry.quantidade} {entry.unidade}</p>
                         </div>
                         {entry.verificado ? (
                           entry.conforme
-                            ? <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 shrink-0"><CheckCircle2 className="h-3 w-3 mr-1" /> Conforme</Badge>
-                            : <Badge variant="destructive" className="shrink-0"><XCircle className="h-3 w-3 mr-1" /> Não Conforme</Badge>
+                            ? <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 shrink-0"><CheckCircle2 className="h-3 w-3 mr-1" />Conforme</Badge>
+                            : <Badge variant="destructive" className="shrink-0"><XCircle className="h-3 w-3 mr-1" />Não Conforme</Badge>
                         ) : (
-                          <Badge variant="secondary" className="shrink-0"><AlertTriangle className="h-3 w-3 mr-1" /> Pendente</Badge>
+                          <Badge variant="secondary" className="shrink-0"><AlertTriangle className="h-3 w-3 mr-1" />Pendente</Badge>
                         )}
                       </div>
                     ))}
@@ -581,51 +674,85 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       <Dialog open={gramDialogOpen} onOpenChange={setGramDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{gramEditingId ? "Editar Medição" : "Registrar Medição de Gramatura"}</DialogTitle>
+            <DialogTitle>{gramEditingId !== null ? "Editar Medição" : "Nova Medição de Gramatura"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Data *</Label>
-                <Popover open={gramDatePickerOpen} onOpenChange={setGramDatePickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !gramForm.data && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(gramForm.data, "dd/MM/yyyy")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single" selected={gramForm.data} locale={ptBR} initialFocus
-                      className="pointer-events-auto"
-                      onSelect={(d) => { if (d) { setGramForm({ ...gramForm, data: d }); setGramDatePickerOpen(false); } }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="gram-maquina">Máquina *</Label>
-                <Input id="gram-maquina" placeholder="Ex: Prensa Fria" value={gramForm.maquina} onChange={(e) => setGramForm({ ...gramForm, maquina: e.target.value })} />
-              </div>
-            </div>
+            {/* Data */}
             <div className="space-y-1.5">
-              <Label htmlFor="gram-produto">Produto / Material *</Label>
-              <Input id="gram-produto" placeholder="Ex: Papel Melamínico 80g" value={gramForm.produto} onChange={(e) => setGramForm({ ...gramForm, produto: e.target.value })} />
+              <Label>Data *</Label>
+              <Popover open={gramDatePickerOpen} onOpenChange={setGramDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !gramForm.data && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(gramForm.data, "dd/MM/yyyy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single" selected={gramForm.data} locale={ptBR} initialFocus
+                    className="pointer-events-auto"
+                    onSelect={(d) => { if (d) { setGramForm({ ...gramForm, data: d }); setGramDatePickerOpen(false); } }}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="gram-esp">Gramatura Esperada (g/m²) *</Label>
-                <Input id="gram-esp" type="number" min="0" step="0.1" placeholder="0.0" value={gramForm.gramaturaEsperada} onChange={(e) => setGramForm({ ...gramForm, gramaturaEsperada: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="gram-med">Gramatura Medida (g/m²) *</Label>
-                <Input id="gram-med" type="number" min="0" step="0.1" placeholder="0.0" value={gramForm.gramaturaMedida} onChange={(e) => setGramForm({ ...gramForm, gramaturaMedida: e.target.value })} />
-              </div>
+
+            {/* Máquina */}
+            <div className="space-y-1.5">
+              <Label>Máquina *</Label>
+              <Select value={gramForm.maquina} onValueChange={(v) => setGramForm({ ...gramForm, maquina: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a máquina..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {MAQUINAS_GRAMATURA.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
+            {/* Produto */}
+            <div className="space-y-1.5">
+              <Label>Produto *</Label>
+              <Select value={gramForm.produto} onValueChange={(v) => setGramForm({ ...gramForm, produto: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o produto..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {PRODUTOS_GRAMATURA.map((p) => (
+                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Gramatura */}
+            <div className="space-y-1.5">
+              <Label htmlFor="gram-val">Gramatura (g/m²) *</Label>
+              <Input
+                id="gram-val"
+                type="number"
+                min="0"
+                step="0.1"
+                placeholder="Ex: 80.0"
+                value={gramForm.gramatura}
+                onChange={(e) => setGramForm({ ...gramForm, gramatura: e.target.value })}
+              />
+            </div>
+
+            {/* Operador */}
             <div className="space-y-1.5">
               <Label htmlFor="gram-op">Operador *</Label>
-              <Input id="gram-op" placeholder="Nome do operador" value={gramForm.operador} onChange={(e) => setGramForm({ ...gramForm, operador: e.target.value })} />
+              <Input
+                id="gram-op"
+                placeholder="Nome do operador"
+                value={gramForm.operador}
+                onChange={(e) => setGramForm({ ...gramForm, operador: e.target.value })}
+              />
             </div>
+
+            {/* Observação */}
             <div className="space-y-1.5">
               <Label htmlFor="gram-obs">Observação</Label>
               <textarea
@@ -634,7 +761,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
                 placeholder="Observações adicionais..."
                 value={gramForm.observacao}
                 onChange={(e) => setGramForm({ ...gramForm, observacao: e.target.value })}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
               />
             </div>
           </div>
@@ -642,7 +769,10 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
             <DialogClose asChild>
               <Button variant="outline">Cancelar</Button>
             </DialogClose>
-            <Button onClick={handleGramSave}>{gramEditingId ? "Salvar Alterações" : "Registrar"}</Button>
+            <Button onClick={handleGramSave} disabled={savingGram}>
+              {savingGram && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {gramEditingId !== null ? "Salvar Alterações" : "Registrar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
