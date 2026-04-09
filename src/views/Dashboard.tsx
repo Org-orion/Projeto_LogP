@@ -25,6 +25,11 @@ const SECTION_TITLES: Record<string, string> = {
   ajuda: "Ajuda",
 };
 
+const QUALIDADE_SUB_TITLES: Record<string, string> = {
+  gramatura: "Gramatura",
+  materiais: "Materiais",
+};
+
 interface UsuarioLogado {
   id: number;
   nome: string;
@@ -48,16 +53,27 @@ const Dashboard = ({ user, onLogout }: DashboardProps) => {
     return allowedSections.includes(stored) ? stored : allowedSections[0] || "home";
   });
 
+  const [qualidadeSubSection, setQualidadeSubSection] = useState("gramatura");
+
   const handleSectionSelect = (section: string) => {
     localStorage.setItem("logp_section", section);
     setActiveSection(section);
   };
 
+  const handleQualidadeSubSelect = (sub: string) => {
+    setQualidadeSubSection(sub);
+  };
+
+  // Título no header: para qualidade, mostra "Controle de Qualidade › Sub-seção"
+  const headerTitle = activeSection === "qualidade"
+    ? `${SECTION_TITLES.qualidade} › ${QUALIDADE_SUB_TITLES[qualidadeSubSection] ?? ""}`
+    : SECTION_TITLES[activeSection];
+
   const renderContent = () => {
     switch (activeSection) {
       case "home": return <HomePage />;
       case "machines": return <MaquinasPage />;
-      case "qualidade": return <QualidadePage />;
+      case "qualidade": return <QualidadePage subSection={qualidadeSubSection} />;
       case "usuarios": return <UsuariosPage isAdmin={isAdmin} />;
       case "relatorios": return <RelatoriosPage />;
       case "registros": return <RegistrosPage />;
@@ -74,6 +90,8 @@ const Dashboard = ({ user, onLogout }: DashboardProps) => {
           activeSection={activeSection}
           onSectionSelect={handleSectionSelect}
           allowedSections={allowedSections}
+          qualidadeSubSection={qualidadeSubSection}
+          onQualidadeSubSelect={handleQualidadeSubSelect}
         />
 
         <div className="flex-1 flex flex-col min-w-0">
@@ -81,7 +99,7 @@ const Dashboard = ({ user, onLogout }: DashboardProps) => {
             <div className="flex items-center gap-2">
               <SidebarTrigger />
               <div className="h-5 w-px bg-border" />
-              <h1 className="text-sm font-semibold text-foreground">{SECTION_TITLES[activeSection]}</h1>
+              <h1 className="text-sm font-semibold text-foreground">{headerTitle}</h1>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs text-muted-foreground hidden sm:block">{user.nome}</span>

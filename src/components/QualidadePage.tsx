@@ -99,9 +99,12 @@ const EMPTY_GRAM_FORM = {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function QualidadePage() {
-  // ── Aba ──
-  const [aba, setAba] = useState<"gramatura" | "materiais">("gramatura");
+interface QualidadePageProps {
+  subSection?: string;
+}
+
+export default function QualidadePage({ subSection = "gramatura" }: QualidadePageProps) {
+  const aba = subSection;
 
   // ── Gramatura ──
   const [gramaturas, setGramaturas] = useState<GramaturaEntry[]>(INITIAL_GRAMATURA);
@@ -255,36 +258,12 @@ export default function QualidadePage() {
   return (
     <div className="space-y-4">
 
-      {/* ── Cabeçalho com seletor de abas ── */}
-      <div className="flex items-center justify-between border-b pb-3">
-        <div>
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Controle de Qualidade</p>
-          <h1 className="text-xl font-bold" style={{ color: COR_VERDE }}>
-            {aba === "gramatura" ? "Gramatura" : "Recebimento de Materiais"}
-          </h1>
-        </div>
-        <div className="flex items-center gap-1 border rounded-lg overflow-hidden">
-          <button
-            onClick={() => setAba("gramatura")}
-            className={cn(
-              "px-5 py-1.5 text-sm font-medium transition-colors",
-              aba === "gramatura" ? "text-white" : "text-muted-foreground hover:bg-muted"
-            )}
-            style={aba === "gramatura" ? { backgroundColor: COR_VERDE } : {}}
-          >
-            Gramatura
-          </button>
-          <button
-            onClick={() => setAba("materiais")}
-            className={cn(
-              "px-5 py-1.5 text-sm font-medium transition-colors",
-              aba === "materiais" ? "text-white" : "text-muted-foreground hover:bg-muted"
-            )}
-            style={aba === "materiais" ? { backgroundColor: COR_VERDE } : {}}
-          >
-            Materiais
-          </button>
-        </div>
+      {/* Título da sub-seção */}
+      <div className="border-b pb-3">
+        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Controle de Qualidade</p>
+        <h1 className="text-xl font-bold" style={{ color: COR_VERDE }}>
+          {aba === "gramatura" ? "Gramatura" : "Recebimento de Materiais"}
+        </h1>
       </div>
 
       {/* ════════════════════════════════════════════════════════════
