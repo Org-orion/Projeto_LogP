@@ -16,7 +16,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import {
-  CheckCircle2, XCircle, AlertTriangle, Package,
+  XCircle, Package,
   ClipboardCheck, Plus, Pencil, Trash2, CalendarIcon, Scale, Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -108,17 +108,15 @@ interface RQ40Entry {
   resultado: string;
 }
 
-// Mock para o quadrado verde (KPIs / calendário / não conformes)
-interface MaterialEntry {
-  id: string;
-  date: Date;
-  material: string;
-  lote: string;
+interface RecebimentoSummary {
+  id: number;
+  tipo: string;
+  data: string;
+  produto: string;
+  fornecedor: string | null;
+  nota_fiscal: string | null;
   quantidade: number;
-  unidade: string;
-  fornecedor: string;
-  verificado: boolean;
-  conforme: boolean | null;
+  resultado: string;
 }
 
 interface RQ41Entry {
@@ -138,19 +136,6 @@ interface RQ41Entry {
   quantidade: number;
   resultado: string;
 }
-
-// ─── Dados estáticos ──────────────────────────────────────────────────────────
-
-const INITIAL_MATERIALS: MaterialEntry[] = [
-  { id: "1", date: new Date(2026, 2, 26), material: "MDF 15mm",       lote: "L-2026-0341", quantidade: 120, unidade: "chapas", fornecedor: "Eucatex",   verificado: true,  conforme: true  },
-  { id: "2", date: new Date(2026, 2, 26), material: "Cola PVA",        lote: "L-2026-0342", quantidade: 50,  unidade: "kg",     fornecedor: "Henkel",    verificado: true,  conforme: false },
-  { id: "3", date: new Date(2026, 2, 25), material: "Fita de Borda",   lote: "L-2026-0338", quantidade: 300, unidade: "m",      fornecedor: "Rehau",     verificado: true,  conforme: true  },
-  { id: "4", date: new Date(2026, 2, 25), material: "Dobradiça 35mm",  lote: "L-2026-0339", quantidade: 500, unidade: "pcs",    fornecedor: "Blum",      verificado: false, conforme: null  },
-  { id: "5", date: new Date(2026, 2, 24), material: "Painel MDP 18mm", lote: "L-2026-0335", quantidade: 80,  unidade: "chapas", fornecedor: "Duratex",   verificado: true,  conforme: true  },
-  { id: "6", date: new Date(2026, 2, 24), material: "Verniz PU",       lote: "L-2026-0336", quantidade: 25,  unidade: "L",      fornecedor: "Sayerlack", verificado: true,  conforme: false },
-  { id: "7", date: new Date(2026, 2, 23), material: "Puxador Inox",    lote: "L-2026-0330", quantidade: 200, unidade: "pcs",    fornecedor: "Hafele",    verificado: false, conforme: null  },
-  { id: "8", date: new Date(2026, 2, 20), material: "MDF 6mm",         lote: "L-2026-0325", quantidade: 60,  unidade: "chapas", fornecedor: "Eucatex",   verificado: true,  conforme: true  },
-];
 
 // ─── Formulários vazios ───────────────────────────────────────────────────────
 
@@ -208,9 +193,10 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   const [savingGram,     setSavingGram]     = useState(false);
 
   // ── Recebimento de Insumos ──
-  const [tipoRecebimento, setTipoRecebimento] = useState<"rq40" | "rq41">("rq40");
-  const materials    = INITIAL_MATERIALS;           // read-only mock para o quadrado verde
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [tipoRecebimento,   setTipoRecebimento]   = useState<"rq40" | "rq41">("rq40");
+  const [selectedDate,      setSelectedDate]      = useState<Date | undefined>(undefined);
+  const [allRecebimentos,   setAllRecebimentos]   = useState<RecebimentoSummary[]>([]);
+  const [loadingReceb,      setLoadingReceb]      = useState(false);
 
   // ── RQ40 ──
   const [rq40s,        setRq40s]        = useState<RQ40Entry[]>([]);
@@ -285,6 +271,23 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
     if (aba === "recebimento" && tipoRecebimento === "rq41") fetchRQ41();
   }, [aba, tipoRecebimento, fetchRQ41]);
 
+  // ─── Fetch todos os recebimentos (para calendário + KPIs) ────────────────
+
+  const fetchAllRecebimentos = useCallback(async () => {
+    setLoadingReceb(true);
+    const { data, error } = await supabase
+      .from("controle_qualidade")
+      .select("id, tipo, data, produto, fornecedor, nota_fiscal, quantidade, resultado")
+      .in("tipo", ["rq40", "rq41"])
+      .order("data", { ascending: false });
+    if (!error) setAllRecebimentos(data ?? []);
+    setLoadingReceb(false);
+  }, []);
+
+  useEffect(() => {
+    if (aba === "recebimento") fetchAllRecebimentos();
+  }, [aba, fetchAllRecebimentos]);
+
   // ─── Derivações Gramatura ─────────────────────────────────────────────────
 
   const totalMedicoes = gramaturas.length;
@@ -304,15 +307,16 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
     media:   Math.round((soma / n) * 100) / 100,
   })).sort((a, b) => b.media - a.media);
 
-  // ─── Derivações Materiais (mock, quadrado verde) ──────────────────────────
+  // ─── Derivações Recebimentos (Supabase) ──────────────────────────────────
 
-  const naoConformes   = materials.filter((m) => m.conforme === false);
-  const pendentes      = materials.filter((m) => !m.verificado);
-  const entriesForDate = selectedDate
-    ? materials.filter((m) => format(m.date, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd"))
+  const totalRecebidos    = allRecebimentos.length;
+  const totalNaoConformes = allRecebimentos.filter((r) => r.resultado === "nao_conforme").length;
+  const entriesForDate    = selectedDate
+    ? allRecebimentos.filter((r) => r.data === format(selectedDate, "yyyy-MM-dd"))
     : [];
-  const modifiers       = { hasEntries: materials.map((m) => m.date) };
-  const modifiersStyles = {
+  const datesWithEntries  = allRecebimentos.map((r) => new Date(r.data + "T00:00:00"));
+  const modifiers         = { hasEntries: datesWithEntries };
+  const modifiersStyles   = {
     hasEntries: {
       fontWeight: 700 as const,
       textDecoration: "underline" as const,
@@ -619,13 +623,16 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       {aba === "recebimento" && (
         <>
           {/* ── Quadrado VERDE: KPIs + Calendário + Não Conformes ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
               <CardContent className="flex items-center gap-4 p-5">
                 <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                   <Package className="h-5 w-5 text-primary" />
                 </div>
-                <div><p className="text-2xl font-bold">{materials.length}</p><p className="text-xs text-muted-foreground">Materiais Recebidos</p></div>
+                <div>
+                  <p className="text-2xl font-bold">{loadingReceb ? "…" : totalRecebidos}</p>
+                  <p className="text-xs text-muted-foreground">Materiais Recebidos</p>
+                </div>
               </CardContent>
             </Card>
             <Card>
@@ -633,15 +640,10 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
                 <div className="h-11 w-11 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
                   <XCircle className="h-5 w-5 text-destructive" />
                 </div>
-                <div><p className="text-2xl font-bold">{naoConformes.length}</p><p className="text-xs text-muted-foreground">Não Conformes</p></div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="flex items-center gap-4 p-5">
-                <div className="h-11 w-11 rounded-xl bg-yellow-500/10 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                <div>
+                  <p className="text-2xl font-bold">{loadingReceb ? "…" : totalNaoConformes}</p>
+                  <p className="text-xs text-muted-foreground">Não Conformes</p>
                 </div>
-                <div><p className="text-2xl font-bold">{pendentes.length}</p><p className="text-xs text-muted-foreground">Pendentes de Verificação</p></div>
               </CardContent>
             </Card>
           </div>
@@ -661,50 +663,66 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
                     {entriesForDate.map((entry) => (
                       <div key={entry.id} className="flex items-center justify-between rounded-lg border bg-muted/50 px-3 py-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{entry.material}</p>
-                          <p className="text-xs text-muted-foreground">Lote: {entry.lote} · {entry.quantidade} {entry.unidade}</p>
+                          <p className="text-sm font-medium truncate">{entry.produto}</p>
+                          <p className="text-xs text-muted-foreground">{entry.tipo.toUpperCase()} · {entry.fornecedor || "—"} · Qtd: {entry.quantidade}</p>
                         </div>
-                        {entry.verificado
-                          ? entry.conforme
-                            ? <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 shrink-0"><CheckCircle2 className="h-3 w-3 mr-1" />Conforme</Badge>
-                            : <Badge variant="destructive" className="shrink-0"><XCircle className="h-3 w-3 mr-1" />Não Conforme</Badge>
-                          : <Badge variant="secondary" className="shrink-0"><AlertTriangle className="h-3 w-3 mr-1" />Pendente</Badge>}
+                        {badgeResultado(entry.resultado)}
                       </div>
                     ))}
                   </div>
                 )}
-                {selectedDate && entriesForDate.length === 0 && <p className="text-xs text-muted-foreground mt-4">Nenhum recebimento nesta data.</p>}
+                {selectedDate && entriesForDate.length === 0 && (
+                  <p className="text-xs text-muted-foreground mt-4">Nenhum recebimento nesta data.</p>
+                )}
+                {!selectedDate && (
+                  <p className="text-xs text-muted-foreground mt-4 text-center">Clique em uma data para ver os recebimentos.</p>
+                )}
               </CardContent>
             </Card>
             <Card className="lg:col-span-2">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2"><XCircle className="h-4 w-4 text-destructive" /> Materiais Não Conformes</CardTitle>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <ClipboardCheck className="h-4 w-4 text-primary" />
+                  {selectedDate
+                    ? `Materiais Verificados — ${format(selectedDate, "dd/MM/yyyy")}`
+                    : "Materiais Verificados"}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                {naoConformes.length === 0
-                  ? <p className="text-sm text-muted-foreground py-8 text-center">Nenhum material não conforme registrado.</p>
-                  : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Data</TableHead><TableHead>Material</TableHead><TableHead>Lote</TableHead>
-                          <TableHead>Qtd</TableHead><TableHead>Fornecedor</TableHead><TableHead>Status</TableHead>
+                {loadingReceb ? (
+                  <div className="flex items-center justify-center h-24 gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
+                  </div>
+                ) : entriesForDate.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-8 text-center">
+                    {selectedDate ? "Nenhum recebimento nesta data." : "Selecione uma data no calendário."}
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produto</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Fornecedor</TableHead>
+                        <TableHead>Nota Fiscal</TableHead>
+                        <TableHead className="text-right">Qtd</TableHead>
+                        <TableHead>Resultado</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {entriesForDate.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium text-xs">{r.produto}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground uppercase">{r.tipo}</TableCell>
+                          <TableCell className="text-xs">{r.fornecedor || "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{r.nota_fiscal || "—"}</TableCell>
+                          <TableCell className="text-xs text-right">{r.quantidade}</TableCell>
+                          <TableCell>{badgeResultado(r.resultado)}</TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {naoConformes.map((m) => (
-                          <TableRow key={m.id}>
-                            <TableCell className="text-xs">{format(m.date, "dd/MM/yyyy")}</TableCell>
-                            <TableCell className="font-medium">{m.material}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{m.lote}</TableCell>
-                            <TableCell>{m.quantidade} {m.unidade}</TableCell>
-                            <TableCell>{m.fornecedor}</TableCell>
-                            <TableCell><Badge variant="destructive" className="text-xs">Não Conforme</Badge></TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </div>
