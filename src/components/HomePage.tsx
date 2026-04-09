@@ -88,7 +88,7 @@ function DataBar({ value, max, label }: { value: number; max: number; label: str
         className="absolute left-0 top-0 bottom-0 rounded-sm"
         style={{ width: `${pct}%`, backgroundColor: COR_VERDE_CLARO }}
       />
-      <span className="relative z-10 text-xs pl-1 font-medium" style={{ color: COR_VERDE }}>
+      <span className="relative z-10 text-xs pl-1 font-medium text-foreground">
         {label}
       </span>
     </div>
@@ -324,7 +324,7 @@ export default function HomePage() {
       <div className="flex items-center justify-between border-b pb-3">
         <div>
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Produção</p>
-          <h1 className="text-xl font-bold" style={{ color: COR_VERDE }}>
+          <h1 className="text-xl font-bold text-foreground">
             {abaAtiva === "portas" ? "Produção de Portas" : "Produção de Guarnição"}
           </h1>
         </div>
@@ -478,7 +478,7 @@ export default function HomePage() {
             <Card className="border" style={{ borderColor: "rgba(33,108,59,0.2)" }}>
               <CardContent className="p-6 flex flex-col justify-center h-full min-h-[140px]">
                 <p className="text-xs text-muted-foreground font-medium mb-2">Qtd. Conforme</p>
-                <p className="text-6xl font-bold tracking-tight" style={{ color: COR_VERDE }}>
+                <p className="text-6xl font-bold tracking-tight text-foreground">
                   {totalGeral.toLocaleString("pt-BR")}
                 </p>
               </CardContent>
@@ -520,7 +520,7 @@ export default function HomePage() {
                         barSize={48}
                         style={{ cursor: "pointer" }}
                         onClick={(data: { mesIdx: number }) => setChartMes(prev => prev === data.mesIdx ? null : data.mesIdx)}
-                        label={{ position: "top", fontSize: 10, fill: COR_VERDE, formatter: (v: number) => v > 0 ? v.toLocaleString("pt-BR") : "" }}
+                        label={{ position: "top", fontSize: 10, fill: "hsl(var(--foreground))", formatter: (v: number) => v > 0 ? v.toLocaleString("pt-BR") : "" }}
                       >
                         {porMes.map((entry) => (
                           <Cell
@@ -583,7 +583,7 @@ export default function HomePage() {
                       barSize={20}
                       style={{ cursor: "pointer" }}
                       onClick={(data: { nome: string }) => setChartMaquina(prev => prev === data.nome ? null : data.nome)}
-                      label={{ position: "right", fontSize: 10, fill: COR_VERDE, formatter: (v: number) => v.toLocaleString("pt-BR") }}
+                      label={{ position: "right", fontSize: 10, fill: "hsl(var(--foreground))", formatter: (v: number) => v.toLocaleString("pt-BR") }}
                     >
                       {porMaquina.map((entry) => (
                         <Cell
@@ -610,9 +610,9 @@ export default function HomePage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold px-4 py-1.5" style={{ color: COR_VERDE }}>Linha</TableHead>
-                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right" style={{ color: COR_VERDE }}>Qtd. Conforme</TableHead>
-                      <TableHead className="text-xs font-semibold px-4 py-1.5" style={{ color: COR_VERDE }}>% Linha Geral</TableHead>
+                      <TableHead className="text-xs font-semibold px-4 py-1.5" className="text-foreground">Linha</TableHead>
+                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right" className="text-foreground">Qtd. Conforme</TableHead>
+                      <TableHead className="text-xs font-semibold px-4 py-1.5" className="text-foreground">% Linha Geral</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -636,11 +636,11 @@ export default function HomePage() {
                           </TableRow>
                         ))}
                         <TableRow className="border-t font-semibold bg-muted/30">
-                          <TableCell className="text-xs px-4 py-1.5" style={{ color: COR_VERDE }}>Total</TableCell>
-                          <TableCell className="text-xs px-2 py-1.5 text-right" style={{ color: COR_VERDE }}>
+                          <TableCell className="text-xs px-4 py-1.5" className="text-foreground">Total</TableCell>
+                          <TableCell className="text-xs px-2 py-1.5 text-right" className="text-foreground">
                             {totalGeral.toLocaleString("pt-BR")}
                           </TableCell>
-                          <TableCell className="text-xs px-4 py-1.5" style={{ color: COR_VERDE }}>
+                          <TableCell className="text-xs px-4 py-1.5" className="text-foreground">
                             {porLinha.reduce((a, b) => a + b.pct, 0).toFixed(2)}%
                           </TableCell>
                         </TableRow>
@@ -660,9 +660,9 @@ export default function HomePage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold px-4 py-1.5" style={{ color: COR_VERDE }}>Padrão</TableHead>
-                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right" style={{ color: COR_VERDE }}>Qtd. Conforme</TableHead>
-                      <TableHead className="text-xs font-semibold px-4 py-1.5" style={{ color: COR_VERDE }}>% Padrão</TableHead>
+                      <TableHead className="text-xs font-semibold px-4 py-1.5" className="text-foreground">Padrão</TableHead>
+                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right" className="text-foreground">Qtd. Conforme</TableHead>
+                      <TableHead className="text-xs font-semibold px-4 py-1.5" className="text-foreground">% Padrão</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -686,11 +686,11 @@ export default function HomePage() {
                           </TableRow>
                         ))}
                         <TableRow className="border-t font-semibold bg-muted/30">
-                          <TableCell className="text-xs px-4 py-1.5" style={{ color: COR_VERDE }}>Total</TableCell>
-                          <TableCell className="text-xs px-2 py-1.5 text-right" style={{ color: COR_VERDE }}>
+                          <TableCell className="text-xs px-4 py-1.5" className="text-foreground">Total</TableCell>
+                          <TableCell className="text-xs px-2 py-1.5 text-right" className="text-foreground">
                             {totalPadrao.toLocaleString("pt-BR")}
                           </TableCell>
-                          <TableCell className="text-xs px-4 py-1.5" style={{ color: COR_VERDE }}>
+                          <TableCell className="text-xs px-4 py-1.5" className="text-foreground">
                             {porPadrao.reduce((a, b) => a + b.pct, 0).toFixed(2)}%
                           </TableCell>
                         </TableRow>
@@ -710,9 +710,9 @@ export default function HomePage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold px-4 py-1.5" style={{ color: COR_VERDE }}>Largura (cm)</TableHead>
-                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right" style={{ color: COR_VERDE }}>Qtd. Conforme</TableHead>
-                      <TableHead className="text-xs font-semibold px-4 py-1.5" style={{ color: COR_VERDE }}>% Largura (cm)</TableHead>
+                      <TableHead className="text-xs font-semibold px-4 py-1.5" className="text-foreground">Largura (cm)</TableHead>
+                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right" className="text-foreground">Qtd. Conforme</TableHead>
+                      <TableHead className="text-xs font-semibold px-4 py-1.5" className="text-foreground">% Largura (cm)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -736,11 +736,11 @@ export default function HomePage() {
                           </TableRow>
                         ))}
                         <TableRow className="border-t font-semibold bg-muted/30">
-                          <TableCell className="text-xs px-4 py-1.5" style={{ color: COR_VERDE }}>Total</TableCell>
-                          <TableCell className="text-xs px-2 py-1.5 text-right" style={{ color: COR_VERDE }}>
+                          <TableCell className="text-xs px-4 py-1.5" className="text-foreground">Total</TableCell>
+                          <TableCell className="text-xs px-2 py-1.5 text-right" className="text-foreground">
                             {totalLargura.toLocaleString("pt-BR")}
                           </TableCell>
-                          <TableCell className="text-xs px-4 py-1.5" style={{ color: COR_VERDE }}>
+                          <TableCell className="text-xs px-4 py-1.5" className="text-foreground">
                             {porLargura.reduce((a, b) => a + b.pct, 0).toFixed(2)}%
                           </TableCell>
                         </TableRow>
