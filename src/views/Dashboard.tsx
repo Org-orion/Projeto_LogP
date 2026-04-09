@@ -27,7 +27,7 @@ const SECTION_TITLES: Record<string, string> = {
 
 const QUALIDADE_SUB_TITLES: Record<string, string> = {
   gramatura: "Gramatura",
-  materiais: "Materiais",
+  recebimento: "Recebimento de Insumos",
 };
 
 interface UsuarioLogado {

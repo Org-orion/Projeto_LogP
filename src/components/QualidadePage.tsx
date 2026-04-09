@@ -123,7 +123,8 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   const [gramDatePickerOpen, setGramDatePickerOpen] = useState(false);
   const [savingGram, setSavingGram] = useState(false);
 
-  // ── Materiais (mock) ──
+  // ── Recebimento de Insumos (mock) ──
+  const [tipoRecebimento, setTipoRecebimento] = useState<"rq40" | "rq41">("rq40");
   const [materials, setMaterials] = useState<MaterialEntry[]>(INITIAL_MATERIALS);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [matDialogOpen, setMatDialogOpen] = useState(false);
@@ -303,7 +304,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       <div className="border-b pb-3">
         <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Controle de Qualidade</p>
         <h1 className="text-xl font-bold" style={{ color: COR_VERDE }}>
-          {aba === "gramatura" ? "Gramatura" : "Recebimento de Materiais"}
+          {aba === "gramatura" ? "Gramatura" : "Recebimento de Insumos"}
         </h1>
       </div>
 
@@ -474,7 +475,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       {/* ════════════════════════════════════════════════════════════
           ABA MATERIAIS
       ════════════════════════════════════════════════════════════ */}
-      {aba === "materiais" && (
+      {aba === "recebimento" && (
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -597,64 +598,94 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
 
           {/* Todos os Recebimentos */}
           <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Package className="h-4 w-4 text-primary" /> Todos os Recebimentos
-                </CardTitle>
-                <Button size="sm" onClick={openMatAdd} className="gap-1.5">
-                  <Plus className="h-4 w-4" /> Adicionar Material
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-4">
+                {/* Selector RQ40 / RQ41 */}
+                <div className="flex items-center gap-1 border rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setTipoRecebimento("rq40")}
+                    className={cn(
+                      "px-4 py-1.5 text-xs font-medium transition-colors",
+                      tipoRecebimento === "rq40" ? "text-white" : "text-muted-foreground hover:bg-muted"
+                    )}
+                    style={tipoRecebimento === "rq40" ? { backgroundColor: COR_VERDE } : {}}
+                  >
+                    Recebimento de Materiais — RQ40
+                  </button>
+                  <button
+                    onClick={() => setTipoRecebimento("rq41")}
+                    className={cn(
+                      "px-4 py-1.5 text-xs font-medium transition-colors",
+                      tipoRecebimento === "rq41" ? "text-white" : "text-muted-foreground hover:bg-muted"
+                    )}
+                    style={tipoRecebimento === "rq41" ? { backgroundColor: COR_VERDE } : {}}
+                  >
+                    Recebimento de Insumos — RQ41
+                  </button>
+                </div>
+                <Button size="sm" onClick={openMatAdd} className="gap-1.5 shrink-0">
+                  <Plus className="h-4 w-4" /> Adicionar
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Material</TableHead>
-                    <TableHead>Lote</TableHead>
-                    <TableHead>Qtd</TableHead>
-                    <TableHead>Fornecedor</TableHead>
-                    <TableHead>Verificado</TableHead>
-                    <TableHead>Qualidade</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {materials.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell className="text-xs">{format(m.date, "dd/MM/yyyy")}</TableCell>
-                      <TableCell className="font-medium">{m.material}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{m.lote}</TableCell>
-                      <TableCell>{m.quantidade} {m.unidade}</TableCell>
-                      <TableCell>{m.fornecedor}</TableCell>
-                      <TableCell>
-                        {m.verificado
-                          ? <CheckCircle2 className="h-4 w-4 text-primary" />
-                          : <AlertTriangle className="h-4 w-4 text-yellow-500" />}
-                      </TableCell>
-                      <TableCell>
-                        {m.conforme === null
-                          ? <Badge variant="secondary" className="text-xs">Pendente</Badge>
-                          : m.conforme
-                            ? <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5">Conforme</Badge>
-                            : <Badge variant="destructive" className="text-xs">Não Conforme</Badge>}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openMatEdit(m)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleMatDelete(m.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              {/* RQ40 — Recebimento de Materiais */}
+              {tipoRecebimento === "rq40" && (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Material</TableHead>
+                      <TableHead>Lote</TableHead>
+                      <TableHead>Qtd</TableHead>
+                      <TableHead>Fornecedor</TableHead>
+                      <TableHead>Verificado</TableHead>
+                      <TableHead>Qualidade</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {materials.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="text-xs">{format(m.date, "dd/MM/yyyy")}</TableCell>
+                        <TableCell className="font-medium">{m.material}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{m.lote}</TableCell>
+                        <TableCell>{m.quantidade} {m.unidade}</TableCell>
+                        <TableCell>{m.fornecedor}</TableCell>
+                        <TableCell>
+                          {m.verificado
+                            ? <CheckCircle2 className="h-4 w-4 text-primary" />
+                            : <AlertTriangle className="h-4 w-4 text-yellow-500" />}
+                        </TableCell>
+                        <TableCell>
+                          {m.conforme === null
+                            ? <Badge variant="secondary" className="text-xs">Pendente</Badge>
+                            : m.conforme
+                              ? <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5">Conforme</Badge>
+                              : <Badge variant="destructive" className="text-xs">Não Conforme</Badge>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openMatEdit(m)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleMatDelete(m.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+
+              {/* RQ41 — Recebimento de Insumos (campos a definir) */}
+              {tipoRecebimento === "rq41" && (
+                <p className="text-sm text-muted-foreground py-8 text-center">
+                  Formulário RQ41 em configuração — aguardando definição dos campos.
+                </p>
+              )}
             </CardContent>
           </Card>
         </>

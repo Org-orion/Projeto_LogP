@@ -34,7 +34,7 @@ const MENU_ITEMS = [
 // Sub-itens de Controle de Qualidade
 const QUALIDADE_SUBS = [
   { id: "gramatura", name: "Gramatura" },
-  { id: "materiais", name: "Materiais" },
+  { id: "recebimento", name: "Recebimento de Insumos" },
 ];
 
 interface AppSidebarProps {
