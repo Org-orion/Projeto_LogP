@@ -49,6 +49,13 @@ const PRODUTOS_RQ40 = [
   "Colmeia", "Revestimento", "Bondoor", "Embalagem", "Borda", "Borracha",
 ];
 
+const PRODUTOS_RQ41 = ["Cola", "Tinta", "Resina", "Catalisador", "Extensor"];
+
+const PADROES_RQ41 = [
+  "PUR 607.51", "PUR CQ-654", "PVA C-518", "PUR 605.62", "PUR 605.78",
+  "PUR 605.65", "Hotmelt 288.71", "Hotmelt 288.62", "UF-108",
+];
+
 // Padrões de cor — compartilhado com Gramatura
 const PADROES_CORES = PRODUTOS_GRAMATURA;
 
@@ -114,6 +121,24 @@ interface MaterialEntry {
   conforme: boolean | null;
 }
 
+interface RQ41Entry {
+  id: number;
+  tipo: string;
+  data: string;
+  produto: string;
+  padrao: string;
+  nota_fiscal: string;
+  fornecedor: string;
+  viscosidade: string | null;
+  teor_solidos: string | null;
+  ph: number | null;
+  densidade: number | null;
+  gel_time: string | null;
+  absorcao_agua: string | null;
+  quantidade: number;
+  resultado: string;
+}
+
 // ─── Dados estáticos ──────────────────────────────────────────────────────────
 
 const INITIAL_MATERIALS: MaterialEntry[] = [
@@ -150,6 +175,22 @@ const EMPTY_RQ40_FORM = {
   resultado:        "" as "" | "conforme" | "nao_conforme",
 };
 
+const EMPTY_RQ41_FORM = {
+  data:          new Date(),
+  produto:       "",
+  padrao:        "",
+  nota_fiscal:   "",
+  fornecedor:    "",
+  viscosidade:   "",
+  teor_solidos:  "",
+  ph:            "",
+  densidade:     "",
+  gel_time:      "",
+  absorcao_agua: "",
+  quantidade:    "",
+  resultado:     "" as "" | "conforme" | "nao_conforme",
+};
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 interface QualidadePageProps { subSection?: string; }
@@ -179,6 +220,15 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   const [rq40Form,     setRq40Form]     = useState(EMPTY_RQ40_FORM);
   const [rq40DateOpen, setRq40DateOpen] = useState(false);
   const [savingRQ40,   setSavingRQ40]   = useState(false);
+
+  // ── RQ41 ──
+  const [rq41s,        setRq41s]        = useState<RQ41Entry[]>([]);
+  const [loadingRQ41,  setLoadingRQ41]  = useState(false);
+  const [rq41Dialog,   setRq41Dialog]   = useState(false);
+  const [rq41EditId,   setRq41EditId]   = useState<number | null>(null);
+  const [rq41Form,     setRq41Form]     = useState(EMPTY_RQ41_FORM);
+  const [rq41DateOpen, setRq41DateOpen] = useState(false);
+  const [savingRQ41,   setSavingRQ41]   = useState(false);
 
   // ─── Fetch Gramatura ─────────────────────────────────────────────────────
 
@@ -215,6 +265,25 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   useEffect(() => {
     if (aba === "recebimento" && tipoRecebimento === "rq40") fetchRQ40();
   }, [aba, tipoRecebimento, fetchRQ40]);
+
+  // ─── Fetch RQ41 ──────────────────────────────────────────────────────────
+
+  const fetchRQ41 = useCallback(async () => {
+    setLoadingRQ41(true);
+    const { data, error } = await supabase
+      .from("controle_qualidade")
+      .select("*")
+      .eq("tipo", "rq41")
+      .order("data", { ascending: false })
+      .order("id",   { ascending: false });
+    if (error) toast.error("Erro ao carregar RQ41: " + error.message);
+    else setRq41s(data ?? []);
+    setLoadingRQ41(false);
+  }, []);
+
+  useEffect(() => {
+    if (aba === "recebimento" && tipoRecebimento === "rq41") fetchRQ41();
+  }, [aba, tipoRecebimento, fetchRQ41]);
 
   // ─── Derivações Gramatura ─────────────────────────────────────────────────
 
@@ -345,6 +414,68 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
     if (error) { toast.error("Erro ao salvar: " + error.message); return; }
     toast.success(rq40EditId !== null ? "Registro atualizado." : "Recebimento registrado.");
     setRq40Dialog(false); setRq40Form(EMPTY_RQ40_FORM); setRq40EditId(null); fetchRQ40();
+  }
+
+  // ─── Handlers RQ41 ───────────────────────────────────────────────────────
+
+  function openRQ41Add() { setRq41EditId(null); setRq41Form(EMPTY_RQ41_FORM); setRq41Dialog(true); }
+
+  function openRQ41Edit(r: RQ41Entry) {
+    setRq41EditId(r.id);
+    setRq41Form({
+      data:          new Date(r.data + "T00:00:00"),
+      produto:       r.produto,
+      padrao:        r.padrao ?? "",
+      nota_fiscal:   r.nota_fiscal ?? "",
+      fornecedor:    r.fornecedor ?? "",
+      viscosidade:   r.viscosidade ?? "",
+      teor_solidos:  r.teor_solidos ?? "",
+      ph:            r.ph !== null ? String(r.ph) : "",
+      densidade:     r.densidade !== null ? String(r.densidade) : "",
+      gel_time:      r.gel_time ?? "",
+      absorcao_agua: r.absorcao_agua ?? "",
+      quantidade:    String(r.quantidade),
+      resultado:     r.resultado as "" | "conforme" | "nao_conforme",
+    });
+    setRq41Dialog(true);
+  }
+
+  async function handleRQ41Delete(id: number) {
+    const { error } = await supabase.from("controle_qualidade").delete().eq("id", id);
+    if (error) { toast.error("Erro ao remover: " + error.message); return; }
+    toast.success("Registro removido."); fetchRQ41();
+  }
+
+  async function handleRQ41Save() {
+    if (!rq41Form.produto || !rq41Form.fornecedor.trim() || !rq41Form.quantidade || !rq41Form.resultado) {
+      toast.error("Preencha: Produto, Fornecedor, Quantidade e Resultado."); return;
+    }
+    const qty = Number(rq41Form.quantidade);
+    if (isNaN(qty) || qty <= 0) { toast.error("Quantidade inválida."); return; }
+    setSavingRQ41(true);
+    const payload = {
+      tipo:          "rq41",
+      data:          format(rq41Form.data, "yyyy-MM-dd"),
+      produto:       rq41Form.produto,
+      padrao:        rq41Form.padrao,
+      nota_fiscal:   rq41Form.nota_fiscal.trim(),
+      fornecedor:    rq41Form.fornecedor.trim(),
+      viscosidade:   rq41Form.viscosidade.trim() || null,
+      teor_solidos:  rq41Form.teor_solidos.trim() || null,
+      ph:            rq41Form.ph !== "" ? Number(rq41Form.ph) : null,
+      densidade:     rq41Form.densidade !== "" ? Number(rq41Form.densidade) : null,
+      gel_time:      rq41Form.gel_time.trim() || null,
+      absorcao_agua: rq41Form.absorcao_agua.trim() || null,
+      quantidade:    qty,
+      resultado:     rq41Form.resultado,
+    };
+    const { error } = rq41EditId !== null
+      ? await supabase.from("controle_qualidade").update(payload).eq("id", rq41EditId)
+      : await supabase.from("controle_qualidade").insert(payload);
+    setSavingRQ41(false);
+    if (error) { toast.error("Erro ao salvar: " + error.message); return; }
+    toast.success(rq41EditId !== null ? "Registro atualizado." : "Recebimento registrado.");
+    setRq41Dialog(false); setRq41Form(EMPTY_RQ41_FORM); setRq41EditId(null); fetchRQ41();
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -654,11 +785,60 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
                 )
               )}
 
-              {/* RQ41 — campos a definir */}
+              {/* RQ41 */}
               {tipoRecebimento === "rq41" && (
-                <p className="text-sm text-muted-foreground py-8 text-center">
-                  Formulário RQ41 em configuração — aguardando definição dos campos.
-                </p>
+                loadingRQ41 ? (
+                  <div className="flex items-center justify-center h-32 gap-2 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin" /> Carregando...
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex justify-end mb-3">
+                      <Button size="sm" onClick={openRQ41Add} className="gap-1.5">
+                        <Plus className="h-4 w-4" /> Novo Registro RQ41
+                      </Button>
+                    </div>
+                    {rq41s.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">Nenhum registro encontrado.</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Data</TableHead>
+                              <TableHead>Produto</TableHead>
+                              <TableHead>Padrão</TableHead>
+                              <TableHead>Fornecedor</TableHead>
+                              <TableHead>Nota Fiscal</TableHead>
+                              <TableHead className="text-right">Qtd</TableHead>
+                              <TableHead>Resultado</TableHead>
+                              <TableHead className="text-right">Ações</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {rq41s.map((r) => (
+                              <TableRow key={r.id}>
+                                <TableCell className="text-xs">{format(new Date(r.data + "T00:00:00"), "dd/MM/yyyy")}</TableCell>
+                                <TableCell className="text-xs font-medium">{r.produto}</TableCell>
+                                <TableCell className="text-xs">{r.padrao || "—"}</TableCell>
+                                <TableCell className="text-xs">{r.fornecedor || "—"}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{r.nota_fiscal || "—"}</TableCell>
+                                <TableCell className="text-xs text-right">{r.quantidade}</TableCell>
+                                <TableCell>{badgeResultado(r.resultado)}</TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openRQ41Edit(r)}><Pencil className="h-3.5 w-3.5" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleRQ41Delete(r.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                )
               )}
 
             </CardContent>
@@ -857,6 +1037,122 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
             <Button onClick={handleRQ40Save} disabled={savingRQ40}>
               {savingRQ40 && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {rq40EditId !== null ? "Salvar Alterações" : "Registrar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog RQ41 */}
+      <Dialog open={rq41Dialog} onOpenChange={setRq41Dialog}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{rq41EditId !== null ? "Editar Registro RQ41" : "Novo Registro RQ41"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+
+            {/* Linha 1: Data + Produto */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Data de Recebimento *</Label>
+                <Popover open={rq41DateOpen} onOpenChange={setRq41DateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />{format(rq41Form.data, "dd/MM/yyyy")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={rq41Form.data} locale={ptBR} initialFocus className="pointer-events-auto"
+                      onSelect={(d) => { if (d) { setRq41Form({ ...rq41Form, data: d }); setRq41DateOpen(false); } }} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Produto *</Label>
+                <Select value={rq41Form.produto} onValueChange={(v) => setRq41Form({ ...rq41Form, produto: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>{PRODUTOS_RQ41.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Linha 2: Padrão Aplicável + Nota Fiscal */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Padrão Aplicável</Label>
+                <Select value={rq41Form.padrao} onValueChange={(v) => setRq41Form({ ...rq41Form, padrao: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>{PADROES_RQ41.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rq41-nf">Nota Fiscal</Label>
+                <Input id="rq41-nf" placeholder="Nº da nota fiscal" value={rq41Form.nota_fiscal} onChange={(e) => setRq41Form({ ...rq41Form, nota_fiscal: e.target.value })} />
+              </div>
+            </div>
+
+            {/* Linha 3: Fornecedor + Viscosidade */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="rq41-forn">Fornecedor *</Label>
+                <Input id="rq41-forn" placeholder="Nome do fornecedor" value={rq41Form.fornecedor} onChange={(e) => setRq41Form({ ...rq41Form, fornecedor: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rq41-visc">Viscosidade</Label>
+                <Input id="rq41-visc" placeholder="Ex: 4500 cP" value={rq41Form.viscosidade} onChange={(e) => setRq41Form({ ...rq41Form, viscosidade: e.target.value })} />
+              </div>
+            </div>
+
+            {/* Linha 4: Teor de sólidos + pH */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="rq41-ts">Teor de Sólidos (cola e resina)</Label>
+                <Input id="rq41-ts" placeholder="Ex: 52%" value={rq41Form.teor_solidos} onChange={(e) => setRq41Form({ ...rq41Form, teor_solidos: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rq41-ph">pH (cola e resina)</Label>
+                <Input id="rq41-ph" type="number" step="0.1" placeholder="Ex: 7.2" value={rq41Form.ph} onChange={(e) => setRq41Form({ ...rq41Form, ph: e.target.value })} />
+              </div>
+            </div>
+
+            {/* Linha 5: Densidade + Gel time */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="rq41-den">Densidade (resina)</Label>
+                <Input id="rq41-den" type="number" step="0.001" placeholder="Ex: 1.235 g/cm³" value={rq41Form.densidade} onChange={(e) => setRq41Form({ ...rq41Form, densidade: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rq41-gel">Gel Time (resina)</Label>
+                <Input id="rq41-gel" placeholder="Ex: 45 s" value={rq41Form.gel_time} onChange={(e) => setRq41Form({ ...rq41Form, gel_time: e.target.value })} />
+              </div>
+            </div>
+
+            {/* Linha 6: Absorção de água + Quantidade */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="rq41-abs">Absorção de Água (extensor)</Label>
+                <Input id="rq41-abs" placeholder="Ex: 12%" value={rq41Form.absorcao_agua} onChange={(e) => setRq41Form({ ...rq41Form, absorcao_agua: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rq41-qtd">Quantidade *</Label>
+                <Input id="rq41-qtd" type="number" min="1" placeholder="Ex: 100" value={rq41Form.quantidade} onChange={(e) => setRq41Form({ ...rq41Form, quantidade: e.target.value })} />
+              </div>
+            </div>
+
+            {/* Linha 7: Resultado */}
+            <div className="space-y-1.5">
+              <Label>Resultado *</Label>
+              <Select value={rq41Form.resultado} onValueChange={(v) => setRq41Form({ ...rq41Form, resultado: v as typeof rq41Form.resultado })}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>{OPCOES_QUALIDADE.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+            <Button onClick={handleRQ41Save} disabled={savingRQ41}>
+              {savingRQ41 && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {rq41EditId !== null ? "Salvar Alterações" : "Registrar"}
             </Button>
           </DialogFooter>
         </DialogContent>
