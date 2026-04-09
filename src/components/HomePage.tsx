@@ -184,7 +184,7 @@ export default function HomePage() {
       const dia = parseInt(r.data.split("-")[2]);
       if (dia !== diaFiltro) return false;
     }
-    if (maquinasFiltro.length > 0 && r.maquina && !maquinasFiltro.includes(r.maquina)) {
+    if (maquinasFiltro.length > 0 && r.maquina && !maquinasFiltro.some((m) => m.toLowerCase() === r.maquina!.toLowerCase())) {
       return false;
     }
     return true;
@@ -196,7 +196,7 @@ export default function HomePage() {
       const mes = parseInt(r.data.split("-")[1]) - 1;
       if (mes !== chartMes) return false;
     }
-    if (chartMaquina !== null && r.maquina !== chartMaquina) return false;
+    if (chartMaquina !== null && r.maquina?.toLowerCase() !== chartMaquina.toLowerCase()) return false;
     return true;
   });
 
@@ -226,8 +226,8 @@ export default function HomePage() {
 
   // Gráfico vertical: Produção por Mês (aplica chartMaquina, mas não chartMes)
   const registrosPorAno = registros.filter((r) => {
-    if (maquinasFiltro.length > 0 && r.maquina && !maquinasFiltro.includes(r.maquina)) return false;
-    if (chartMaquina !== null && r.maquina !== chartMaquina) return false;
+    if (maquinasFiltro.length > 0 && r.maquina && !maquinasFiltro.some((m) => m.toLowerCase() === r.maquina!.toLowerCase())) return false;
+    if (chartMaquina !== null && r.maquina?.toLowerCase() !== chartMaquina.toLowerCase()) return false;
     return true;
   });
 
