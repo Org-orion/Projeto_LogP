@@ -61,7 +61,6 @@ interface GramaturaEntry {
   maquina: string;
   produto: string;
   gramatura: number;   // g/m²
-  operador: string;
   observacao: string;
 }
 
@@ -97,7 +96,6 @@ const EMPTY_GRAM_FORM = {
   maquina: "",
   produto: "",
   gramatura: "",
-  operador: "",
   observacao: "",
 };
 
@@ -209,7 +207,6 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       maquina: g.maquina,
       produto: g.produto,
       gramatura: String(g.gramatura),
-      operador: g.operador,
       observacao: g.observacao,
     });
     setGramDialogOpen(true);
@@ -224,7 +221,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
 
   async function handleGramSave() {
     const gramValue = Number(gramForm.gramatura);
-    if (!gramForm.maquina || !gramForm.produto || !gramForm.operador.trim()) {
+    if (!gramForm.maquina || !gramForm.produto) {
       toast.error("Preencha todos os campos obrigatórios."); return;
     }
     if (isNaN(gramValue) || gramValue <= 0) {
@@ -236,7 +233,6 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       maquina: gramForm.maquina,
       produto: gramForm.produto,
       gramatura: gramValue,
-      operador: gramForm.operador.trim(),
       observacao: gramForm.observacao.trim(),
     };
     const { error } = gramEditingId !== null
@@ -435,7 +431,6 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
                           <TableHead>Máquina</TableHead>
                           <TableHead>Produto</TableHead>
                           <TableHead className="text-right">Gramatura (g/m²)</TableHead>
-                          <TableHead>Operador</TableHead>
                           <TableHead>Observação</TableHead>
                           <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
@@ -451,7 +446,6 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
                             <TableCell className="text-right font-medium" style={{ color: COR_VERDE }}>
                               {Number(g.gramatura).toFixed(1)}
                             </TableCell>
-                            <TableCell className="text-xs">{g.operador}</TableCell>
                             <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                               {g.observacao || "—"}
                             </TableCell>
@@ -738,17 +732,6 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
                 placeholder="Ex: 80.0"
                 value={gramForm.gramatura}
                 onChange={(e) => setGramForm({ ...gramForm, gramatura: e.target.value })}
-              />
-            </div>
-
-            {/* Operador */}
-            <div className="space-y-1.5">
-              <Label htmlFor="gram-op">Operador *</Label>
-              <Input
-                id="gram-op"
-                placeholder="Nome do operador"
-                value={gramForm.operador}
-                onChange={(e) => setGramForm({ ...gramForm, operador: e.target.value })}
               />
             </div>
 
