@@ -217,7 +217,8 @@ export default function HomePage() {
   const porMaquina = Object.entries(
     registrosParaMaquina.reduce((acc, r) => {
       if (!r.maquina) return acc;
-      acc[r.maquina] = (acc[r.maquina] ?? 0) + (Number(r.qtd_conforme) || 0);
+      const key = r.maquina.toUpperCase();
+      acc[key] = (acc[key] ?? 0) + (Number(r.qtd_conforme) || 0);
       return acc;
     }, {} as Record<string, number>)
   )

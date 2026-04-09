@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Cog, Loader2, AlertCircle, RefreshCw, Plus, History, Pencil, FileText, Search, FileSpreadsheet } from "lucide-react";
@@ -35,15 +34,17 @@ interface Maquina {
 }
 
 interface RegistroProducao {
+  id: number;
   data: string;
   hora_final: string | null;
   maquina: string | null;
-  qtd_conforme: number | null;
-  qtd_nao_conforme_1: number | null;
   produto: string | null;
   linha: string | null;
   nucleo: string | null;
   padrao: string | null;
+  largura_cm: number | null;
+  qtd_conforme: number | null;
+  qtd_nao_conforme_1: number | null;
 }
 
 interface ColunaDef {
@@ -132,6 +133,9 @@ function HistoricoSheet({ maquina, open, onClose }: {
   const [ano, setAno] = useState(String(hoje.getFullYear()));
   const [registros, setRegistros] = useState<RegistroProducao[]>([]);
   const [loadingHist, setLoadingHist] = useState(false);
+  const [editReg, setEditReg] = useState<RegistroProducao | null>(null);
+  const [editForm, setEditForm] = useState<Partial<RegistroProducao>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const buscarHistorico = useCallback(async () => {
     if (!maquina?.nome) return;
@@ -155,7 +159,7 @@ function HistoricoSheet({ maquina, open, onClose }: {
     const nomeMaquina = (maquina.nome as string).trim();
     const { data, error } = await supabase
       .from("registros_producao")
-      .select("data, hora_final, maquina, qtd_conforme, qtd_nao_conforme_1, produto, linha, nucleo, padrao")
+      .select("id, data, hora_final, maquina, produto, linha, nucleo, padrao, largura_cm, qtd_conforme, qtd_nao_conforme_1")
       .ilike("maquina", nomeMaquina)
       .gte("data", dataInicio)
       .lte("data", dataFim)
@@ -322,15 +326,42 @@ function HistoricoSheet({ maquina, open, onClose }: {
     XLSX.writeFile(wb, nomeArquivo);
   }
 
+  function openEdit(r: RegistroProducao) {
+    setEditReg(r);
+    setEditForm({ ...r });
+  }
+
+  async function salvarEdicao() {
+    if (!editReg) return;
+    setSavingEdit(true);
+    const payload = {
+      data:               editForm.data,
+      hora_final:         editForm.hora_final || null,
+      produto:            editForm.produto || null,
+      linha:              editForm.linha || null,
+      nucleo:             editForm.nucleo || null,
+      padrao:             editForm.padrao || null,
+      largura_cm:         editForm.largura_cm !== undefined ? editForm.largura_cm : null,
+      qtd_conforme:       editForm.qtd_conforme !== undefined ? editForm.qtd_conforme : null,
+      qtd_nao_conforme_1: editForm.qtd_nao_conforme_1 !== undefined ? editForm.qtd_nao_conforme_1 : null,
+    };
+    const { error } = await supabase.from("registros_producao").update(payload).eq("id", editReg.id);
+    setSavingEdit(false);
+    if (error) { toast.error("Erro ao salvar: " + error.message); return; }
+    toast.success("Registro atualizado.");
+    setEditReg(null);
+    buscarHistorico();
+  }
+
   return (
-    <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col gap-0 p-0">
-        <SheetHeader className="px-6 py-4 border-b">
-          <SheetTitle className="flex items-center gap-2">
-            <History className="h-4 w-4 text-primary" />
-            Histórico — {(maquina?.nome as string) ?? ""}
-          </SheetTitle>
-        </SheetHeader>
+    <>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-5xl w-full max-h-[90vh] flex flex-col gap-0 p-0">
+        <DialogHeader className="px-6 py-4 border-b">
+          <DialogTitle className="flex items-center gap-2">
+            Produção — {(maquina?.nome as string) ?? ""}
+          </DialogTitle>
+        </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {/* Filtros */}
@@ -439,55 +470,122 @@ function HistoricoSheet({ maquina, open, onClose }: {
           {/* Tabela */}
           {loadingHist ? (
             <div className="flex items-center justify-center h-32 gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Carregando...
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
             </div>
           ) : registros.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
               Nenhum registro encontrado para o período.
             </div>
-          ) : (() => {
-            const colunas = getColunasParaMaquina(maquina?.nome as string ?? "");
-            return (
+          ) : (
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs">Data</TableHead>
-                    <TableHead className="text-xs">Hora Final</TableHead>
-                    {colunas.map((c) => (
-                      <TableHead key={c.key} className={`text-xs ${c.numeric ? "text-right" : ""}`}>
-                        {c.label}
-                      </TableHead>
-                    ))}
+                    <TableHead className="text-xs whitespace-nowrap">Data</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Hora Final</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Produto</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Linha</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Núcleo</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap">Cor/Padrão</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap text-right">Largura (cm)</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap text-right">Qtd. Conforme</TableHead>
+                    <TableHead className="text-xs whitespace-nowrap text-right">Qtd. NC</TableHead>
+                    <TableHead className="text-xs text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {registros.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-xs">{format(parseISO(r.data), "dd/MM/yyyy")}</TableCell>
+                  {registros.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="text-xs whitespace-nowrap">{format(parseISO(r.data), "dd/MM/yyyy")}</TableCell>
                       <TableCell className="text-xs">{r.hora_final ?? "—"}</TableCell>
-                      {colunas.map((c) => {
-                        const val = r[c.key];
-                        const display = val === null || val === undefined || val === ""
-                          ? "—"
-                          : c.numeric
-                          ? Number(val).toLocaleString("pt-BR")
-                          : String(val);
-                        return (
-                          <TableCell key={c.key} className={`text-xs ${c.numeric ? "text-right font-medium" : ""}`}>
-                            {display}
-                          </TableCell>
-                        );
-                      })}
+                      <TableCell className="text-xs font-medium">{r.produto ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{r.linha ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{r.nucleo ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{r.padrao ?? "—"}</TableCell>
+                      <TableCell className="text-xs text-right">{r.largura_cm ?? "—"}</TableCell>
+                      <TableCell className="text-xs text-right font-medium text-primary">{r.qtd_conforme?.toLocaleString("pt-BR") ?? "—"}</TableCell>
+                      <TableCell className="text-xs text-right">{r.qtd_nao_conforme_1?.toLocaleString("pt-BR") ?? "—"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            );
-          })()}
+            </div>
+          )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
+
+    {/* Dialog de edição de registro */}
+    <Dialog open={!!editReg} onOpenChange={(v) => { if (!v) setEditReg(null); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Editar Registro</DialogTitle>
+        </DialogHeader>
+        {editReg && (
+          <div className="grid gap-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Data</Label>
+                <Input type="date" value={editForm.data ?? ""} onChange={(e) => setEditForm({ ...editForm, data: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Hora Final</Label>
+                <Input type="time" value={editForm.hora_final ?? ""} onChange={(e) => setEditForm({ ...editForm, hora_final: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Produto</Label>
+                <Input value={editForm.produto ?? ""} onChange={(e) => setEditForm({ ...editForm, produto: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Linha</Label>
+                <Input value={editForm.linha ?? ""} onChange={(e) => setEditForm({ ...editForm, linha: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Núcleo</Label>
+                <Input value={editForm.nucleo ?? ""} onChange={(e) => setEditForm({ ...editForm, nucleo: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Cor / Padrão</Label>
+                <Input value={editForm.padrao ?? ""} onChange={(e) => setEditForm({ ...editForm, padrao: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Largura (cm)</Label>
+                <Input type="number" value={editForm.largura_cm ?? ""} onChange={(e) => setEditForm({ ...editForm, largura_cm: e.target.value === "" ? null : Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Qtd. Conforme</Label>
+                <Input type="number" value={editForm.qtd_conforme ?? ""} onChange={(e) => setEditForm({ ...editForm, qtd_conforme: e.target.value === "" ? null : Number(e.target.value) })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Qtd. Não Conforme</Label>
+                <Input type="number" value={editForm.qtd_nao_conforme_1 ?? ""} onChange={(e) => setEditForm({ ...editForm, qtd_nao_conforme_1: e.target.value === "" ? null : Number(e.target.value) })} />
+              </div>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+          <Button onClick={salvarEdicao} disabled={savingEdit}>
+            {savingEdit && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
