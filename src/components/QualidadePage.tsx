@@ -84,7 +84,8 @@ interface GramaturaEntry {
 
 interface RQ40Entry {
   id: number;
-  data_recebimento: string;
+  tipo: string;
+  data: string;
   produto: string;
   material_fsc: boolean;
   padrao: string;
@@ -133,7 +134,7 @@ const EMPTY_GRAM_FORM = {
 };
 
 const EMPTY_RQ40_FORM = {
-  data_recebimento: new Date(),
+  data: new Date(),
   produto:          "",
   material_fsc:     "" as "" | "sim" | "nao",
   padrao:           "",
@@ -184,8 +185,9 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   const fetchGramaturas = useCallback(async () => {
     setLoadingGram(true);
     const { data, error } = await supabase
-      .from("qualidade_gramatura")
+      .from("controle_qualidade")
       .select("*")
+      .eq("tipo", "gramatura")
       .order("data", { ascending: false })
       .order("id",   { ascending: false });
     if (error) toast.error("Erro ao carregar medições: " + error.message);
@@ -200,10 +202,11 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   const fetchRQ40 = useCallback(async () => {
     setLoadingRQ40(true);
     const { data, error } = await supabase
-      .from("qualidade_rq40")
+      .from("controle_qualidade")
       .select("*")
-      .order("data_recebimento", { ascending: false })
-      .order("id",               { ascending: false });
+      .eq("tipo", "rq40")
+      .order("data", { ascending: false })
+      .order("id",   { ascending: false });
     if (error) toast.error("Erro ao carregar RQ40: " + error.message);
     else setRq40s(data ?? []);
     setLoadingRQ40(false);
@@ -260,7 +263,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   }
 
   async function handleGramDelete(id: number) {
-    const { error } = await supabase.from("qualidade_gramatura").delete().eq("id", id);
+    const { error } = await supabase.from("controle_qualidade").delete().eq("id", id);
     if (error) { toast.error("Erro ao remover: " + error.message); return; }
     toast.success("Registro removido."); fetchGramaturas();
   }
@@ -270,10 +273,10 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
     if (!gramForm.maquina || !gramForm.produto) { toast.error("Preencha todos os campos obrigatórios."); return; }
     if (isNaN(gramValue) || gramValue <= 0)      { toast.error("Gramatura inválida."); return; }
     setSavingGram(true);
-    const payload = { data: format(gramForm.data, "yyyy-MM-dd"), maquina: gramForm.maquina, produto: gramForm.produto, gramatura: gramValue, observacao: gramForm.observacao.trim() };
+    const payload = { tipo: "gramatura", data: format(gramForm.data, "yyyy-MM-dd"), maquina: gramForm.maquina, produto: gramForm.produto, gramatura: gramValue, observacao: gramForm.observacao.trim() };
     const { error } = gramEditingId !== null
-      ? await supabase.from("qualidade_gramatura").update(payload).eq("id", gramEditingId)
-      : await supabase.from("qualidade_gramatura").insert(payload);
+      ? await supabase.from("controle_qualidade").update(payload).eq("id", gramEditingId)
+      : await supabase.from("controle_qualidade").insert(payload);
     setSavingGram(false);
     if (error) { toast.error("Erro ao salvar: " + error.message); return; }
     toast.success(gramEditingId !== null ? "Registro atualizado." : "Medição registrada.");
@@ -287,7 +290,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   function openRQ40Edit(r: RQ40Entry) {
     setRq40EditId(r.id);
     setRq40Form({
-      data_recebimento: new Date(r.data_recebimento + "T00:00:00"),
+      data: new Date(r.data + "T00:00:00"),
       produto:          r.produto,
       material_fsc:     r.material_fsc ? "sim" : "nao",
       padrao:           r.padrao,
@@ -306,7 +309,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
   }
 
   async function handleRQ40Delete(id: number) {
-    const { error } = await supabase.from("qualidade_rq40").delete().eq("id", id);
+    const { error } = await supabase.from("controle_qualidade").delete().eq("id", id);
     if (error) { toast.error("Erro ao remover: " + error.message); return; }
     toast.success("Registro removido."); fetchRQ40();
   }
@@ -319,8 +322,9 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
     if (isNaN(qty) || qty <= 0) { toast.error("Quantidade inválida."); return; }
     setSavingRQ40(true);
     const payload = {
-      data_recebimento: format(rq40Form.data_recebimento, "yyyy-MM-dd"),
-      produto:          rq40Form.produto,
+      tipo:    "rq40",
+      data:    format(rq40Form.data, "yyyy-MM-dd"),
+      produto: rq40Form.produto,
       material_fsc:     rq40Form.material_fsc === "sim",
       padrao:           rq40Form.padrao,
       nota_fiscal:      rq40Form.nota_fiscal.trim(),
@@ -335,8 +339,8 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       resultado:        rq40Form.resultado,
     };
     const { error } = rq40EditId !== null
-      ? await supabase.from("qualidade_rq40").update(payload).eq("id", rq40EditId)
-      : await supabase.from("qualidade_rq40").insert(payload);
+      ? await supabase.from("controle_qualidade").update(payload).eq("id", rq40EditId)
+      : await supabase.from("controle_qualidade").insert(payload);
     setSavingRQ40(false);
     if (error) { toast.error("Erro ao salvar: " + error.message); return; }
     toast.success(rq40EditId !== null ? "Registro atualizado." : "Recebimento registrado.");
@@ -629,7 +633,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
                       <TableBody>
                         {rq40s.map((r) => (
                           <TableRow key={r.id}>
-                            <TableCell className="text-xs">{format(new Date(r.data_recebimento + "T00:00:00"), "dd/MM/yyyy")}</TableCell>
+                            <TableCell className="text-xs">{format(new Date(r.data + "T00:00:00"), "dd/MM/yyyy")}</TableCell>
                             <TableCell className="text-xs font-medium">{r.produto}</TableCell>
                             <TableCell className="text-xs">{r.padrao || "—"}</TableCell>
                             <TableCell className="text-xs">{r.fornecedor}</TableCell>
@@ -736,12 +740,12 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
                 <Popover open={rq40DateOpen} onOpenChange={setRq40DateOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />{format(rq40Form.data_recebimento, "dd/MM/yyyy")}
+                      <CalendarIcon className="mr-2 h-4 w-4" />{format(rq40Form.data, "dd/MM/yyyy")}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={rq40Form.data_recebimento} locale={ptBR} initialFocus className="pointer-events-auto"
-                      onSelect={(d) => { if (d) { setRq40Form({ ...rq40Form, data_recebimento: d }); setRq40DateOpen(false); } }} />
+                    <Calendar mode="single" selected={rq40Form.data} locale={ptBR} initialFocus className="pointer-events-auto"
+                      onSelect={(d) => { if (d) { setRq40Form({ ...rq40Form, data: d }); setRq40DateOpen(false); } }} />
                   </PopoverContent>
                 </Popover>
               </div>
