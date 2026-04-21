@@ -12,13 +12,17 @@ import QualidadePage from "@/components/QualidadePage";
 import HomePage from "@/components/HomePage";
 import MaquinasPage from "@/components/MaquinasPage";
 import UsuariosPage from "@/components/UsuariosPage";
+import RastreabilidadePage from "@/components/RastreabilidadePage";
+import MaterialCertificadoPage from "@/components/MaterialCertificadoPage";
 
-const ALL_SECTIONS = ["home", "machines", "qualidade", "relatorios", "registros", "usuarios", "configuracoes", "ajuda"];
+const ALL_SECTIONS = ["home", "machines", "rastreabilidade", "qualidade", "material-fsc", "relatorios", "registros", "usuarios", "configuracoes", "ajuda"];
 
 const SECTION_TITLES: Record<string, string> = {
   home: "Home",
   machines: "Máquinas",
+  rastreabilidade: "Rastreabilidade",
   qualidade: "Controle de Qualidade",
+  "material-fsc": "Material Certificado (FSC)",
   relatorios: "Relatórios",
   registros: "Registros",
   usuarios: "Usuários",
@@ -74,7 +78,9 @@ const Dashboard = ({ user, onLogout }: DashboardProps) => {
     switch (activeSection) {
       case "home": return <HomePage />;
       case "machines": return <MaquinasPage />;
+      case "rastreabilidade": return <RastreabilidadePage />;
       case "qualidade": return <QualidadePage subSection={qualidadeSubSection} />;
+      case "material-fsc": return <MaterialCertificadoPage />;
       case "usuarios": return <UsuariosPage isAdmin={isAdmin} />;
       case "relatorios": return <RelatoriosPage />;
       case "registros": return <RegistrosPage />;

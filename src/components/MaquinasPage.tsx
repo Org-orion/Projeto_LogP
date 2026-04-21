@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Cog, Loader2, AlertCircle, RefreshCw, Plus, History, Pencil, FileText, Search, FileSpreadsheet } from "lucide-react";
+import { Cog, Loader2, AlertCircle, RefreshCw, Plus, History, Pencil, FileText, Search, FileSpreadsheet, ChevronDown, ChevronRight } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -55,7 +56,6 @@ interface ColunaDef {
 
 const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
   "prensa fria": [
-    { key: "produto", label: "Produto" },
     { key: "nucleo", label: "Núcleo" },
     { key: "padrao", label: "Cor" },
     { key: "qtd_conforme", label: "Quantidade", numeric: true },
@@ -119,92 +119,76 @@ const MESES = [
 
 // ─── Histórico de Produção ────────────────────────────────────────────────────
 
-type FiltroTipo = "dia" | "mes" | "ano";
-
 function HistoricoSheet({ maquina, open, onClose }: {
   maquina: Maquina | null;
   open: boolean;
   onClose: () => void;
 }) {
   const hoje = new Date();
-  const [filtro, setFiltro] = useState<FiltroTipo>("mes");
-  const [dia, setDia] = useState(String(hoje.getDate()).padStart(2, "0"));
-  const [mes, setMes] = useState(String(hoje.getMonth() + 1).padStart(2, "0"));
-  const [ano, setAno] = useState(String(hoje.getFullYear()));
-  const [registros, setRegistros] = useState<RegistroProducao[]>([]);
+  const [anoFiltro, setAnoFiltro] = useState<string>(String(hoje.getFullYear()));
+  const [todosMD, setTodosMD] = useState<boolean>(true);
+  const [selecaoMD, setSelecaoMD] = useState<Set<string>>(new Set());
+  const [mesesExpandidos, setMesesExpandidos] = useState<Set<string>>(new Set());
+  const [todosRegistros, setTodosRegistros] = useState<RegistroProducao[]>([]);
   const [loadingHist, setLoadingHist] = useState(false);
   const [editReg, setEditReg] = useState<RegistroProducao | null>(null);
   const [editForm, setEditForm] = useState<Partial<RegistroProducao>>({});
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Filtragem client-side por mês/dia
+  const registros = todosMD
+    ? todosRegistros
+    : todosRegistros.filter(r => {
+        const mm = r.data.slice(5, 7);
+        const dd = r.data.slice(8, 10);
+        return selecaoMD.has(mm) || selecaoMD.has(`${mm}-${dd}`);
+      });
+
   const buscarHistorico = useCallback(async () => {
     if (!maquina?.nome) return;
     setLoadingHist(true);
 
-    let dataInicio = "";
-    let dataFim = "";
-
-    if (filtro === "dia") {
-      dataInicio = `${ano}-${mes}-${dia}`;
-      dataFim = dataInicio;
-    } else if (filtro === "mes") {
-      const d = new Date(Number(ano), Number(mes) - 1, 1);
-      dataInicio = format(startOfMonth(d), "yyyy-MM-dd");
-      dataFim = format(endOfMonth(d), "yyyy-MM-dd");
-    } else {
-      dataInicio = `${ano}-01-01`;
-      dataFim = `${ano}-12-31`;
-    }
-
     const nomeMaquina = (maquina.nome as string).trim();
-    const { data, error } = await supabase
+    let query = supabase
       .from("registros_producao")
       .select("id, data, hora_final, maquina, produto, linha, nucleo, padrao, largura_cm, qtd_conforme, qtd_nao_conforme_1")
       .ilike("maquina", nomeMaquina)
-      .gte("data", dataInicio)
-      .lte("data", dataFim)
       .order("data", { ascending: false });
 
+    if (anoFiltro !== "todos") {
+      query = query.gte("data", `${anoFiltro}-01-01`).lte("data", `${anoFiltro}-12-31`);
+    }
+
+    const { data, error } = await query;
     if (error) {
       toast.error("Erro ao buscar histórico: " + error.message);
     } else {
-      setRegistros(data ?? []);
+      setTodosRegistros(data ?? []);
     }
     setLoadingHist(false);
-  }, [maquina, filtro, dia, mes, ano]);
+  }, [maquina, anoFiltro]);
 
   useEffect(() => {
     if (open && maquina) buscarHistorico();
   }, [open, maquina, buscarHistorico]);
 
-  // Dados para o gráfico
+  // Dados para o gráfico — agrupa por dia se apenas 1 mês, por mês caso contrário
   const dadosGrafico = (() => {
-    if (filtro === "dia") {
-      // Agrupa por produto no dia
+    const mesesComDados = new Set(registros.map(r => r.data.slice(5, 7)));
+    if (mesesComDados.size <= 1 && registros.length > 0) {
+      const mm = [...mesesComDados][0];
+      const anoNum = anoFiltro === "todos" ? hoje.getFullYear() : Number(anoFiltro);
+      const diasNo = getDaysInMonth(new Date(anoNum, Number(mm) - 1, 1));
       const mapa: Record<string, number> = {};
-      for (const r of registros) {
-        const key = r.produto || "Sem produto";
-        mapa[key] = (mapa[key] ?? 0) + (Number(r.qtd_conforme) || 0);
-      }
-      return Object.entries(mapa).map(([label, producao]) => ({ label, producao }));
-    }
-    if (filtro === "mes") {
-      const diasNoMes = getDaysInMonth(new Date(Number(ano), Number(mes) - 1, 1));
-      const mapa: Record<string, number> = {};
-      for (let d = 1; d <= diasNoMes; d++) {
-        mapa[String(d).padStart(2, "0")] = 0;
-      }
+      for (let d = 1; d <= diasNo; d++) mapa[String(d).padStart(2, "0")] = 0;
       for (const r of registros) {
         const d = r.data.slice(8, 10);
         mapa[d] = (mapa[d] ?? 0) + (Number(r.qtd_conforme) || 0);
       }
       return Object.entries(mapa).map(([label, producao]) => ({ label, producao }));
     }
-    // ano: agrupa por mês
     const mapa: Record<string, number> = {};
-    for (let m = 1; m <= 12; m++) {
-      mapa[String(m).padStart(2, "0")] = 0;
-    }
+    for (let m = 1; m <= 12; m++) mapa[String(m).padStart(2, "0")] = 0;
     for (const r of registros) {
       const m = r.data.slice(5, 7);
       mapa[m] = (mapa[m] ?? 0) + (Number(r.qtd_conforme) || 0);
@@ -218,20 +202,68 @@ function HistoricoSheet({ maquina, open, onClose }: {
   const total = registros.reduce((s, r) => s + (Number(r.qtd_conforme) || 0), 0);
 
   const anos = Array.from({ length: 5 }, (_, i) => String(hoje.getFullYear() - i));
-  const diasDoMes = getDaysInMonth(new Date(Number(ano), Number(mes) - 1, 1));
+
+  const labelMesDia = todosMD ? "Todos" : selecaoMD.size === 0 ? "Nenhum" : `${selecaoMD.size} selecionado(s)`;
+
+  function toggleTodos() {
+    setTodosMD(p => !p);
+    setSelecaoMD(new Set());
+  }
+
+  function toggleMes(mm: string) {
+    setTodosMD(false);
+    setSelecaoMD(prev => {
+      const next = new Set(prev);
+      const anoNum = anoFiltro === "todos" ? hoje.getFullYear() : Number(anoFiltro);
+      const diasNo = getDaysInMonth(new Date(anoNum, Number(mm) - 1, 1));
+      if (next.has(mm)) {
+        next.delete(mm);
+        for (let d = 1; d <= diasNo; d++) next.delete(`${mm}-${String(d).padStart(2, "0")}`);
+      } else {
+        next.add(mm);
+        for (let d = 1; d <= diasNo; d++) next.delete(`${mm}-${String(d).padStart(2, "0")}`);
+      }
+      return next;
+    });
+  }
+
+  function toggleDia(mm: string, dd: string) {
+    setTodosMD(false);
+    setSelecaoMD(prev => {
+      const next = new Set(prev);
+      const key = `${mm}-${dd}`;
+      if (next.has(mm)) {
+        next.delete(mm);
+        const anoNum = anoFiltro === "todos" ? hoje.getFullYear() : Number(anoFiltro);
+        const diasNo = getDaysInMonth(new Date(anoNum, Number(mm) - 1, 1));
+        for (let d = 1; d <= diasNo; d++) {
+          const dk = `${mm}-${String(d).padStart(2, "0")}`;
+          if (dk !== key) next.add(dk);
+        }
+      } else if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  function toggleExpandir(mm: string) {
+    setMesesExpandidos(prev => {
+      const next = new Set(prev);
+      if (next.has(mm)) next.delete(mm); else next.add(mm);
+      return next;
+    });
+  }
 
   function gerarPDF() {
     const doc = new jsPDF();
     const nomeMaquina = (maquina?.nome as string) ?? "Máquina";
 
-    let periodoLabel = "";
-    if (filtro === "dia") {
-      periodoLabel = `${dia}/${mes}/${ano}`;
-    } else if (filtro === "mes") {
-      periodoLabel = `${MESES[Number(mes) - 1]} / ${ano}`;
-    } else {
-      periodoLabel = ano;
-    }
+    const periodoLabel = todosMD
+      ? (anoFiltro === "todos" ? "Todos os períodos" : anoFiltro)
+      : anoFiltro;
 
     // Cabeçalho
     doc.setFontSize(16);
@@ -275,19 +307,25 @@ function HistoricoSheet({ maquina, open, onClose }: {
     doc.setFont("helvetica", "bold");
     doc.text("Registros detalhados", 14, yPos);
 
-    const colunasPDF = getColunasParaMaquina(nomeMaquina);
+    const isPrensaFria = nomeMaquina.toLowerCase().includes("prensa fria");
+    const headPDF = [
+      "Data", "Hora Final",
+      ...(!isPrensaFria ? ["Produto"] : []),
+      "Linha", "Núcleo", "Cor/Padrão", "Largura (cm)", "Qtd. Conforme", "Qtd. NC",
+    ];
     autoTable(doc, {
       startY: yPos + 4,
-      head: [["Data", "Hora Final", ...colunasPDF.map((c) => c.label)]],
+      head: [headPDF],
       body: registros.map((r) => [
         format(parseISO(r.data), "dd/MM/yyyy"),
         r.hora_final ?? "—",
-        ...colunasPDF.map((c) => {
-          const val = r[c.key];
-          if (val === null || val === undefined || val === "") return "—";
-          if (c.numeric) return Number(val).toLocaleString("pt-BR");
-          return String(val);
-        }),
+        ...(!isPrensaFria ? [r.produto ?? "—"] : []),
+        r.linha ?? "—",
+        r.nucleo ?? "—",
+        r.padrao ?? "—",
+        r.largura_cm ?? "—",
+        r.qtd_conforme !== null && r.qtd_conforme !== undefined ? Number(r.qtd_conforme).toLocaleString("pt-BR") : "—",
+        r.qtd_nao_conforme_1 !== null && r.qtd_nao_conforme_1 !== undefined ? Number(r.qtd_nao_conforme_1).toLocaleString("pt-BR") : "—",
       ]),
       styles: { fontSize: 9 },
       headStyles: { fillColor: [59, 130, 246] },
@@ -299,23 +337,27 @@ function HistoricoSheet({ maquina, open, onClose }: {
 
   function gerarExcel() {
     const nomeMaquina = (maquina?.nome as string) ?? "Máquina";
-    const colunas = getColunasParaMaquina(nomeMaquina);
+    const isPrensaFria = nomeMaquina.toLowerCase().includes("prensa fria");
 
-    let periodoLabel = "";
-    if (filtro === "dia") periodoLabel = `${dia}-${mes}-${ano}`;
-    else if (filtro === "mes") periodoLabel = `${MESES[Number(mes) - 1]}-${ano}`;
-    else periodoLabel = ano;
+    const periodoLabel = todosMD
+      ? (anoFiltro === "todos" ? "todos" : anoFiltro)
+      : anoFiltro;
 
-    const cabecalho = ["Data", "Hora Final", ...colunas.map((c) => c.label)];
+    const cabecalho = [
+      "Data", "Hora Final",
+      ...(!isPrensaFria ? ["Produto"] : []),
+      "Linha", "Núcleo", "Cor/Padrão", "Largura (cm)", "Qtd. Conforme", "Qtd. NC",
+    ];
     const linhas = registros.map((r) => [
       format(parseISO(r.data), "dd/MM/yyyy"),
       r.hora_final ?? "",
-      ...colunas.map((c) => {
-        const val = r[c.key];
-        if (val === null || val === undefined || val === "") return "";
-        if (c.numeric) return Number(val);
-        return String(val);
-      }),
+      ...(!isPrensaFria ? [r.produto ?? ""] : []),
+      r.linha ?? "",
+      r.nucleo ?? "",
+      r.padrao ?? "",
+      r.largura_cm !== null && r.largura_cm !== undefined ? Number(r.largura_cm) : "",
+      r.qtd_conforme !== null && r.qtd_conforme !== undefined ? Number(r.qtd_conforme) : "",
+      r.qtd_nao_conforme_1 !== null && r.qtd_nao_conforme_1 !== undefined ? Number(r.qtd_nao_conforme_1) : "",
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([cabecalho, ...linhas]);
@@ -366,64 +408,101 @@ function HistoricoSheet({ maquina, open, onClose }: {
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {/* Filtros */}
           <div className="flex flex-wrap gap-2 items-end">
-            <div className="grid gap-1">
-              <Label className="text-xs">Filtrar por</Label>
-              <Select value={filtro} onValueChange={(v) => setFiltro(v as FiltroTipo)}>
-                <SelectTrigger className="h-8 text-xs w-28">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="dia">Dia</SelectItem>
-                  <SelectItem value="mes">Mês</SelectItem>
-                  <SelectItem value="ano">Ano</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {filtro === "dia" && (
-              <div className="grid gap-1">
-                <Label className="text-xs">Dia</Label>
-                <Select value={dia} onValueChange={setDia}>
-                  <SelectTrigger className="h-8 text-xs w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: diasDoMes }, (_, i) => String(i + 1).padStart(2, "0")).map((d) => (
-                      <SelectItem key={d} value={d}>{d}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {(filtro === "dia" || filtro === "mes") && (
-              <div className="grid gap-1">
-                <Label className="text-xs">Mês</Label>
-                <Select value={mes} onValueChange={setMes}>
-                  <SelectTrigger className="h-8 text-xs w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MESES.map((m, i) => (
-                      <SelectItem key={i} value={String(i + 1).padStart(2, "0")}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
+            {/* Ano */}
             <div className="grid gap-1">
               <Label className="text-xs">Ano</Label>
-              <Select value={ano} onValueChange={setAno}>
+              <Select value={anoFiltro} onValueChange={setAnoFiltro}>
                 <SelectTrigger className="h-8 text-xs w-24">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
                   {anos.map((a) => (
                     <SelectItem key={a} value={a}>{a}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Mês, Dia — tree select */}
+            <div className="grid gap-1">
+              <Label className="text-xs">Mês, Dia</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="h-8 text-xs w-44 border border-input rounded-md px-2 flex items-center justify-between bg-background hover:bg-accent transition-colors"
+                  >
+                    <span className="truncate">{labelMesDia}</span>
+                    <ChevronDown className="h-3 w-3 ml-1 shrink-0 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-52" align="start">
+                  <div className="max-h-72 overflow-y-auto text-xs">
+                    {/* Selecionar tudo */}
+                    <label className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent cursor-pointer">
+                      <input type="checkbox" checked={todosMD} onChange={toggleTodos} className="h-3.5 w-3.5 accent-primary" />
+                      <span>Selecionar tudo</span>
+                    </label>
+                    <div className="border-t my-0.5" />
+                    {/* Meses */}
+                    {MESES.map((nomeMes, i) => {
+                      const mm = String(i + 1).padStart(2, "0");
+                      const anoNum = anoFiltro === "todos" ? hoje.getFullYear() : Number(anoFiltro);
+                      const diasNo = getDaysInMonth(new Date(anoNum, i, 1));
+                      const checkedMes = todosMD || selecaoMD.has(mm);
+                      const indetermMes = !todosMD && !selecaoMD.has(mm) &&
+                        Array.from({ length: diasNo }, (_, d) => String(d + 1).padStart(2, "0"))
+                          .some(d => selecaoMD.has(`${mm}-${d}`));
+                      const expandido = mesesExpandidos.has(mm);
+                      return (
+                        <div key={mm}>
+                          <div className="flex items-center gap-1 px-2 py-1 hover:bg-accent">
+                            <button
+                              type="button"
+                              onClick={() => toggleExpandir(mm)}
+                              className="p-0.5 text-muted-foreground hover:text-foreground"
+                            >
+                              {expandido
+                                ? <ChevronDown className="h-3 w-3" />
+                                : <ChevronRight className="h-3 w-3" />}
+                            </button>
+                            <label className="flex items-center gap-2 cursor-pointer flex-1">
+                              <input
+                                type="checkbox"
+                                checked={checkedMes}
+                                ref={el => { if (el) el.indeterminate = indetermMes; }}
+                                onChange={() => toggleMes(mm)}
+                                className="h-3.5 w-3.5 accent-primary"
+                              />
+                              {nomeMes.toLowerCase()}
+                            </label>
+                          </div>
+                          {expandido && (
+                            <div className="pl-8">
+                              {Array.from({ length: diasNo }, (_, d) => {
+                                const dd = String(d + 1).padStart(2, "0");
+                                const checkedDia = todosMD || selecaoMD.has(mm) || selecaoMD.has(`${mm}-${dd}`);
+                                return (
+                                  <label key={dd} className="flex items-center gap-2 px-3 py-0.5 hover:bg-accent cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={checkedDia}
+                                      onChange={() => toggleDia(mm, dd)}
+                                      className="h-3.5 w-3.5 accent-primary"
+                                    />
+                                    {d + 1}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <Button size="sm" onClick={buscarHistorico} disabled={loadingHist} className="h-8 gap-1.5">
@@ -454,7 +533,7 @@ function HistoricoSheet({ maquina, open, onClose }: {
           {/* Gráfico */}
           {dadosGrafico.some((d) => d.producao > 0) && (
             <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={dadosGrafico} barSize={filtro === "ano" ? 20 : 10}>
+              <BarChart data={dadosGrafico} barSize={dadosGrafico.length <= 12 ? 20 : 10}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis hide />
@@ -483,7 +562,9 @@ function HistoricoSheet({ maquina, open, onClose }: {
                   <TableRow>
                     <TableHead className="text-xs whitespace-nowrap">Data</TableHead>
                     <TableHead className="text-xs whitespace-nowrap">Hora Final</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Produto</TableHead>
+                    {!maquina?.nome?.toLowerCase().includes("prensa fria") && (
+                      <TableHead className="text-xs whitespace-nowrap">Produto</TableHead>
+                    )}
                     <TableHead className="text-xs whitespace-nowrap">Linha</TableHead>
                     <TableHead className="text-xs whitespace-nowrap">Núcleo</TableHead>
                     <TableHead className="text-xs whitespace-nowrap">Cor/Padrão</TableHead>
@@ -498,7 +579,9 @@ function HistoricoSheet({ maquina, open, onClose }: {
                     <TableRow key={r.id}>
                       <TableCell className="text-xs whitespace-nowrap">{format(parseISO(r.data), "dd/MM/yyyy")}</TableCell>
                       <TableCell className="text-xs">{r.hora_final ?? "—"}</TableCell>
-                      <TableCell className="text-xs font-medium">{r.produto ?? "—"}</TableCell>
+                      {!maquina?.nome?.toLowerCase().includes("prensa fria") && (
+                        <TableCell className="text-xs font-medium">{r.produto ?? "—"}</TableCell>
+                      )}
                       <TableCell className="text-xs">{r.linha ?? "—"}</TableCell>
                       <TableCell className="text-xs">{r.nucleo ?? "—"}</TableCell>
                       <TableCell className="text-xs">{r.padrao ?? "—"}</TableCell>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Factory, Cog, BarChart3, ClipboardList, Settings, HelpCircle, ShieldCheck, Home, UserCog, ChevronDown } from "lucide-react";
+import { Factory, Cog, BarChart3, ClipboardList, Settings, HelpCircle, ShieldCheck, Home, UserCog, ChevronDown, GitBranch, Leaf } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -22,13 +22,15 @@ import { cn } from "@/lib/utils";
 
 // Itens simples (sem sub-menu)
 const MENU_ITEMS = [
-  { id: "home", name: "Home", icon: Home },
-  { id: "machines", name: "Máquinas", icon: Cog },
-  { id: "relatorios", name: "Relatórios", icon: BarChart3 },
-  { id: "registros", name: "Registros", icon: ClipboardList },
-  { id: "usuarios", name: "Usuários", icon: UserCog },
-  { id: "configuracoes", name: "Configurações", icon: Settings },
-  { id: "ajuda", name: "Ajuda", icon: HelpCircle },
+  { id: "home",            name: "Home",              icon: Home       },
+  { id: "machines",        name: "Máquinas",          icon: Cog        },
+  { id: "rastreabilidade", name: "Rastreabilidade",        icon: GitBranch },
+  { id: "material-fsc",   name: "Material Cert. (FSC)", icon: Leaf      },
+  { id: "relatorios",     name: "Relatórios",            icon: BarChart3 },
+  { id: "registros",       name: "Registros",         icon: ClipboardList },
+  { id: "usuarios",        name: "Usuários",          icon: UserCog    },
+  { id: "configuracoes",   name: "Configurações",     icon: Settings   },
+  { id: "ajuda",           name: "Ajuda",             icon: HelpCircle },
 ];
 
 // Sub-itens de Controle de Qualidade
@@ -80,9 +82,10 @@ export function AppSidebar({
     setQualidadeOpen(true);
   }
 
-  // Insere "Controle de Qualidade" na posição correta (depois de Máquinas)
-  const beforeQualidade = visibleSimple.filter((i) => i.id === "home" || i.id === "machines");
-  const afterQualidade = visibleSimple.filter((i) => !["home", "machines"].includes(i.id));
+  // Insere "Controle de Qualidade" na posição correta (depois de Rastreabilidade)
+  const BEFORE_QUALIDADE = ["home", "machines", "rastreabilidade"];
+  const beforeQualidade = visibleSimple.filter((i) => BEFORE_QUALIDADE.includes(i.id));
+  const afterQualidade = visibleSimple.filter((i) => !BEFORE_QUALIDADE.includes(i.id));
 
   return (
     <Sidebar collapsible="icon">

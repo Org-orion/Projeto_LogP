@@ -46,7 +46,7 @@ const PRODUTOS_GRAMATURA = [
 ];
 
 const PRODUTOS_RQ40 = [
-  "Colmeia", "Revestimento", "Bondoor", "Embalagem", "Borda", "Borracha",
+  "Colmeia", "Revestimento", "Bondoor", "Embalagem", "Borda", "Borracha", "Chapa de MDF",
 ];
 
 const PRODUTOS_RQ41 = ["Cola", "Tinta", "Resina", "Catalisador", "Extensor"];
