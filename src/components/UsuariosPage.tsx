@@ -25,7 +25,9 @@ import { toast } from "sonner";
 const ALL_PAGES = [
   { id: "home", label: "Home" },
   { id: "machines", label: "Máquinas" },
+  { id: "rastreabilidade", label: "Rastreabilidade" },
   { id: "qualidade", label: "Controle de Qualidade" },
+  { id: "material-fsc", label: "Material Certificado (FSC)" },
   { id: "relatorios", label: "Relatórios" },
   { id: "registros", label: "Registros" },
   { id: "usuarios", label: "Usuários" },

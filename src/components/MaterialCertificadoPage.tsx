@@ -226,6 +226,7 @@ export default function MaterialCertificadoPage() {
 
   // Exclusão
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
+  const [excluindoNFVinculada, setExcluindoNFVinculada] = useState<string | null>(null);
 
   // Autocomplete RQ
   const [sugestoesRQ, setSugestoesRQ] = useState<string[]>([]);
@@ -239,6 +240,7 @@ export default function MaterialCertificadoPage() {
   const [vincularReg,   setVincularReg]   = useState<RegistroProducaoMDF | null>(null);
   const [vincularGrupo, setVincularGrupo] = useState<GrupoMDF | null>(null);
   const [grupoAQsAberto, setGrupoAQsAberto] = useState<GrupoMDF | null>(null);
+  const [loteDetalheAberto, setLoteDetalheAberto] = useState<GrupoMDF | null>(null);
   const [vincularArquivo,  setVincularArquivo]  = useState<File | null>(null);
   const [vincularPreview,  setVincularPreview]  = useState<string | null>(null);
   const [vincularSalvando, setVincularSalvando] = useState(false);
@@ -464,6 +466,21 @@ export default function MaterialCertificadoPage() {
     toast.success("Registro excluído");
     setExcluindoId(null);
     carregarRegistros();
+  }
+
+  async function excluirNFVinculada(id: string, imagemUrl: string | null) {
+    if (imagemUrl) {
+      const partes = imagemUrl.split("/nf-materiais-fsc/");
+      if (partes.length === 2) {
+        await supabase.storage.from("nf-materiais-fsc").remove([partes[1].split("?")[0]]);
+      }
+    }
+    const { error } = await supabase.from("material_certificado_fsc").delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir NF: " + error.message); return; }
+    toast.success("NF vinculada removida com sucesso.");
+    setExcluindoNFVinculada(null);
+    carregarRegistros();
+    if (tipoVincular === "MDF") carregarMDFRegistros(); else carregarOutrosMateriais();
   }
 
   async function vincularNFaoMaterial() {
@@ -1030,7 +1047,7 @@ export default function MaterialCertificadoPage() {
                               <TableRow
                                 key={grupo.nota_fiscal ?? rep.id}
                                 className="cursor-pointer hover:bg-muted/50"
-                                onClick={() => grupo.aqs.length > 0 && setGrupoAQsAberto(grupo)}
+                                onClick={() => setLoteDetalheAberto(grupo)}
                               >
                                 <TableCell className="text-xs">{grupo.data ? fmtData(grupo.data) : "—"}</TableCell>
                                 <TableCell className="text-xs font-mono font-medium">{grupo.nota_fiscal ?? "—"}</TableCell>
@@ -1054,14 +1071,24 @@ export default function MaterialCertificadoPage() {
                                 </TableCell>
                                 <TableCell onClick={(e) => e.stopPropagation()}>
                                   {nfVinculada ? (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 px-2 text-xs gap-1 text-emerald-600"
-                                      onClick={() => setImagemDialogUrl(nfVinculada.imagem_nf_url!)}
-                                    >
-                                      <FileImage className="h-3 w-3" />Ver NF
-                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 px-2 text-xs gap-1 text-emerald-600"
+                                        onClick={() => setImagemDialogUrl(nfVinculada.imagem_nf_url!)}
+                                      >
+                                        <FileImage className="h-3 w-3" />Ver NF
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-red-400 hover:text-red-600"
+                                        onClick={() => setExcluindoNFVinculada(nfVinculada.id)}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
                                   ) : (
                                     <Button
                                       size="sm"
@@ -1199,14 +1226,24 @@ export default function MaterialCertificadoPage() {
                                 </TableCell>
                                 <TableCell>
                                   {nfVinculada ? (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 px-2 text-xs gap-1 text-emerald-600"
-                                      onClick={() => setImagemDialogUrl(nfVinculada.imagem_nf_url!)}
-                                    >
-                                      <FileImage className="h-3 w-3" />Ver NF
-                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 px-2 text-xs gap-1 text-emerald-600"
+                                        onClick={() => setImagemDialogUrl(nfVinculada.imagem_nf_url!)}
+                                      >
+                                        <FileImage className="h-3 w-3" />Ver NF
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-red-400 hover:text-red-600"
+                                        onClick={() => setExcluindoNFVinculada(nfVinculada.id)}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
                                   ) : (
                                     <Button
                                       size="sm"
@@ -1753,6 +1790,139 @@ export default function MaterialCertificadoPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ─── Dialog: Detalhes do Lote ───────────────────────────────────────── */}
+      <Dialog open={!!loteDetalheAberto} onOpenChange={() => setLoteDetalheAberto(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-4 w-4 text-emerald-600" />
+              Detalhes do Lote — NF {loteDetalheAberto?.nota_fiscal ?? "—"}
+            </DialogTitle>
+          </DialogHeader>
+          {loteDetalheAberto && (() => {
+            const grupo = loteDetalheAberto;
+            const nfVinculada = registros.find(
+              (fsc) => fsc.tipo_material === "MDF" && fsc.numero_nota_fiscal === grupo.nota_fiscal && !!grupo.nota_fiscal
+            );
+            const totalM3 = grupo.registros.reduce((soma, r) =>
+              soma + (r.comprimento_cm ?? 0) * (r.largura_cm ?? 0) * ((r.espessura_mm ?? 0) / 1000) * (r.qtd_conforme ?? 0), 0);
+
+            return (
+              <div className="space-y-4">
+                {/* Resumo do lote */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-lg border bg-muted/30 px-4 py-3 space-y-2">
+                    <p className="font-semibold text-sm mb-1">Informações do Lote</p>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Nota Fiscal</span>
+                      <span className="font-mono font-medium">{grupo.nota_fiscal ?? "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Data</span>
+                      <span className="font-medium">{grupo.data ? fmtData(grupo.data) : "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Fornecedor</span>
+                      <span className="font-medium">{grupo.fornecedor ?? "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Registros</span>
+                      <span className="font-medium">{grupo.registros.length}</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border bg-muted/30 px-4 py-3 space-y-2">
+                    <p className="font-semibold text-sm mb-1">Totais</p>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Volume total</span>
+                      <span className="font-bold text-emerald-700">{totalM3.toFixed(4)} m³</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">AQs geradas</span>
+                      <span className="font-medium">{grupo.aqs.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Status NF</span>
+                      {nfVinculada ? (
+                        <Badge className="bg-emerald-100 text-emerald-700 border-0 gap-1 text-[10px]">
+                          <CheckCircle2 className="h-3 w-3" />NF Vinculada
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-amber-100 text-amber-700 border-0 gap-1 text-[10px]">
+                          <Clock className="h-3 w-3" />Aguardando NF
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* AQs geradas */}
+                {grupo.aqs.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+                      <ScanLine className="h-3.5 w-3.5 text-blue-600" />AQs Geradas
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {grupo.aqs.map((aq, i) => (
+                        <Badge key={i} className="bg-blue-100 text-blue-700 border-0 font-mono text-xs">
+                          {aq}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tabela de registros individuais */}
+                <div>
+                  <p className="text-xs font-semibold mb-2">Registros de produção deste lote</p>
+                  <div className="rounded-lg border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Lote</TableHead>
+                          <TableHead className="text-xs">Produto</TableHead>
+                          <TableHead className="text-xs text-right">Comp. (cm)</TableHead>
+                          <TableHead className="text-xs text-right">Larg. (cm)</TableHead>
+                          <TableHead className="text-xs text-right">Esp. (mm)</TableHead>
+                          <TableHead className="text-xs text-right">Qtd.</TableHead>
+                          <TableHead className="text-xs text-right">m³</TableHead>
+                          <TableHead className="text-xs">RQ</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {grupo.registros.map((r) => {
+                          const vol = (r.comprimento_cm ?? 0) * (r.largura_cm ?? 0) * ((r.espessura_mm ?? 0) / 1000) * (r.qtd_conforme ?? 0);
+                          return (
+                            <TableRow key={r.id}>
+                              <TableCell className="text-xs font-mono">{r.n_lote ?? r.lote_fornecedor ?? "—"}</TableCell>
+                              <TableCell className="text-xs max-w-[8rem] truncate" title={r.produto ?? ""}>{r.produto ?? "—"}</TableCell>
+                              <TableCell className="text-xs text-right tabular-nums">{r.comprimento_cm ?? "—"}</TableCell>
+                              <TableCell className="text-xs text-right tabular-nums">{r.largura_cm ?? "—"}</TableCell>
+                              <TableCell className="text-xs text-right tabular-nums">{r.espessura_mm ?? "—"}</TableCell>
+                              <TableCell className="text-xs text-right tabular-nums">{r.qtd_conforme ?? "—"}</TableCell>
+                              <TableCell className="text-xs text-right tabular-nums text-emerald-700 font-medium">{vol.toFixed(4)}</TableCell>
+                              <TableCell className="text-xs font-mono text-muted-foreground">{r.codigo_rq ?? "—"}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        <TableRow className="bg-muted/30 font-semibold">
+                          <TableCell colSpan={6} className="text-xs text-right text-muted-foreground">Total</TableCell>
+                          <TableCell className="text-xs text-right tabular-nums text-emerald-700">{totalM3.toFixed(4)}</TableCell>
+                          <TableCell />
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setLoteDetalheAberto(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ─── Dialog: Visualizar NF ────────────────────────────────────────────── */}
       <Dialog open={!!imagemDialogUrl} onOpenChange={() => setImagemDialogUrl(null)}>
         <DialogContent className="max-w-3xl">
@@ -1779,6 +1949,30 @@ export default function MaterialCertificadoPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ─── AlertDialog: Confirmar exclusão de NF vinculada ────────────────── */}
+      <AlertDialog open={!!excluindoNFVinculada} onOpenChange={() => setExcluindoNFVinculada(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir NF vinculada?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A nota fiscal e seus dados serão removidos do sistema. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                const reg = registros.find((r) => r.id === excluindoNFVinculada);
+                if (excluindoNFVinculada) excluirNFVinculada(excluindoNFVinculada, reg?.imagem_nf_url ?? null);
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ─── AlertDialog: Confirmar exclusão ─────────────────────────────────── */}
       <AlertDialog open={!!excluindoId} onOpenChange={() => setExcluindoId(null)}>

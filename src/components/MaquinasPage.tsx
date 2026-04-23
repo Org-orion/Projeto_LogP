@@ -37,6 +37,7 @@ interface Maquina {
 interface RegistroProducao {
   id: number;
   data: string;
+  hora_inicial: string | null;
   hora_final: string | null;
   maquina: string | null;
   produto: string | null;
@@ -44,41 +45,232 @@ interface RegistroProducao {
   nucleo: string | null;
   padrao: string | null;
   largura_cm: number | null;
+  comprimento_cm: number | null;
+  espessura_mm: number | null;
   qtd_conforme: number | null;
   qtd_nao_conforme_1: number | null;
+  [key: string]: unknown;
 }
 
 interface ColunaDef {
-  key: keyof RegistroProducao;
+  key: string;
   label: string;
   numeric?: boolean;
+  date?: boolean;
 }
 
+const c = (key: string, label: string, opts: Partial<Omit<ColunaDef,"key"|"label">> = {}): ColunaDef => ({ key, label, ...opts });
+
 const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
-  "prensa fria": [
-    { key: "nucleo", label: "Núcleo" },
-    { key: "padrao", label: "Cor" },
-    { key: "qtd_conforme", label: "Quantidade", numeric: true },
+  "seccionadora": [
+    c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
+    c("tipo_chapa","Tipo de Chapa"), c("tipo_material","Tipo Material"),
+    c("espessura_mm","Esp. (mm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("comprimento_cm","Comp. (cm)",{numeric:true}),
+    c("qtd_chapas","Qtd. Chapas",{numeric:true}),
+    c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"), c("seccionadora_aq009","SECC. (AQ009)"),
+    c("produto","Produto"),
+    c("esp_recebido_mm","Esp. Prod. (mm)",{numeric:true}), c("larg_recebido_cm","Larg. Prod. (cm)",{numeric:true}), c("comp_recebido_cm","Comp. Prod. (cm)",{numeric:true}),
+    c("qtd_producao_1","Qtd. Prod. 1",{numeric:true}),
+    c("esp_produzido_2_mm","Esp. 2 (mm)",{numeric:true}), c("larg_produzido_2_cm","Larg. 2 (cm)",{numeric:true}), c("comp_produzido_2_cm","Comp. 2 (cm)",{numeric:true}),
+    c("qtd_producao_2","Qtd. Prod. 2",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("esp_sobra_mm","Esp. Sobra (mm)",{numeric:true}), c("larg_sobra_cm","Larg. Sobra (cm)",{numeric:true}), c("comp_sobra_cm","Comp. Sobra (cm)",{numeric:true}),
+    c("qtd_sobra","Qtd. Sobra",{numeric:true}), c("produto_sobra","Produto Sobra"),
+    c("recebimento_chapa_aq01","Receb. Chapa (AQ001)"), c("recebimento_materiais_aq002","Receb. Materiais (AQ002)"),
+  ],
+  "multi serra perfil": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("multi_serra_perfil_aq010","M.S.P. (AQ010)"), c("produto","Produto"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("largura_cm","Larg. (cm)",{numeric:true}), c("comprimento_cm","Comp. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("dimensao_produto","Dim. Produto"), c("dimensao_sobra","Dim. Sobra"), c("qtd_sobra","Qtd. Sobra",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("observacao","Observação"),
+    c("lixamento_aq041","LIXAMENTO (AQ041)"), c("seccionadora_aq009","SECC. (AQ009)"), c("prensa_fria_aq017","PRENSA FRIA (AQ017)"),
+  ],
+  "plaina moldureira de batente": [
+    c("data","Data",{date:true}), c("registro","Registro"), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("plaina_moldureira_batente_aq011","P.M.B. (AQ011)"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_batente_cm","Larg. Batente (cm)",{numeric:true}),
+    c("espessura_batente_mm","Esp. Batente (mm)",{numeric:true}),
+    c("profundidade_rasgo_regulagem","Prof. Rasgo Regulagem",{numeric:true}), c("profundidade_rasgo_borracha","Prof. Rasgo Borracha",{numeric:true}),
+    c("profundidade_rebaixo_batente","Prof. Rebaixo Batente",{numeric:true}), c("profundidade_rasgo_fixo","Prof. Rasgo Fixo",{numeric:true}),
+    c("espessura_rasgo_fixo","Esp. Rasgo Fixo",{numeric:true}), c("categoria","Categoria"),
+    c("espessura_rasgo_regulagem","Esp. Rasgo Regulagem",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("observacao","Observação"), c("multi_serra_perfil_aq010","M.S.P. (AQ010)"),
+  ],
+  "coladeira de alizar": [
+    c("data","Data",{date:true}), c("maquina","Máquina"), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("coladeira_alizar_aq012","COL. ALIZAR (AQ012)"), c("produto","Produto"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("espessura_regua_cm","Esp. Régua (cm)",{numeric:true}),
+    c("esp_aba_cm","Esp. Aba (cm)",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("multi_serra_aba_aq010","M.S.P. Aba (AQ010)"), c("multi_serra_regua_aq010","M.S.P. Régua (AQ010)"),
+  ],
+  "esquadrejadeira": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("linha","Linha"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("nucleo","Núcleo"), c("acabamento","Acabamento"), c("padrao","Padrão"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("desvio_esquadro_mm","Desvio Esquadro (mm)",{numeric:true}), c("paralelismo","Paralelismo"),
+    c("acabamento_lateral","Acab. Lateral"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("tipo_defeito_4","Defeito 4"),
+    c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
+    c("observacao","Observação"), c("fornecedor","Fornecedor"), c("prensa_fria_aq017","PRENSA FRIA (AQ017)"),
+  ],
+  "lixadeira": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
+    c("lixamento_aq041","LIXAMENTO (AQ041)"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("produto","Produto"), c("nucleo","Núcleo"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}),
+    c("retilineidade","Retilineidade"), c("textura","Textura"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("tipo_defeito_3","Defeito 3"), c("tipo_defeito_4","Defeito 4"),
+    c("observacao","Observação"),
+    c("destopadeira_sarrafo_aq015","DESTOP. SARRAFO (AQ015)"), c("seccionadora_aq009","SECC. (AQ009)"),
+  ],
+  "recobrimento de tampo": [
+    c("data","Data",{date:true}), c("registro","Registro"), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("n_lote","N° Lote"), c("fornecedor","Fornecedor"),
+    c("recobrimento_aq019","RECOB. TAMPO (AQ019)"), c("lote_fornecedor","Lote Fornecedor"),
+    c("produto","Produto"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("nucleo","Núcleo"), c("padrao","Padrão"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. Porta/Tampo (mm)",{numeric:true}),
+    c("qualidade_recobrimento","Qual. Recobrimento"), c("tempo_cura","Tempo de Cura"),
+    c("temperatura_c","Temperatura (°C)",{numeric:true}), c("tipo_cola","Tipo de Cola"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("tipo_defeito_4","Defeito 4"),
+    c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
+    c("observacao","Observação"), c("local","Local"), c("maquina","Máquina"), c("setor","Setor"),
+    c("seccionadora_aq009","SECC. (AQ009)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
+    c("recebimento_materiais_aq002","REC. MATERIAIS (AQ002)"), c("lixamento_aq041","LIXAMENTO (AQ041)"),
   ],
   "colagem de borda": [
-    { key: "linha", label: "Linha" },
-    { key: "nucleo", label: "Núcleo" },
-    { key: "padrao", label: "Cor" },
-    { key: "qtd_conforme", label: "Quantidade", numeric: true },
-    { key: "qtd_nao_conforme_1", label: "Qtd. Não Conforme", numeric: true },
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("colagem_borda_aq020","COL. BORDA (AQ020)"),
+    c("cliente","Cliente"), c("nome_cliente","Nome Cliente"), c("linha","Linha"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("nucleo","Núcleo"), c("padrao","Padrão"), c("tipo_cola","Tipo de Cola"),
+    c("largura_cm","Larg. (cm)",{numeric:true}), c("comprimento_cm","Comp. Porta (cm)",{numeric:true}), c("espessura_mm","Esp. Porta (mm)",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("observacao","Observação"), c("esquadrejadeira_aq040","ESQUAD. (AQ040)"),
   ],
-  "esquadro": [
-    { key: "linha", label: "Linha" },
-    { key: "nucleo", label: "Núcleo" },
-    { key: "padrao", label: "Cor" },
-    { key: "qtd_conforme", label: "Quantidade", numeric: true },
+  "linha de pintura de tampo": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("linha_pintura_aq021","L. PINTURA TAMPO (AQ021)"), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
+    c("produto","Produto"), c("padrao","Padrão"), c("qtd_demao","Qtd. Demão",{numeric:true}),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (cm)",{numeric:true}),
+    c("qualidade","Qualidade"), c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
+    c("observacao","Observação"), c("seccionadora_aq009","SECC. (AQ009)"), c("lixamento_aq041","LIXAMENTO (AQ041)"),
+  ],
+  "furação e corte": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("usinagem_portas_aq023","USINAGEM PORTAS (AQ023)"), c("cliente","Cliente"), c("linha","Linha"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("nucleo","Núcleo"), c("acabamento","Acabamento"), c("padrao","Padrão"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("qualidade_usinagem","Qual. Usinagem"),
+    c("altura_dobradica_inferior","Alt. Dobrad. Inf."), c("altura_dobradica_superior","Alt. Dobrad. Sup."),
+    c("sentido_abertura_dir","Sentido Dir."), c("sentido_abertura_esq","Sentido Esq."),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("observacao","Observação"),
+    c("colagem_borda_aq020","COL. BORDA (AQ020)"), c("usinagem_friso_aq022","USIN. FRISO (AQ022)"),
+    c("recebimento_ferragens_aq005","REC. FERRAGENS (AQ005)"),
+  ],
+  "recobrimento de perfil": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("maquina","Máquina"), c("recobrimento_perfil_aq025","RECOB. PERFIL (AQ025)"),
+    c("produto","Produto"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("rasgo_borracha","Rasgo Borracha"), c("qualidade","Qualidade"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("largura_papel_cm","Larg. Papel (cm)",{numeric:true}), c("tipo_cola","Tipo de Cola"),
+    c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}), c("padrao","Padrão"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("observacao","Observação"), c("setor","Setor"), c("local","Local"),
+    c("recebimento_materiais_aq002","REC. MATERIAIS (AQ002)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
+    c("multi_serra_perfil_aq010","M.S.P. (AQ010)"), c("coladeira_alizar_aq012","COL. ALIZAR (AQ012)"),
+    c("plaina_moldureira_rodape_aq043","P.M. RODAPÉ (AQ043)"), c("plaina_moldureira_batente_aq011","P.M. BATENTE (AQ011)"),
+  ],
+  "montagem do kit": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("maquina","Máquina"), c("linha","Linha"),
+    c("nucleo","Núcleo"), c("padrao","Padrão"), c("acabamento","Acabamento"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("largura_kit_cm","Larg. Kit (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}),
+    c("altura_kit_cm","Alt. Kit (cm)",{numeric:true}), c("espessura_mm","Esp. Porta (mm)",{numeric:true}),
+    c("entre_folha_rebaixo","Folha/Rebaixo",{numeric:true}),
+    c("entre_folha_travessa","Folha/Travessa",{numeric:true}),
+    c("entre_folha_marco","Folha/Marco",{numeric:true}),
+    c("sistema_trava","Sistema de Trava"),
+    c("qualidade_visual_final","Qual. Visual"), c("etiqueta_identificacao","Etiqueta"),
+    c("sentido_abertura_dir","Sentido Dir."), c("sentido_abertura_esq","Sentido Esq."),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+  ],
+  "prensa fria": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("fornecedor","Fornecedor"), c("linha","Linha"),
+    c("prensa_fria_aq017","PRENSA FRIA (AQ017)"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("nucleo","Núcleo"), c("padrao","Padrão"),
+    c("pressao_kgf_cm2","Pressão (kgF/cm²)",{numeric:true}),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. Porta (mm)",{numeric:true}),
+    c("numero_maquina","N° Máquina"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("observacao","Observação"),
+    c("seccionadora_aq009","SECC. (AQ009)"), c("linha_pintura_aq021","L. PINTURA TAMPO (AQ021)"),
+    c("recobrimento_aq019","RECOBRIMENTO (AQ019)"), c("montadora_grade_aq039","MONT. GRADE (AQ039)"),
+    c("mesa_montagem_aq016","MESA MONT. (AQ016)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
+  ],
+  "embalagem de kit": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("cliente","Cliente"), c("nome_cliente","Nome Cliente"),
+    c("largura_kit_cm","Larg. Kit (cm)",{numeric:true}),
+    c("largura_batente_cm","Larg. Batente (cm)",{numeric:true}),
+    c("linha","Linha"), c("nucleo","Núcleo"), c("padrao","Padrão"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("observacao","Observação"), c("montagem_kit_aq029","MONT. KIT (AQ029)"),
+  ],
+  "linha de pintura de portas": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("cliente","Cliente"), c("linha_pintura_portas_aq018","L. PINTURA PORTAS (AQ018)"),
+    c("linha","Linha"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("nucleo","Núcleo"), c("padrao","Padrão"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("qualidade","Qualidade"), c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("observacao","Observação"),
+    c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"), c("colagem_borda_aq020","COL. BORDA (AQ020)"),
+    c("usinagem_portas_aq023","FURAÇÃO/CORTE (AQ023)"), c("usinagem_friso_aq022","USIN. FRISO (AQ022)"),
   ],
 };
 
 const COLUNAS_DEFAULT: ColunaDef[] = [
-  { key: "produto", label: "Produto" },
-  { key: "linha", label: "Linha" },
-  { key: "qtd_conforme", label: "Qtd. Conforme", numeric: true },
+  c("data","Data",{date:true}), c("hora_final","H. Final"), c("produto","Produto"),
+  c("linha","Linha"), c("nucleo","Núcleo"), c("padrao","Cor/Padrão"),
+  c("largura_cm","Larg. (cm)",{numeric:true}), c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+  c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}),
 ];
 
 function getColunasParaMaquina(nomeMaquina: string): ColunaDef[] {
@@ -87,6 +279,13 @@ function getColunasParaMaquina(nomeMaquina: string): ColunaDef[] {
     if (chave.includes(k)) return cols;
   }
   return COLUNAS_DEFAULT;
+}
+
+function fmtCelula(val: unknown, col: ColunaDef): string {
+  if (val == null || val === "") return "—";
+  if (col.date) { try { return format(parseISO(String(val)), "dd/MM/yyyy"); } catch { return String(val); } }
+  if (col.numeric) { const n = Number(val); return isNaN(n) ? String(val) : n.toLocaleString("pt-BR"); }
+  return String(val);
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -151,7 +350,7 @@ function HistoricoSheet({ maquina, open, onClose }: {
     const nomeMaquina = (maquina.nome as string).trim();
     let query = supabase
       .from("registros_producao")
-      .select("id, data, hora_final, maquina, produto, linha, nucleo, padrao, largura_cm, qtd_conforme, qtd_nao_conforme_1")
+      .select("*")
       .ilike("maquina", nomeMaquina)
       .order("data", { ascending: false });
 
@@ -307,27 +506,12 @@ function HistoricoSheet({ maquina, open, onClose }: {
     doc.setFont("helvetica", "bold");
     doc.text("Registros detalhados", 14, yPos);
 
-    const isPrensaFria = nomeMaquina.toLowerCase().includes("prensa fria");
-    const headPDF = [
-      "Data", "Hora Final",
-      ...(!isPrensaFria ? ["Produto"] : []),
-      "Linha", "Núcleo", "Cor/Padrão", "Largura (cm)", "Qtd. Conforme", "Qtd. NC",
-    ];
+    const colunasPDF = getColunasParaMaquina(nomeMaquina);
     autoTable(doc, {
       startY: yPos + 4,
-      head: [headPDF],
-      body: registros.map((r) => [
-        format(parseISO(r.data), "dd/MM/yyyy"),
-        r.hora_final ?? "—",
-        ...(!isPrensaFria ? [r.produto ?? "—"] : []),
-        r.linha ?? "—",
-        r.nucleo ?? "—",
-        r.padrao ?? "—",
-        r.largura_cm ?? "—",
-        r.qtd_conforme !== null && r.qtd_conforme !== undefined ? Number(r.qtd_conforme).toLocaleString("pt-BR") : "—",
-        r.qtd_nao_conforme_1 !== null && r.qtd_nao_conforme_1 !== undefined ? Number(r.qtd_nao_conforme_1).toLocaleString("pt-BR") : "—",
-      ]),
-      styles: { fontSize: 9 },
+      head: [colunasPDF.map((col) => col.label)],
+      body: registros.map((r) => colunasPDF.map((col) => fmtCelula((r as Record<string,unknown>)[col.key], col))),
+      styles: { fontSize: 8 },
       headStyles: { fillColor: [59, 130, 246] },
     });
 
@@ -337,28 +521,21 @@ function HistoricoSheet({ maquina, open, onClose }: {
 
   function gerarExcel() {
     const nomeMaquina = (maquina?.nome as string) ?? "Máquina";
-    const isPrensaFria = nomeMaquina.toLowerCase().includes("prensa fria");
-
     const periodoLabel = todosMD
       ? (anoFiltro === "todos" ? "todos" : anoFiltro)
       : anoFiltro;
 
-    const cabecalho = [
-      "Data", "Hora Final",
-      ...(!isPrensaFria ? ["Produto"] : []),
-      "Linha", "Núcleo", "Cor/Padrão", "Largura (cm)", "Qtd. Conforme", "Qtd. NC",
-    ];
-    const linhas = registros.map((r) => [
-      format(parseISO(r.data), "dd/MM/yyyy"),
-      r.hora_final ?? "",
-      ...(!isPrensaFria ? [r.produto ?? ""] : []),
-      r.linha ?? "",
-      r.nucleo ?? "",
-      r.padrao ?? "",
-      r.largura_cm !== null && r.largura_cm !== undefined ? Number(r.largura_cm) : "",
-      r.qtd_conforme !== null && r.qtd_conforme !== undefined ? Number(r.qtd_conforme) : "",
-      r.qtd_nao_conforme_1 !== null && r.qtd_nao_conforme_1 !== undefined ? Number(r.qtd_nao_conforme_1) : "",
-    ]);
+    const colunasXLS = getColunasParaMaquina(nomeMaquina);
+    const cabecalho = colunasXLS.map((col) => col.label);
+    const linhas = registros.map((r) =>
+      colunasXLS.map((col) => {
+        const val = (r as Record<string,unknown>)[col.key];
+        if (val == null || val === "") return "";
+        if (col.date) { try { return format(parseISO(String(val)), "dd/MM/yyyy"); } catch { return String(val); } }
+        if (col.numeric) { const n = Number(val); return isNaN(n) ? String(val) : n; }
+        return String(val);
+      })
+    );
 
     const ws = XLSX.utils.aoa_to_sheet([cabecalho, ...linhas]);
     const wb = XLSX.utils.book_new();
@@ -398,14 +575,14 @@ function HistoricoSheet({ maquina, open, onClose }: {
   return (
     <>
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-5xl w-full max-h-[90vh] flex flex-col gap-0 p-0">
+      <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             Produção — {(maquina?.nome as string) ?? ""}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-shrink-0 overflow-y-auto px-6 py-4 space-y-4">
           {/* Filtros */}
           <div className="flex flex-wrap gap-2 items-end">
             {/* Ano */}
@@ -546,59 +723,54 @@ function HistoricoSheet({ maquina, open, onClose }: {
             </ResponsiveContainer>
           )}
 
-          {/* Tabela */}
-          {loadingHist ? (
-            <div className="flex items-center justify-center h-32 gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
-            </div>
-          ) : registros.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-              Nenhum registro encontrado para o período.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs whitespace-nowrap">Data</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Hora Final</TableHead>
-                    {!maquina?.nome?.toLowerCase().includes("prensa fria") && (
-                      <TableHead className="text-xs whitespace-nowrap">Produto</TableHead>
-                    )}
-                    <TableHead className="text-xs whitespace-nowrap">Linha</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Núcleo</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap">Cor/Padrão</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap text-right">Largura (cm)</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap text-right">Qtd. Conforme</TableHead>
-                    <TableHead className="text-xs whitespace-nowrap text-right">Qtd. NC</TableHead>
-                    <TableHead className="text-xs text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {registros.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="text-xs whitespace-nowrap">{format(parseISO(r.data), "dd/MM/yyyy")}</TableCell>
-                      <TableCell className="text-xs">{r.hora_final ?? "—"}</TableCell>
-                      {!maquina?.nome?.toLowerCase().includes("prensa fria") && (
-                        <TableCell className="text-xs font-medium">{r.produto ?? "—"}</TableCell>
-                      )}
-                      <TableCell className="text-xs">{r.linha ?? "—"}</TableCell>
-                      <TableCell className="text-xs">{r.nucleo ?? "—"}</TableCell>
-                      <TableCell className="text-xs">{r.padrao ?? "—"}</TableCell>
-                      <TableCell className="text-xs text-right">{r.largura_cm ?? "—"}</TableCell>
-                      <TableCell className="text-xs text-right font-medium text-primary">{r.qtd_conforme?.toLocaleString("pt-BR") ?? "—"}</TableCell>
-                      <TableCell className="text-xs text-right">{r.qtd_nao_conforme_1?.toLocaleString("pt-BR") ?? "—"}</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+        </div>
+
+        {/* Tabela — container com posição absoluta garante que as barras de rolagem
+            apareçam dentro dos limites visíveis do dialog */}
+        <div className="flex-1 min-h-0 relative border-t">
+          <div className="absolute inset-0 overflow-auto">
+            {loadingHist ? (
+              <div className="flex items-center justify-center h-32 gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
+              </div>
+            ) : registros.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                Nenhum registro encontrado para o período.
+              </div>
+            ) : (() => {
+                const colunas = getColunasParaMaquina(maquina?.nome ?? "");
+                return (
+                  <table className="w-max text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        {colunas.map((col) => (
+                          <th key={col.key} className={`px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap${col.numeric ? " text-right" : " text-left"}`}>
+                            {col.label}
+                          </th>
+                        ))}
+                        <th className="px-3 py-2 text-xs font-medium text-muted-foreground text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registros.map((r, i) => (
+                        <tr key={r.id} className={`border-b hover:bg-muted/30 transition-colors${i % 2 === 0 ? "" : " bg-muted/10"}`}>
+                          {colunas.map((col) => (
+                            <td key={col.key} className={`px-3 py-2 text-xs whitespace-nowrap${col.numeric ? " text-right tabular-nums" : ""}`}>
+                              {fmtCelula((r as Record<string,unknown>)[col.key], col)}
+                            </td>
+                          ))}
+                          <td className="px-3 py-2 text-right">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

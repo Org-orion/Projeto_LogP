@@ -22,20 +22,24 @@ import { cn } from "@/lib/utils";
 
 // Itens simples (sem sub-menu)
 const MENU_ITEMS = [
-  { id: "home",            name: "Home",              icon: Home       },
-  { id: "machines",        name: "Máquinas",          icon: Cog        },
-  { id: "rastreabilidade", name: "Rastreabilidade",        icon: GitBranch },
-  { id: "material-fsc",   name: "Material Cert. (FSC)", icon: Leaf      },
-  { id: "relatorios",     name: "Relatórios",            icon: BarChart3 },
-  { id: "registros",       name: "Registros",         icon: ClipboardList },
-  { id: "usuarios",        name: "Usuários",          icon: UserCog    },
-  { id: "configuracoes",   name: "Configurações",     icon: Settings   },
-  { id: "ajuda",           name: "Ajuda",             icon: HelpCircle },
+  { id: "home",           name: "Home",                 icon: Home        },
+  { id: "material-fsc",  name: "Material Cert. (FSC)", icon: Leaf        },
+  { id: "relatorios",    name: "Relatórios",            icon: BarChart3   },
+  { id: "registros",     name: "Registros",             icon: ClipboardList },
+  { id: "usuarios",      name: "Usuários",              icon: UserCog     },
+  { id: "configuracoes", name: "Configurações",         icon: Settings    },
+  { id: "ajuda",         name: "Ajuda",                 icon: HelpCircle  },
+];
+
+// Sub-itens de Produção
+const PRODUCAO_SUBS = [
+  { id: "machines",        name: "Máquinas" },
+  { id: "rastreabilidade", name: "Rastreabilidade" },
 ];
 
 // Sub-itens de Controle de Qualidade
 const QUALIDADE_SUBS = [
-  { id: "gramatura", name: "Gramatura" },
+  { id: "gramatura",   name: "Gramatura" },
   { id: "recebimento", name: "Recebimento de Insumos" },
 ];
 
@@ -57,15 +61,30 @@ export function AppSidebar({
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
-  // Expande automaticamente quando a seção qualidade está ativa
+  const isProducaoActive = PRODUCAO_SUBS.some((s) => s.id === activeSection);
+  const [producaoOpen, setProducaoOpen] = useState(isProducaoActive);
   const [qualidadeOpen, setQualidadeOpen] = useState(activeSection === "qualidade");
+
+  useEffect(() => {
+    if (isProducaoActive) setProducaoOpen(true);
+  }, [isProducaoActive]);
 
   useEffect(() => {
     if (activeSection === "qualidade") setQualidadeOpen(true);
   }, [activeSection]);
 
   const visibleSimple = MENU_ITEMS.filter((item) => allowedSections.includes(item.id));
+  const showProducao = PRODUCAO_SUBS.some((s) => allowedSections.includes(s.id));
   const showQualidade = allowedSections.includes("qualidade");
+
+  function handleProducaoClick() {
+    if (!isProducaoActive) {
+      onSectionSelect(PRODUCAO_SUBS[0].id);
+      setProducaoOpen(true);
+    } else {
+      setProducaoOpen((prev) => !prev);
+    }
+  }
 
   function handleQualidadeClick() {
     if (activeSection !== "qualidade") {
@@ -82,10 +101,8 @@ export function AppSidebar({
     setQualidadeOpen(true);
   }
 
-  // Insere "Controle de Qualidade" na posição correta (depois de Rastreabilidade)
-  const BEFORE_QUALIDADE = ["home", "machines", "rastreabilidade"];
-  const beforeQualidade = visibleSimple.filter((i) => BEFORE_QUALIDADE.includes(i.id));
-  const afterQualidade = visibleSimple.filter((i) => !BEFORE_QUALIDADE.includes(i.id));
+  const beforeFolders = visibleSimple.filter((i) => i.id === "home");
+  const afterFolders  = visibleSimple.filter((i) => i.id !== "home");
 
   return (
     <Sidebar collapsible="icon">
@@ -109,8 +126,8 @@ export function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
 
-              {/* Itens antes de Qualidade */}
-              {beforeQualidade.map((item) => (
+              {/* Itens antes das pastas (Home) */}
+              {beforeFolders.map((item) => (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton
                     onClick={() => onSectionSelect(item.id)}
@@ -122,6 +139,51 @@ export function AppSidebar({
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
+              {/* Produção com dropdown */}
+              {showProducao && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={handleProducaoClick}
+                    isActive={isProducaoActive}
+                    tooltip="Produção"
+                  >
+                    <Factory className="h-4 w-4" />
+                    {!collapsed && (
+                      <>
+                        <span className="flex-1">Produção</span>
+                        <ChevronDown
+                          className={cn(
+                            "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
+                            producaoOpen && "rotate-180"
+                          )}
+                        />
+                      </>
+                    )}
+                  </SidebarMenuButton>
+
+                  {producaoOpen && (
+                    <SidebarMenuSub>
+                      {PRODUCAO_SUBS.filter((s) => allowedSections.includes(s.id)).map((sub) => (
+                        <SidebarMenuSubItem key={sub.id}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={activeSection === sub.id}
+                            size="sm"
+                          >
+                            <button
+                              className="w-full text-left"
+                              onClick={() => onSectionSelect(sub.id)}
+                            >
+                              {sub.name}
+                            </button>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  )}
+                </SidebarMenuItem>
+              )}
 
               {/* Controle de Qualidade com dropdown */}
               {showQualidade && (
@@ -169,8 +231,8 @@ export function AppSidebar({
                 </SidebarMenuItem>
               )}
 
-              {/* Itens depois de Qualidade */}
-              {afterQualidade.map((item) => (
+              {/* Itens depois das pastas */}
+              {afterFolders.map((item) => (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton
                     onClick={() => onSectionSelect(item.id)}
