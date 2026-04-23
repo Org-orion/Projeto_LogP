@@ -8,403 +8,465 @@ import {
   AnimatePresence,
 } from "framer-motion";
 
-// ── Easing curves ────────────────────────────────────────────────────────────
-// Decelerating "launch": fast start, settles smoothly
-const EASE_DEPLOY: [number, number, number, number] = [0.22, 1, 0.36, 1];
-// Precise mid-speed: subtle ease-in, controlled ease-out
-const EASE_SETTLE: [number, number, number, number] = [0.43, 0.13, 0.23, 0.96];
+// ── Easing ───────────────────────────────────────────────────────────────────
+const E_LAUNCH: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const E_SETTLE: [number, number, number, number] = [0.43, 0.13, 0.23, 0.96];
 
-// ── Colors ───────────────────────────────────────────────────────────────────
-const VERDE       = "#216C3B";
-const STAGE_BG    = "#0d2418";
+// ── Layout constants ─────────────────────────────────────────────────────────
+const DOOR_W = 196;
+const DOOR_H = 316;
+const SIDE_W = 148;
+const SIDE_H = 240;
+const GAP    = 10;
 
-// ── Component definitions ────────────────────────────────────────────────────
-const W = 180; // card width  (px)
-const H = 284; // card height (px)
+// Assembled X from stage center
+const AX_BAT = -(DOOR_W / 2 + GAP + SIDE_W / 2); // left of door
+const AX_POR = 0;
+const AX_ALZ =  (DOOR_W / 2 + GAP + SIDE_W / 2); // right of door
 
-// Assembled x positions (from stage center, 20px gaps)
-const AX_BATENTE = -(W + 20);  // -200
-const AX_PORTA   = 0;
-const AX_ALIZAR  =  (W + 20);  //  200
+// Right edge of alizar card (= callout anchor X from stage center)
+const CALLOUT_START_X = AX_ALZ + SIDE_W / 2 + 10;
 
-interface Comp {
-  id:   "batente" | "porta" | "alizar";
-  src:  string;
-  tag:  string;
-  name: string;
-  fit:  "cover" | "contain";
-  pos?: string;
-  cardBg: string;
-  // exploded state
-  ex: number; ey: number; er: number; es: number;
-  // assembled x
-  ax: number;
-  z: number;
-}
+const VERDE      = "#216C3B";
+const VERDE_DARK = "#1a3d22";
 
-const COMPS: Comp[] = [
-  {
-    id: "batente",
-    src: "/images/batente-melaminico.jpg",
-    tag: "Componente 01",
-    name: "Batente Melamínico",
-    fit: "contain",
-    cardBg: "rgba(255,255,255,0.96)",
-    ex: -390, ey: 28, er: -8, es: 0.80,
-    ax: AX_BATENTE,
-    z: 1,
-  },
-  {
-    id: "porta",
-    src: "/images/porta-pivotante.jpg",
-    tag: "Componente 02",
-    name: "Porta Pivotante",
-    fit: "cover",
-    pos: "center 12%",
-    cardBg: "rgba(20,42,28,1)",
-    ex: 0, ey: -24, er: 0, es: 1.14,
-    ax: AX_PORTA,
-    z: 3,
-  },
-  {
-    id: "alizar",
-    src: "/images/alizar-bianco.jpg",
-    tag: "Componente 03",
-    name: "Alizar Bianco",
-    fit: "contain",
-    cardBg: "rgba(255,255,255,0.96)",
-    ex: 390, ey: -14, er: 8, es: 0.80,
-    ax: AX_ALIZAR,
-    z: 2,
-  },
-];
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 function pause(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
+// ── Card component ───────────────────────────────────────────────────────────
+function Card({
+  src, fit, pos, tall, active,
+}: {
+  src: string;
+  fit: "cover" | "contain";
+  pos?: string;
+  tall?: boolean;
+  active: boolean;
+}) {
+  return (
+    <>
+      <div
+        className="absolute inset-0 rounded-2xl transition-shadow duration-300"
+        style={{
+          boxShadow: active
+            ? `0 0 0 2px ${VERDE}, 0 18px 56px rgba(33,108,59,0.2), 0 4px 14px rgba(0,0,0,0.1)`
+            : `0 10px 36px rgba(0,0,0,0.11), 0 3px 8px rgba(0,0,0,0.07)`,
+        }}
+      />
+      <div
+        className="relative w-full h-full rounded-2xl overflow-hidden"
+        style={{ background: "white", border: "1px solid rgba(33,108,59,0.1)" }}
+      >
+        <img
+          src={src}
+          alt=""
+          draggable={false}
+          className="absolute inset-0 w-full h-full"
+          style={{
+            objectFit: fit,
+            objectPosition: pos ?? "center",
+            pointerEvents: "none",
+            userSelect: "none",
+          }}
+        />
+        {/* soft top/bottom fade for door card */}
+        {tall && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(to bottom, rgba(255,255,255,0.12) 0%, transparent 18%, transparent 82%, rgba(255,255,255,0.18) 100%)",
+            }}
+          />
+        )}
+        {/* click pulse */}
+        <AnimatePresence>
+          {active && (
+            <motion.div
+              key="pulse"
+              className="absolute inset-0 rounded-2xl pointer-events-none"
+              initial={{ opacity: 0.38 }}
+              animate={{ opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              style={{ background: `rgba(33,108,59,0.18)` }}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </>
+  );
+}
+
+// ── Callout annotation row ────────────────────────────────────────────────────
+function CalloutRow({
+  label, desc, yOffset, visible, delay,
+}: {
+  label: string;
+  desc: string;
+  yOffset: number; // from vertical center of stage
+  visible: boolean;
+  delay: number;
+}) {
+  return (
+    <motion.div
+      className="absolute flex items-center pointer-events-none"
+      style={{
+        left: `calc(50% + ${CALLOUT_START_X}px)`,
+        top:  "50%",
+        transform: `translateY(calc(-50% + ${yOffset}px))`,
+      }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: visible ? 1 : 0 }}
+      transition={{ duration: 0.4, delay: visible ? delay : 0 }}
+    >
+      {/* dot */}
+      <div className="relative shrink-0" style={{ width: 7, height: 7 }}>
+        <div className="absolute inset-0 rounded-full" style={{ background: VERDE }} />
+        <div
+          className="absolute rounded-full"
+          style={{ inset: -3, border: "1.5px solid rgba(33,108,59,0.25)", borderRadius: "50%" }}
+        />
+      </div>
+
+      {/* line */}
+      <motion.div
+        className="shrink-0"
+        style={{ height: 1, background: "rgba(33,108,59,0.3)", transformOrigin: "left" }}
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: visible ? 1 : 0 }}
+        transition={{ duration: 0.3, delay: visible ? delay + 0.08 : 0, ease: E_LAUNCH }}
+      >
+        <div style={{ width: 52 }} />
+      </motion.div>
+
+      {/* text */}
+      <motion.div
+        className="ml-2.5"
+        initial={{ opacity: 0, x: -5 }}
+        animate={{ opacity: visible ? 1 : 0, x: visible ? 0 : -5 }}
+        transition={{ duration: 0.3, delay: visible ? delay + 0.24 : 0 }}
+      >
+        <p
+          className="text-[11px] font-extrabold uppercase tracking-[0.15em] leading-none"
+          style={{ color: VERDE_DARK }}
+        >
+          {label}
+        </p>
+        <p
+          className="text-[9.5px] leading-snug mt-[3px]"
+          style={{ color: "rgba(30,60,35,0.52)", maxWidth: 148 }}
+        >
+          {desc}
+        </p>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Dimension line (top horizontal marker) ────────────────────────────────────
+function DimBar({
+  label, xLeft, xRight, y, visible, delay,
+}: {
+  label: string;
+  xLeft: number; // from stage center
+  xRight: number;
+  y: number;     // from stage top
+  visible: boolean;
+  delay: number;
+}) {
+  const len = xRight - xLeft;
+  return (
+    <motion.div
+      className="absolute pointer-events-none flex items-center"
+      style={{
+        left:  `calc(50% + ${xLeft}px)`,
+        top:   y,
+        width: len,
+        height: 16,
+      }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: visible ? 1 : 0 }}
+      transition={{ duration: 0.4, delay: visible ? delay : 0 }}
+    >
+      {/* left tick */}
+      <div style={{ width: 1, height: 10, background: "rgba(33,108,59,0.28)", marginRight: 1 }} />
+      {/* line */}
+      <motion.div
+        style={{ flex: 1, height: 1, background: "rgba(33,108,59,0.22)", transformOrigin: "left" }}
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: visible ? 1 : 0 }}
+        transition={{ duration: 0.5, delay: visible ? delay + 0.08 : 0, ease: E_LAUNCH }}
+      />
+      {/* right tick */}
+      <div style={{ width: 1, height: 10, background: "rgba(33,108,59,0.28)", marginLeft: 1 }} />
+      {/* label */}
+      <span
+        className="absolute text-[9px] font-mono tracking-wide"
+        style={{
+          color: "rgba(33,108,59,0.38)",
+          left: "50%",
+          top: -12,
+          transform: "translateX(-50%)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+    </motion.div>
+  );
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
 export function DoorKitAnimation() {
-  const stageRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(stageRef, { amount: 0.35 });
+  const stageRef   = useRef<HTMLDivElement>(null);
+  const isInView   = useInView(stageRef, { amount: 0.35 });
+  const mountedRef = useRef(true);
+  const runningRef = useRef(false);
+  const asmRef     = useRef(false);
 
   const batente = useAnimation();
   const porta   = useAnimation();
   const alizar  = useAnimation();
 
-  const ctrl: Record<Comp["id"], ReturnType<typeof useAnimation>> = {
-    batente, porta, alizar,
-  };
+  const [assembled, setAssembled] = useState(false);
+  const [active, setActive]       = useState<"batente" | "porta" | "alizar" | null>(null);
 
-  const [assembled, setAssembled]   = useState(false);
-  const [active, setActive]         = useState<Comp["id"] | null>(null);
-  const runningRef  = useRef(false);
-  const assembledRef = useRef(false);
-  const mountedRef  = useRef(true);
+  useEffect(() => { return () => { mountedRef.current = false; }; }, []);
 
-  useEffect(() => {
-    return () => { mountedRef.current = false; };
-  }, []);
-
-  // ── Reset helpers ────────────────────────────────────────────────────────
   function resetAll() {
-    assembledRef.current = false;
+    asmRef.current = false;
     setAssembled(false);
     setActive(null);
-    COMPS.forEach(c => {
-      ctrl[c.id].stop();
-      ctrl[c.id].set({
-        x: c.ex, y: c.ey, rotate: c.er, scale: c.es, opacity: 0,
-      });
-    });
+    batente.stop(); batente.set({ x: -360, y: 28,  rotate: -7, scale: 0.78, opacity: 0 });
+    porta.stop();   porta.set({   x: 0,    y: -24, rotate: 0,  scale: 1.14, opacity: 0 });
+    alizar.stop();  alizar.set({  x: 360,  y: -16, rotate: 7,  scale: 0.78, opacity: 0 });
   }
 
-  // ── Main assembly sequence ───────────────────────────────────────────────
   async function assemble() {
-    if (runningRef.current || assembledRef.current) return;
+    if (runningRef.current || asmRef.current) return;
     runningRef.current = true;
-
     resetAll();
     if (!mountedRef.current) { runningRef.current = false; return; }
 
-    // 1. Fade in all three (staggered)
-    await Promise.all(
-      COMPS.map((c, i) =>
-        ctrl[c.id].start({
-          opacity: 1,
-          transition: { duration: 0.5, delay: i * 0.13 },
-        })
-      )
-    );
+    // Fade in
+    await Promise.all([
+      batente.start({ opacity: 1, transition: { duration: 0.52 } }),
+      porta.start(  { opacity: 1, transition: { duration: 0.52, delay: 0.13 } }),
+      alizar.start( { opacity: 1, transition: { duration: 0.52, delay: 0.26 } }),
+    ]);
 
-    // 2. Hold exploded view for a beat
     await pause(700);
     if (!mountedRef.current) { runningRef.current = false; return; }
 
-    // 3. STEP 1 — Batente slides horizontally into frame
-    await ctrl.batente.start({
-      x: AX_BATENTE,
-      y: 0,
-      rotate: 0,
-      scale: 1,
-      transition: { duration: 1.3, ease: EASE_DEPLOY },
+    // Step 1 — batente slides in
+    await batente.start({
+      x: AX_BAT, y: 0, rotate: 0, scale: 1,
+      transition: { duration: 1.3, ease: E_LAUNCH },
     });
 
     await pause(240);
     if (!mountedRef.current) { runningRef.current = false; return; }
 
-    // 4. STEP 2 — Door settles back, aligned inside the frame
-    await ctrl.porta.start({
-      x: 0,
-      y: 0,
-      rotate: 0,
-      scale: 1,
-      transition: { duration: 0.92, ease: EASE_SETTLE },
+    // Step 2 — door settles
+    await porta.start({
+      x: 0, y: 0, rotate: 0, scale: 1,
+      transition: { duration: 0.92, ease: E_SETTLE },
     });
 
-    await pause(310);
+    await pause(320);
     if (!mountedRef.current) { runningRef.current = false; return; }
 
-    // 5. STEP 3 — Alizar closes from the outer side
-    await ctrl.alizar.start({
-      x: AX_ALIZAR,
-      y: 0,
-      rotate: 0,
-      scale: 1,
-      transition: { duration: 1.15, ease: EASE_DEPLOY },
+    // Step 3 — alizar closes
+    await alizar.start({
+      x: AX_ALZ, y: 0, rotate: 0, scale: 1,
+      transition: { duration: 1.14, ease: E_LAUNCH },
     });
 
-    await pause(160);
+    await pause(200);
     if (!mountedRef.current) { runningRef.current = false; return; }
 
-    assembledRef.current = true;
+    asmRef.current = true;
     setAssembled(true);
     runningRef.current = false;
 
-    // 6. Idle float — subtle breathing, staggered phases
-    void ctrl.batente.start({
-      y: [0, -3.5, 0, 2.5, 0],
-      transition: { duration: 6.2, repeat: Infinity, ease: "easeInOut" },
-    });
-    void ctrl.porta.start({
-      y: [0, -2.5, 0, 3.2, 0],
-      transition: { duration: 7.0, repeat: Infinity, ease: "easeInOut", delay: 0.9 },
-    });
-    void ctrl.alizar.start({
-      y: [0, -4.0, 0, 2.0, 0],
-      transition: { duration: 5.6, repeat: Infinity, ease: "easeInOut", delay: 1.6 },
-    });
+    // Idle float
+    void batente.start({ y: [0, -3.5, 0, 2.5, 0], transition: { duration: 6.2, repeat: Infinity, ease: "easeInOut" } });
+    void porta.start(  { y: [0, -2.5, 0, 3.0, 0], transition: { duration: 7.0, repeat: Infinity, ease: "easeInOut", delay: 0.9 } });
+    void alizar.start( { y: [0, -4.0, 0, 2.0, 0], transition: { duration: 5.6, repeat: Infinity, ease: "easeInOut", delay: 1.6 } });
   }
 
-  // ── Scroll trigger ───────────────────────────────────────────────────────
   useEffect(() => {
-    if (isInView && !runningRef.current && !assembledRef.current) {
-      void assemble();
-    }
-    if (!isInView) {
-      runningRef.current = false;
-      resetAll();
-    }
+    if (isInView && !runningRef.current && !asmRef.current) void assemble();
+    if (!isInView) { runningRef.current = false; resetAll(); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInView]);
 
-  // ── Click handler ─────────────────────────────────────────────────────────
-  function handleClick(id: Comp["id"]) {
-    if (!assembledRef.current) return;
+  function handleClick(id: "batente" | "porta" | "alizar") {
+    if (!asmRef.current) return;
     setActive(id);
     setTimeout(() => setActive(null), 650);
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
       ref={stageRef}
       className="relative w-full overflow-hidden select-none"
       style={{
-        height: 420,
-        background: `radial-gradient(ellipse 140% 100% at 50% 0%, #1a3d28 0%, ${STAGE_BG} 65%)`,
+        height: 440,
+        background: "linear-gradient(165deg, #f3f8f4 0%, #edf3ef 55%, #e9f1eb 100%)",
+        borderTop: "1px solid rgba(33,108,59,0.07)",
+        borderBottom: "1px solid rgba(33,108,59,0.07)",
       }}
     >
-      {/* Dot grid texture */}
+      {/* Dot grid */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px)`,
-          backgroundSize: "28px 28px",
+          backgroundImage: `radial-gradient(circle, rgba(33,108,59,0.065) 1px, transparent 1px)`,
+          backgroundSize: "22px 22px",
         }}
       />
 
-      {/* Stage vignette — darkens corners for depth */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 85% 75% at 50% 50%, transparent 35%, rgba(0,0,0,0.42) 100%)",
-        }}
+      {/* ── Dimension bars (top) ── */}
+      {/* Full kit span */}
+      <DimBar
+        label="Kit completo"
+        xLeft={AX_BAT - SIDE_W / 2}
+        xRight={AX_ALZ + SIDE_W / 2}
+        y={28}
+        visible={assembled}
+        delay={0.25}
+      />
+      {/* Door span */}
+      <DimBar
+        label="Porta"
+        xLeft={-DOOR_W / 2}
+        xRight={DOOR_W / 2}
+        y={46}
+        visible={assembled}
+        delay={0.38}
       />
 
-      {/* ── Cards ── */}
+      {/* ── 3 Cards ── */}
       <div className="absolute inset-0 flex items-center justify-center">
-        {COMPS.map((c, idx) => (
-          <motion.div
-            key={c.id}
-            animate={ctrl[c.id]}
-            className="absolute cursor-pointer"
-            style={{ width: W, height: H, zIndex: assembled ? c.z : 2 + idx }}
-            whileHover={
-              assembled
-                ? { scale: 1.045, transition: { duration: 0.2, ease: "easeOut" } }
-                : undefined
-            }
-            onClick={() => handleClick(c.id)}
-          >
-            {/* Glow / shadow ring */}
-            <div
-              className="absolute inset-0 rounded-2xl transition-all duration-300"
-              style={{
-                boxShadow:
-                  active === c.id
-                    ? `0 0 0 2.5px rgba(255,255,255,0.88),
-                       0 28px 80px rgba(0,0,0,0.72),
-                       0 8px 24px rgba(33,108,59,0.35)`
-                    : assembled
-                      ? `0 22px 64px rgba(0,0,0,0.58), 0 6px 20px rgba(0,0,0,0.32)`
-                      : `0 10px 32px rgba(0,0,0,0.45)`,
-              }}
-            />
 
-            {/* Card face */}
-            <div
-              className="relative w-full h-full rounded-2xl overflow-hidden"
-              style={{ background: c.cardBg }}
-            >
-              <img
-                src={c.src}
-                alt={c.name}
-                className="absolute inset-0 w-full h-full"
-                style={{
-                  objectFit: c.fit,
-                  objectPosition: c.pos ?? "center",
-                  pointerEvents: "none",
-                  userSelect: "none",
-                }}
-                draggable={false}
-              />
+        {/* Batente */}
+        <motion.div
+          animate={batente}
+          className="absolute cursor-pointer"
+          style={{ width: SIDE_W, height: SIDE_H, zIndex: assembled ? 1 : 2 }}
+          whileHover={assembled ? { scale: 1.045, transition: { duration: 0.2 } } : undefined}
+          onClick={() => handleClick("batente")}
+        >
+          <Card src="/images/batente-melaminico.jpg" fit="contain" active={active === "batente"} />
+        </motion.div>
 
-              {/* Bottom scrim (all cards) */}
-              <div
-                className="absolute inset-x-0 bottom-0 h-24 pointer-events-none"
-                style={{
-                  background:
-                    c.id === "porta"
-                      ? "linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)"
-                      : "linear-gradient(to top, rgba(0,0,0,0.62) 0%, transparent 100%)",
-                }}
-              />
+        {/* Porta */}
+        <motion.div
+          animate={porta}
+          className="absolute cursor-pointer"
+          style={{ width: DOOR_W, height: DOOR_H, zIndex: 3 }}
+          whileHover={assembled ? { scale: 1.03, transition: { duration: 0.2 } } : undefined}
+          onClick={() => handleClick("porta")}
+        >
+          <Card src="/images/porta-pivotante.jpg" fit="cover" pos="center 10%" tall active={active === "porta"} />
+        </motion.div>
 
-              {/* Click highlight pulse */}
-              <AnimatePresence>
-                {active === c.id && (
-                  <motion.div
-                    key="pulse"
-                    className="absolute inset-0 rounded-2xl pointer-events-none"
-                    initial={{ opacity: 0.5, scale: 1 }}
-                    animate={{ opacity: 0, scale: 1.015 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.55, ease: "easeOut" }}
-                    style={{ background: "rgba(255,255,255,0.28)" }}
-                  />
-                )}
-              </AnimatePresence>
-
-              {/* Label block (after assembly) */}
-              <AnimatePresence>
-                {assembled && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 7 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 4 }}
-                    transition={{ duration: 0.38, delay: idx * 0.09 }}
-                    className="absolute bottom-0 inset-x-0 px-4 pb-4 pt-6"
-                  >
-                    <p
-                      className="text-[9px] font-bold uppercase tracking-[0.18em] mb-0.5"
-                      style={{ color: "rgba(140,255,170,0.8)" }}
-                    >
-                      {c.tag}
-                    </p>
-                    <p className="text-white text-[13px] font-bold leading-tight drop-shadow-sm">
-                      {c.name}
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </motion.div>
-        ))}
+        {/* Alizar */}
+        <motion.div
+          animate={alizar}
+          className="absolute cursor-pointer"
+          style={{ width: SIDE_W, height: SIDE_H, zIndex: assembled ? 2 : 2 }}
+          whileHover={assembled ? { scale: 1.045, transition: { duration: 0.2 } } : undefined}
+          onClick={() => handleClick("alizar")}
+        >
+          <Card src="/images/alizar-bianco.jpg" fit="contain" active={active === "alizar"} />
+        </motion.div>
       </div>
 
-      {/* ── Connector lines between assembled cards ── */}
+      {/* ── Callout annotations (right side) ── */}
+      <CalloutRow
+        label="Alizar"
+        desc="Acabamento estético que enquadra e protege a porta"
+        yOffset={-SIDE_H / 2 + 32}
+        visible={assembled}
+        delay={0.1}
+      />
+      <CalloutRow
+        label="Porta"
+        desc="Fabricada com materiais de alta qualidade e durabilidade"
+        yOffset={6}
+        visible={assembled}
+        delay={0.24}
+      />
+      <CalloutRow
+        label="Batente"
+        desc="Estrutura que fixa, alinha e veda a porta na parede"
+        yOffset={SIDE_H / 2 - 28}
+        visible={assembled}
+        delay={0.40}
+      />
+
+      {/* ── Vertical left dimension tick (door height) ── */}
       <AnimatePresence>
         {assembled && (
           <motion.div
-            className="absolute inset-0 pointer-events-none flex items-center justify-center"
+            className="absolute pointer-events-none flex flex-col items-center"
+            style={{
+              left: `calc(50% + ${AX_BAT - SIDE_W / 2 - 22}px)`,
+              top:  "50%",
+              transform: `translateY(calc(-50%))`,
+            }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
           >
-            {/* Left connector */}
-            <div
-              className="absolute"
-              style={{
-                left: `calc(50% + ${AX_BATENTE + W / 2}px)`,
-                width: 20,
-                height: 1,
-                background: "linear-gradient(to right, transparent, rgba(255,255,255,0.18), transparent)",
-                transform: "translateY(-0px)",
-              }}
-            />
-            {/* Right connector */}
-            <div
-              className="absolute"
-              style={{
-                left: `calc(50% + ${AX_PORTA + W / 2}px)`,
-                width: 20,
-                height: 1,
-                background: "linear-gradient(to right, transparent, rgba(255,255,255,0.18), transparent)",
-                transform: "translateY(-0px)",
-              }}
+            <div style={{ width: 8, height: 1, background: "rgba(33,108,59,0.25)" }} />
+            <motion.div
+              style={{ width: 1, flex: 1, background: "rgba(33,108,59,0.2)", transformOrigin: "top" }}
+              initial={{ scaleY: 0 }}
+              animate={{ scaleY: 1 }}
+              transition={{ duration: 0.55, delay: 0.42, ease: E_LAUNCH }}
+            >
+              <div style={{ height: DOOR_H }} />
+            </motion.div>
+            <div style={{ width: 8, height: 1, background: "rgba(33,108,59,0.25)" }} />
+            <span
+              className="text-[9px] font-mono mt-1.5"
+              style={{ color: "rgba(33,108,59,0.38)", writingMode: "vertical-rl", transform: "rotate(180deg)" }}
             />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Status badge ── */}
+      {/* ── Kit label bottom center ── */}
       <AnimatePresence>
         {assembled && (
           <motion.div
             className="absolute bottom-5 inset-x-0 flex justify-center pointer-events-none"
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.45, delay: 0.4 }}
+            transition={{ duration: 0.42, delay: 0.52 }}
           >
             <div
               className="flex items-center gap-2.5 px-5 py-2 rounded-full"
               style={{
-                background: "rgba(255,255,255,0.055)",
-                border: "1px solid rgba(255,255,255,0.09)",
-                backdropFilter: "blur(10px)",
+                background: "rgba(255,255,255,0.72)",
+                border: "1px solid rgba(33,108,59,0.14)",
+                backdropFilter: "blur(8px)",
+                boxShadow: "0 2px 12px rgba(33,108,59,0.08)",
               }}
             >
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: VERDE }} />
               <span
-                className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{ background: VERDE, boxShadow: `0 0 6px ${VERDE}` }}
-              />
-              <span className="text-white/55 text-[11px] font-medium tracking-wide">
-                Kit completo · Clique em um componente para destacar
+                className="text-[11px] font-semibold tracking-wide"
+                style={{ color: VERDE_DARK }}
+              >
+                Kit de Porta Completo · Clique em um componente para destacar
               </span>
             </div>
           </motion.div>
