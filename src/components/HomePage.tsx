@@ -1,901 +1,295 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-} from "recharts";
-import {
-  CheckCircle2, AlertTriangle, Package, Plus, Pencil, Trash2,
-  CalendarIcon, Loader2, ChevronDown,
-} from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
+const VERDE = "#216C3B";
+const VERDE_DARK = "#194f2c";
 
-const MESES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
-const MESES_CURTO = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-
-const COR_VERDE = "#216C3B";
-const COR_VERDE_CLARO = "rgba(33,108,59,0.22)";
-
-// ─── Tipos ───────────────────────────────────────────────────────────────────
-
-interface Registro {
-  maquina: string | null;
-  data: string | null;
-  qtd_conforme: number | null;
-  produto: string | null;
-  linha: string | null;
-  padrao: string | null;
-  largura_cm: string | null;
+function useEntrance() {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setOn(true), 80);
+    return () => clearTimeout(t);
+  }, []);
+  return on;
 }
 
-interface MaterialEntry {
-  id: string;
-  date: Date;
-  material: string;
-  lote: string;
-  quantidade: number;
-  unidade: string;
-  fornecedor: string;
-  verificado: boolean;
-  conforme: boolean | null;
-}
+function PulseCallout({
+  label,
+  style,
+  delay = 0,
+  align = "right",
+}: {
+  label: string;
+  style: React.CSSProperties;
+  delay?: number;
+  align?: "left" | "right";
+}) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 700 + delay);
+    return () => clearTimeout(t);
+  }, [delay]);
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const EMPTY_FORM = {
-  material: "", lote: "", quantidade: "", unidade: "pcs",
-  fornecedor: "", verificado: "pendente" as "pendente" | "conforme" | "nao_conforme",
-  date: new Date(),
-};
-
-const INITIAL_MATERIALS: MaterialEntry[] = [
-  { id: "1", date: new Date(2026, 2, 26), material: "MDF 15mm", lote: "L-2026-0341", quantidade: 120, unidade: "chapas", fornecedor: "Eucatex", verificado: true, conforme: true },
-  { id: "2", date: new Date(2026, 2, 26), material: "Cola PVA", lote: "L-2026-0342", quantidade: 50, unidade: "kg", fornecedor: "Henkel", verificado: true, conforme: false },
-  { id: "3", date: new Date(2026, 2, 25), material: "Fita de Borda", lote: "L-2026-0338", quantidade: 300, unidade: "m", fornecedor: "Rehau", verificado: true, conforme: true },
-  { id: "4", date: new Date(2026, 2, 25), material: "Dobradiça 35mm", lote: "L-2026-0339", quantidade: 500, unidade: "pcs", fornecedor: "Blum", verificado: false, conforme: null },
-  { id: "5", date: new Date(2026, 2, 24), material: "Painel MDP 18mm", lote: "L-2026-0335", quantidade: 80, unidade: "chapas", fornecedor: "Duratex", verificado: true, conforme: true },
-  { id: "6", date: new Date(2026, 2, 24), material: "Verniz PU", lote: "L-2026-0336", quantidade: 25, unidade: "L", fornecedor: "Sayerlack", verificado: true, conforme: false },
-  { id: "7", date: new Date(2026, 2, 23), material: "Puxador Inox", lote: "L-2026-0330", quantidade: 200, unidade: "pcs", fornecedor: "Hafele", verificado: false, conforme: null },
-  { id: "8", date: new Date(2026, 2, 20), material: "MDF 6mm", lote: "L-2026-0325", quantidade: 60, unidade: "chapas", fornecedor: "Eucatex", verificado: true, conforme: true },
-];
-
-// Barra de dados inline para tabelas
-function DataBar({ value, max, label }: { value: number; max: number; label: string }) {
-  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   return (
-    <div className="relative flex items-center h-5 min-w-[90px]">
+    <div
+      className="absolute flex items-center gap-2"
+      style={{
+        ...style,
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(8px)",
+        transition: "opacity 0.4s ease, transform 0.4s ease",
+        flexDirection: align === "left" ? "row" : "row-reverse",
+      }}
+    >
+      <div className="relative flex items-center justify-center">
+        <span className="callout-ping absolute inline-flex h-4 w-4 rounded-full bg-white opacity-60" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+      </div>
       <div
-        className="absolute left-0 top-0 bottom-0 rounded-sm"
-        style={{ width: `${pct}%`, backgroundColor: COR_VERDE_CLARO }}
-      />
-      <span className="relative z-10 text-xs pl-1 font-medium text-foreground">
+        className="text-xs font-bold px-3 py-1.5 rounded-full shadow-lg whitespace-nowrap"
+        style={{ background: "rgba(255,255,255,0.92)", color: VERDE_DARK, backdropFilter: "blur(4px)" }}
+      >
         {label}
-      </span>
+      </div>
     </div>
   );
 }
 
-// ─── Componente principal ─────────────────────────────────────────────────────
-
 export default function HomePage() {
-  const anoAtual = new Date().getFullYear();
-  const mesAtual = new Date().getMonth(); // 0-indexed
-
-  // ── Dados ──
-  const [registros, setRegistros] = useState<Registro[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [maquinasDisponiveis, setMaquinasDisponiveis] = useState<string[]>([]);
-
-  // ── Filtros BI ──
-  const [anoFiltro, setAnoFiltro] = useState(anoAtual);
-  const [mesFiltro, setMesFiltro] = useState<number | null>(mesAtual);
-  const [diaFiltro, setDiaFiltro] = useState<number | null>(null);
-  const [maquinasFiltro, setMaquinasFiltro] = useState<string[]>([]);
-  const [maquinaPickerOpen, setMaquinaPickerOpen] = useState(false);
-
-  // ── Seleções interativas dos gráficos (cross-filter) ──
-  const [chartMes, setChartMes] = useState<number | null>(null);
-  const [chartMaquina, setChartMaquina] = useState<string | null>(null);
-
-  // ── Aba ──
-  const [abaAtiva, setAbaAtiva] = useState<"portas" | "guarnicao">("portas");
-
-  // ── Materiais ──
-  const [materials, setMaterials] = useState<MaterialEntry[]>(INITIAL_MATERIALS);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [matDatePickerOpen, setMatDatePickerOpen] = useState(false);
-
-  // ─── Fetch ───────────────────────────────────────────────────────────────────
-
-  const fetchRegistros = useCallback(async () => {
-    setLoading(true);
-    const dataInicio = `${anoFiltro}-01-01`;
-    const dataFim = `${anoFiltro}-12-31`;
-
-    const todos: Registro[] = [];
-    const TAM_PAG = 1000;
-    let pagina = 0;
-
-    while (true) {
-      const { data: lote, error } = await supabase
-        .from("registros_producao")
-        .select("maquina, data, qtd_conforme, produto, linha, padrao, largura_cm")
-        .gte("data", dataInicio)
-        .lte("data", dataFim)
-        .range(pagina * TAM_PAG, (pagina + 1) * TAM_PAG - 1);
-
-      if (error) break;
-      if (!lote || lote.length === 0) break;
-      todos.push(...lote);
-      if (lote.length < TAM_PAG) break;
-      pagina++;
-    }
-
-    setRegistros(todos);
-    setLoading(false);
-  }, [anoFiltro]);
-
-  useEffect(() => {
-    async function fetchMaquinas() {
-      const { data } = await supabase
-        .from("maquinas")
-        .select("nome")
-        .order("nome");
-      if (data) {
-        const lista = data.map((r) => r.nome).filter(Boolean) as string[];
-        setMaquinasDisponiveis(lista);
-      }
-    }
-    fetchMaquinas();
-  }, []);
-
-  useEffect(() => { fetchRegistros(); }, [fetchRegistros]);
-
-  // ─── Dados filtrados (mês + máquina) ────────────────────────────────────────
-
-  const registrosFiltrados = registros.filter((r) => {
-    if (mesFiltro !== null && r.data) {
-      const mes = parseInt(r.data.split("-")[1]) - 1;
-      if (mes !== mesFiltro) return false;
-    }
-    if (diaFiltro !== null && r.data) {
-      const dia = parseInt(r.data.split("-")[2]);
-      if (dia !== diaFiltro) return false;
-    }
-    if (maquinasFiltro.length > 0 && r.maquina && !maquinasFiltro.some((m) => m.toLowerCase() === r.maquina!.toLowerCase())) {
-      return false;
-    }
-    return true;
-  });
-
-  // Aplica seleções interativas dos gráficos sobre os dados já filtrados pelos controles
-  const registrosCross = registrosFiltrados.filter((r) => {
-    if (chartMes !== null && r.data) {
-      const mes = parseInt(r.data.split("-")[1]) - 1;
-      if (mes !== chartMes) return false;
-    }
-    if (chartMaquina !== null && r.maquina?.toLowerCase() !== chartMaquina.toLowerCase()) return false;
-    return true;
-  });
-
-  // Para o gráfico de máquinas: aplica só o chartMes (não o chartMaquina, pois é a fonte)
-  const registrosParaMaquina = registrosFiltrados.filter((r) => {
-    if (chartMes !== null && r.data) {
-      const mes = parseInt(r.data.split("-")[1]) - 1;
-      if (mes !== chartMes) return false;
-    }
-    return true;
-  });
-
-  // ─── Derivações ──────────────────────────────────────────────────────────────
-
-  const totalGeral = registrosCross.reduce((acc, r) => acc + (Number(r.qtd_conforme) || 0), 0);
-
-  // Gráfico horizontal: Produção por Máquina (aplica chartMes, mas não chartMaquina)
-  const porMaquina = Object.entries(
-    registrosParaMaquina.reduce((acc, r) => {
-      if (!r.maquina) return acc;
-      const key = r.maquina.toUpperCase();
-      acc[key] = (acc[key] ?? 0) + (Number(r.qtd_conforme) || 0);
-      return acc;
-    }, {} as Record<string, number>)
-  )
-    .map(([nome, total]) => ({ nome, total }))
-    .sort((a, b) => b.total - a.total);
-
-  // Gráfico vertical: Produção por Mês (aplica chartMaquina, mas não chartMes)
-  const registrosPorAno = registros.filter((r) => {
-    if (maquinasFiltro.length > 0 && r.maquina && !maquinasFiltro.some((m) => m.toLowerCase() === r.maquina!.toLowerCase())) return false;
-    if (chartMaquina !== null && r.maquina?.toLowerCase() !== chartMaquina.toLowerCase()) return false;
-    return true;
-  });
-
-  const porMes = MESES_CURTO.map((mes, i) => ({
-    mes,
-    mesIdx: i,
-    total: registrosPorAno
-      .filter((r) => r.data && parseInt(r.data.split("-")[1]) - 1 === i)
-      .reduce((acc, r) => acc + (Number(r.qtd_conforme) || 0), 0),
-  })).filter((m) => m.total > 0);
-
-  // Tabela Linha / Produto
-  const linhaMap = registrosCross.reduce((acc, r) => {
-    const k = r.linha || "Outro";
-    acc[k] = (acc[k] ?? 0) + (Number(r.qtd_conforme) || 0);
-    return acc;
-  }, {} as Record<string, number>);
-  const porLinha = Object.entries(linhaMap)
-    .map(([linha, qtd]) => ({ linha, qtd, pct: totalGeral > 0 ? (qtd / totalGeral) * 100 : 0 }))
-    .sort((a, b) => b.qtd - a.qtd);
-  const maxLinhaPct = Math.max(...porLinha.map((l) => l.pct), 0);
-
-  // Tabela Produção por Padrão
-  const padraoMap = registrosCross.reduce((acc, r) => {
-    const k = r.padrao || "N/D";
-    acc[k] = (acc[k] ?? 0) + (Number(r.qtd_conforme) || 0);
-    return acc;
-  }, {} as Record<string, number>);
-  const totalPadrao = Object.values(padraoMap).reduce((a, b) => a + b, 0);
-  const porPadrao = Object.entries(padraoMap)
-    .map(([padrao, qtd]) => ({ padrao, qtd, pct: totalPadrao > 0 ? (qtd / totalPadrao) * 100 : 0 }))
-    .sort((a, b) => b.qtd - a.qtd);
-  const maxPadraoPct = Math.max(...porPadrao.map((p) => p.pct), 0);
-
-  // Tabela Produção por Largura
-  const larguraMap = registrosCross.reduce((acc, r) => {
-    const k = r.largura_cm ? String(r.largura_cm) : "N/D";
-    acc[k] = (acc[k] ?? 0) + (Number(r.qtd_conforme) || 0);
-    return acc;
-  }, {} as Record<string, number>);
-  const totalLargura = Object.values(larguraMap).reduce((a, b) => a + b, 0);
-  const porLargura = Object.entries(larguraMap)
-    .map(([largura, qtd]) => ({ largura, qtd, pct: totalLargura > 0 ? (qtd / totalLargura) * 100 : 0 }))
-    .sort((a, b) => b.qtd - a.qtd);
-  const maxLarguraPct = Math.max(...porLargura.map((l) => l.pct), 0);
-
-  // ─── Materiais ───────────────────────────────────────────────────────────────
-
-  function openAdd() { setEditingId(null); setForm(EMPTY_FORM); setDialogOpen(true); }
-  function openEdit(entry: MaterialEntry) {
-    setEditingId(entry.id);
-    setForm({
-      material: entry.material, lote: entry.lote, quantidade: String(entry.quantidade),
-      unidade: entry.unidade, fornecedor: entry.fornecedor,
-      verificado: entry.conforme === null ? "pendente" : entry.conforme ? "conforme" : "nao_conforme",
-      date: entry.date,
-    });
-    setDialogOpen(true);
-  }
-  function handleDelete(id: string) {
-    setMaterials((prev) => prev.filter((m) => m.id !== id));
-    toast.success("Material removido.");
-  }
-  function handleSave() {
-    if (!form.material.trim() || !form.lote.trim() || !form.quantidade || !form.fornecedor.trim()) {
-      toast.error("Preencha todos os campos obrigatórios."); return;
-    }
-    const qty = Number(form.quantidade);
-    if (isNaN(qty) || qty <= 0) { toast.error("Quantidade inválida."); return; }
-    const verificado = form.verificado !== "pendente";
-    const conforme = form.verificado === "pendente" ? null : form.verificado === "conforme";
-    if (editingId) {
-      setMaterials((prev) => prev.map((m) => m.id === editingId
-        ? { ...m, material: form.material.trim(), lote: form.lote.trim(), quantidade: qty, unidade: form.unidade, fornecedor: form.fornecedor.trim(), verificado, conforme, date: form.date }
-        : m));
-      toast.success("Material atualizado.");
-    } else {
-      setMaterials((prev) => [{
-        id: crypto.randomUUID(), date: form.date,
-        material: form.material.trim(), lote: form.lote.trim(), quantidade: qty,
-        unidade: form.unidade, fornecedor: form.fornecedor.trim(), verificado, conforme,
-      }, ...prev]);
-      toast.success("Material adicionado.");
-    }
-    setDialogOpen(false); setForm(EMPTY_FORM); setEditingId(null);
-  }
-
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  const on = useEntrance();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 -m-6">
 
-      {/* ── Cabeçalho ── */}
-      <div className="flex items-center justify-between border-b pb-3">
-        <div>
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Produção</p>
-          <h1 className="text-xl font-bold text-foreground">
-            {abaAtiva === "portas" ? "Produção de Portas" : "Produção de Guarnição"}
+      {/* ──────────── HERO ──────────── */}
+      <section
+        className="relative overflow-hidden min-h-[460px] flex items-stretch"
+        style={{ background: `linear-gradient(125deg, ${VERDE_DARK} 0%, ${VERDE} 55%, #2d9655 100%)` }}
+      >
+        {/* Left — copy */}
+        <div
+          className="relative z-10 flex flex-col justify-center px-10 py-14 max-w-lg"
+          style={{
+            opacity: on ? 1 : 0,
+            transform: on ? "translateX(0)" : "translateX(-32px)",
+            transition: "opacity 0.7s ease, transform 0.7s ease",
+          }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-3" style={{ color: "rgba(180,255,200,0.85)" }}>
+            Concrem · Tecnologia em Portas
+          </p>
+          <h1 className="text-5xl font-black text-white leading-[1.08] mb-5">
+            Tecnologia<br />em portas.
           </h1>
-        </div>
-        <div className="flex items-center gap-1 border rounded-lg overflow-hidden">
-          <button
-            onClick={() => setAbaAtiva("portas")}
-            className={cn(
-              "px-5 py-1.5 text-sm font-medium transition-colors",
-              abaAtiva === "portas"
-                ? "text-white"
-                : "text-muted-foreground hover:bg-muted"
-            )}
-            style={abaAtiva === "portas" ? { backgroundColor: COR_VERDE } : {}}
-          >
-            Portas
-          </button>
-          <button
-            onClick={() => setAbaAtiva("guarnicao")}
-            className={cn(
-              "px-5 py-1.5 text-sm font-medium transition-colors",
-              abaAtiva === "guarnicao"
-                ? "text-white"
-                : "text-muted-foreground hover:bg-muted"
-            )}
-            style={abaAtiva === "guarnicao" ? { backgroundColor: COR_VERDE } : {}}
-          >
-            Guarnição
-          </button>
-        </div>
-      </div>
-
-      {/* ── Filtros ── */}
-      <div className="flex flex-wrap items-end gap-3">
-        {/* Ano */}
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Ano</Label>
-          <Select value={String(anoFiltro)} onValueChange={(v) => setAnoFiltro(Number(v))}>
-            <SelectTrigger className="h-8 w-28 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[anoAtual - 1, anoAtual, anoAtual + 1].map((a) => (
-                <SelectItem key={a} value={String(a)}>{a}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <p className="text-base leading-relaxed mb-8" style={{ color: "rgba(210,255,225,0.9)" }}>
+            Fabricamos portas e guarnições com precisão<br />
+            industrial, materiais certificados FSC e processos<br />
+            100% rastreáveis do início ao fim.
+          </p>
+          <div className="flex gap-3">
+            <button
+              className="px-6 py-2.5 text-sm font-bold rounded-lg transition-all hover:scale-105 active:scale-95"
+              style={{ background: "#fff", color: VERDE_DARK }}
+            >
+              Ver Produção
+            </button>
+            <button
+              className="px-6 py-2.5 text-sm font-medium rounded-lg transition-all hover:bg-white/10"
+              style={{ border: "1.5px solid rgba(255,255,255,0.35)", color: "#fff" }}
+            >
+              Rastreabilidade
+            </button>
+          </div>
         </div>
 
-        {/* Mês */}
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Mês</Label>
-          <Select
-            value={mesFiltro === null ? "__todos__" : String(mesFiltro)}
-            onValueChange={(v) => {
-              setMesFiltro(v === "__todos__" ? null : Number(v));
-              setDiaFiltro(null);
-            }}
-          >
-            <SelectTrigger className="h-8 w-36 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__todos__">Todos os meses</SelectItem>
-              {MESES.map((m, i) => (
-                <SelectItem key={i} value={String(i)}>{m}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Right — hero image + callouts */}
+        <div
+          className="absolute right-0 top-0 bottom-0"
+          style={{
+            width: "58%",
+            opacity: on ? 1 : 0,
+            transform: on ? "translateX(0)" : "translateX(48px)",
+            transition: "opacity 0.85s ease 0.15s, transform 0.85s ease 0.15s",
+          }}
+        >
+          {/* Fade edge on the left */}
+          <div
+            className="absolute inset-y-0 left-0 w-24 z-10 pointer-events-none"
+            style={{ background: `linear-gradient(to right, ${VERDE_DARK}, transparent)` }}
+          />
+
+          <img
+            src="/images/porta-pivotante.jpg"
+            alt="Porta Pivotante Bianco"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+            style={{ opacity: 0.75 }}
+          />
+
+          {/* Callouts */}
+          <PulseCallout label="Alizar Bianco"       style={{ top: "18%", left: "12%" }} delay={0}   align="right" />
+          <PulseCallout label="Porta Pivotante"      style={{ top: "42%", right: "10%" }} delay={200} align="left"  />
+          <PulseCallout label="Batente Melamínico"   style={{ bottom: "22%", left: "8%" }} delay={400} align="right" />
         </div>
 
-        {/* Dia */}
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Dia</Label>
-          <Select
-            value={diaFiltro === null ? "__todos__" : String(diaFiltro)}
-            onValueChange={(v) => setDiaFiltro(v === "__todos__" ? null : Number(v))}
-            disabled={mesFiltro === null}
-          >
-            <SelectTrigger className="h-8 w-28 text-xs">
-              <SelectValue placeholder="Todos os dias" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__todos__">Todos os dias</SelectItem>
-              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                <SelectItem key={d} value={String(d)}>{String(d).padStart(2, "0")}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Decorative circles */}
+        <div
+          className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full pointer-events-none"
+          style={{ background: "rgba(255,255,255,0.04)" }}
+        />
+        <div
+          className="absolute -top-16 right-[40%] w-56 h-56 rounded-full pointer-events-none"
+          style={{ background: "rgba(255,255,255,0.03)" }}
+        />
+      </section>
 
-        {/* Máquina multi-select */}
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Máquina</Label>
-          <Popover open={maquinaPickerOpen} onOpenChange={setMaquinaPickerOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="h-8 w-52 justify-between text-xs font-normal">
-                <span className="truncate">
-                  {maquinasFiltro.length === 0
-                    ? "Seleções múltiplas"
-                    : maquinasFiltro.length === 1
-                      ? maquinasFiltro[0]
-                      : `${maquinasFiltro.length} selecionadas`}
-                </span>
-                <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-2" align="start">
-              <div className="space-y-1 max-h-64 overflow-y-auto">
-                {maquinasFiltro.length > 0 && (
-                  <Button
-                    variant="ghost" size="sm"
-                    className="w-full justify-start text-xs text-muted-foreground h-7"
-                    onClick={() => setMaquinasFiltro([])}
-                  >
-                    Limpar seleção
-                  </Button>
-                )}
-                {maquinasDisponiveis.length === 0 && (
-                  <p className="text-xs text-muted-foreground px-2 py-1">Nenhuma máquina encontrada.</p>
-                )}
-                {maquinasDisponiveis.map((maq) => (
-                  <label key={maq} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer">
-                    <Checkbox
-                      checked={maquinasFiltro.includes(maq)}
-                      onCheckedChange={(checked) => {
-                        setMaquinasFiltro((prev) =>
-                          checked ? [...prev, maq] : prev.filter((m) => m !== maq)
-                        );
-                      }}
-                    />
-                    <span className="text-xs">{maq}</span>
-                  </label>
-                ))}
+      {/* ──────────── COMPONENTES ──────────── */}
+      <section className="px-8">
+        <p
+          className="text-xs font-semibold uppercase tracking-widest mb-5"
+          style={{
+            color: VERDE,
+            opacity: on ? 1 : 0,
+            transition: "opacity 0.5s ease 0.5s",
+          }}
+        >
+          Linha de Componentes
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {[
+            {
+              src: "/images/batente-melaminico.jpg",
+              alt: "Batente Melamínico Branco",
+              tag: "Batente",
+              title: "Batente Melamínico",
+              desc: "Acabamento premium em melamina com núcleo em MDF certificado. Alta resistência e precisão dimensional garantida em cada peça.",
+              delay: "0.55s",
+            },
+            {
+              src: "/images/alizar-bianco.jpg",
+              alt: "Alizar Bianco",
+              tag: "Alizar",
+              title: "Alizar Bianco",
+              desc: "Perfil em U com acabamento Bianco fabricado com materiais de alta qualidade e certificação FSC — beleza e durabilidade integradas.",
+              delay: "0.7s",
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              className="group flex items-center gap-6 rounded-2xl border bg-card p-6 hover:shadow-md transition-all duration-300 cursor-default"
+              style={{
+                borderColor: "rgba(33,108,59,0.14)",
+                opacity: on ? 1 : 0,
+                transform: on ? "translateY(0)" : "translateY(24px)",
+                transition: `opacity 0.6s ease ${item.delay}, transform 0.6s ease ${item.delay}, box-shadow 0.3s`,
+              }}
+            >
+              <div
+                className="w-36 h-28 flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center"
+                style={{ background: "rgba(33,108,59,0.04)", border: "1px solid rgba(33,108,59,0.1)" }}
+              >
+                <img
+                  src={item.src}
+                  alt={item.alt}
+                  className="w-full h-full object-contain group-hover:scale-[1.06] transition-transform duration-500"
+                />
               </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
-      {/* ── Conteúdo principal ── */}
-      {loading ? (
-        <div className="flex items-center justify-center h-64 gap-2 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" /> Carregando dados...
-        </div>
-      ) : (
-        <>
-          {/* ── Linha 1: KPI + Gráfico Mensal ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-            {/* KPI Qtd. Conforme */}
-            <Card className="border" style={{ borderColor: "rgba(33,108,59,0.2)" }}>
-              <CardContent className="p-6 flex flex-col justify-center h-full min-h-[140px]">
-                <p className="text-xs text-muted-foreground font-medium mb-2">Qtd. Conforme</p>
-                <p className="text-6xl font-bold tracking-tight text-foreground">
-                  {totalGeral.toLocaleString("pt-BR")}
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: VERDE }}>
+                  {item.tag}
                 </p>
-              </CardContent>
-            </Card>
-
-            {/* Gráfico Produção de Portas/Mês */}
-            <Card>
-              <CardHeader className="pb-1 pt-4 px-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-semibold text-muted-foreground">Produção de Portas/Mês</CardTitle>
-                  {chartMes !== null && (
-                    <button
-                      onClick={() => setChartMes(null)}
-                      className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full border text-muted-foreground hover:bg-muted"
-                    >
-                      {MESES[chartMes]} ×
-                    </button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="px-2 pb-4">
-                {porMes.length === 0 ? (
-                  <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-                    Sem dados no período.
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={160}>
-                    <BarChart data={porMes} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="mes" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)} Mil`} axisLine={false} tickLine={false} width={48} />
-                      <Tooltip
-                        formatter={(v: number) => [v.toLocaleString("pt-BR"), "Portas"]}
-                        labelFormatter={(l) => `Mês: ${l}`}
-                      />
-                      <Bar
-                        dataKey="total"
-                        radius={[3, 3, 0, 0]}
-                        barSize={48}
-                        style={{ cursor: "pointer" }}
-                        onClick={(data: { mesIdx: number }) => setChartMes(prev => prev === data.mesIdx ? null : data.mesIdx)}
-                        label={{ position: "top", fontSize: 10, fill: "hsl(var(--foreground))", formatter: (v: number) => v > 0 ? v.toLocaleString("pt-BR") : "" }}
-                      >
-                        {porMes.map((entry) => (
-                          <Cell
-                            key={entry.mes}
-                            fill={chartMes === null || chartMes === entry.mesIdx ? COR_VERDE : "rgba(33,108,59,0.25)"}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* ── Linha 2: Gráfico Horizontal por Máquina ── */}
-          <Card>
-            <CardHeader className="pb-1 pt-4 px-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xs font-semibold text-muted-foreground">Produção de Portas</CardTitle>
-                  <p className="text-[10px] text-muted-foreground">Máquina · Soma de Qtd. Conforme</p>
-                </div>
-                {chartMaquina !== null && (
-                  <button
-                    onClick={() => setChartMaquina(null)}
-                    className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full border text-muted-foreground hover:bg-muted"
-                  >
-                    {chartMaquina} ×
-                  </button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="px-2 pb-4">
-              {porMaquina.length === 0 ? (
-                <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-                  Sem dados no período.
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={Math.max(180, porMaquina.length * 38)}>
-                  <BarChart data={porMaquina} layout="vertical" margin={{ left: 8, right: 64, top: 4, bottom: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                    <XAxis
-                      type="number"
-                      tick={{ fontSize: 10 }}
-                      tickFormatter={(v) => `${(v / 1000).toFixed(0)} Mil`}
-                      axisLine={false} tickLine={false}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="nome"
-                      tick={{ fontSize: 11 }}
-                      width={200}
-                      axisLine={false} tickLine={false}
-                    />
-                    <Tooltip formatter={(v: number) => [v.toLocaleString("pt-BR"), "Qtd. Conforme"]} />
-                    <Bar
-                      dataKey="total"
-                      radius={[0, 3, 3, 0]}
-                      barSize={20}
-                      style={{ cursor: "pointer" }}
-                      onClick={(data: { nome: string }) => setChartMaquina(prev => prev === data.nome ? null : data.nome)}
-                      label={{ position: "right", fontSize: 10, fill: "hsl(var(--foreground))", formatter: (v: number) => v.toLocaleString("pt-BR") }}
-                    >
-                      {porMaquina.map((entry) => (
-                        <Cell
-                          key={entry.nome}
-                          fill={chartMaquina === null || chartMaquina === entry.nome ? COR_VERDE : "rgba(33,108,59,0.25)"}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ── Linha 3: 3 tabelas ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-            {/* Linha / Produto */}
-            <Card>
-              <CardHeader className="pb-1 pt-4 px-4">
-                <CardTitle className="text-xs font-semibold text-muted-foreground">Linha / Produto</CardTitle>
-              </CardHeader>
-              <CardContent className="px-0 pb-2">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold px-4 py-1.5 text-foreground">Linha</TableHead>
-                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right text-foreground">Qtd. Conforme</TableHead>
-                      <TableHead className="text-xs font-semibold px-4 py-1.5 text-foreground">% Linha Geral</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {porLinha.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center text-xs text-muted-foreground py-6">
-                          Sem dados
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      <>
-                        {porLinha.map((item) => (
-                          <TableRow key={item.linha} className="hover:bg-muted/40">
-                            <TableCell className="text-xs px-4 py-1.5">{item.linha}</TableCell>
-                            <TableCell className="text-xs px-2 py-1.5 text-right font-medium">
-                              {item.qtd.toLocaleString("pt-BR")}
-                            </TableCell>
-                            <TableCell className="px-4 py-1.5">
-                              <DataBar value={item.pct} max={maxLinhaPct} label={`${item.pct.toFixed(2)}%`} />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow className="border-t font-semibold bg-muted/30">
-                          <TableCell className="text-xs px-4 py-1.5 text-foreground">Total</TableCell>
-                          <TableCell className="text-xs px-2 py-1.5 text-right text-foreground">
-                            {totalGeral.toLocaleString("pt-BR")}
-                          </TableCell>
-                          <TableCell className="text-xs px-4 py-1.5 text-foreground">
-                            {porLinha.reduce((a, b) => a + b.pct, 0).toFixed(2)}%
-                          </TableCell>
-                        </TableRow>
-                      </>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-
-            {/* Produção por Padrão */}
-            <Card>
-              <CardHeader className="pb-1 pt-4 px-4">
-                <CardTitle className="text-xs font-semibold text-muted-foreground">Produção por Padrão (cm)</CardTitle>
-              </CardHeader>
-              <CardContent className="px-0 pb-2">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold px-4 py-1.5 text-foreground">Padrão</TableHead>
-                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right text-foreground">Qtd. Conforme</TableHead>
-                      <TableHead className="text-xs font-semibold px-4 py-1.5 text-foreground">% Padrão</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {porPadrao.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center text-xs text-muted-foreground py-6">
-                          Sem dados
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      <>
-                        {porPadrao.map((item) => (
-                          <TableRow key={item.padrao} className="hover:bg-muted/40">
-                            <TableCell className="text-xs px-4 py-1.5">{item.padrao}</TableCell>
-                            <TableCell className="text-xs px-2 py-1.5 text-right font-medium">
-                              {item.qtd.toLocaleString("pt-BR")}
-                            </TableCell>
-                            <TableCell className="px-4 py-1.5">
-                              <DataBar value={item.pct} max={maxPadraoPct} label={`${item.pct.toFixed(2)}%`} />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow className="border-t font-semibold bg-muted/30">
-                          <TableCell className="text-xs px-4 py-1.5 text-foreground">Total</TableCell>
-                          <TableCell className="text-xs px-2 py-1.5 text-right text-foreground">
-                            {totalPadrao.toLocaleString("pt-BR")}
-                          </TableCell>
-                          <TableCell className="text-xs px-4 py-1.5 text-foreground">
-                            {porPadrao.reduce((a, b) => a + b.pct, 0).toFixed(2)}%
-                          </TableCell>
-                        </TableRow>
-                      </>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-
-            {/* Produção por Largura */}
-            <Card>
-              <CardHeader className="pb-1 pt-4 px-4">
-                <CardTitle className="text-xs font-semibold text-muted-foreground">Produção por Largura (cm)</CardTitle>
-              </CardHeader>
-              <CardContent className="px-0 pb-2">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold px-4 py-1.5 text-foreground">Largura (cm)</TableHead>
-                      <TableHead className="text-xs font-semibold px-2 py-1.5 text-right text-foreground">Qtd. Conforme</TableHead>
-                      <TableHead className="text-xs font-semibold px-4 py-1.5 text-foreground">% Largura (cm)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {porLargura.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center text-xs text-muted-foreground py-6">
-                          Sem dados
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      <>
-                        {porLargura.map((item) => (
-                          <TableRow key={item.largura} className="hover:bg-muted/40">
-                            <TableCell className="text-xs px-4 py-1.5">{item.largura}</TableCell>
-                            <TableCell className="text-xs px-2 py-1.5 text-right font-medium">
-                              {item.qtd.toLocaleString("pt-BR")}
-                            </TableCell>
-                            <TableCell className="px-4 py-1.5">
-                              <DataBar value={item.pct} max={maxLarguraPct} label={`${item.pct.toFixed(2)}%`} />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow className="border-t font-semibold bg-muted/30">
-                          <TableCell className="text-xs px-4 py-1.5 text-foreground">Total</TableCell>
-                          <TableCell className="text-xs px-2 py-1.5 text-right text-foreground">
-                            {totalLargura.toLocaleString("pt-BR")}
-                          </TableCell>
-                          <TableCell className="text-xs px-4 py-1.5 text-foreground">
-                            {porLargura.reduce((a, b) => a + b.pct, 0).toFixed(2)}%
-                          </TableCell>
-                        </TableRow>
-                      </>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      )}
-
-      {/* ── Tabela de Materiais ── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Package className="h-4 w-4 text-primary" /> Recebimento de Materiais
-            </CardTitle>
-            <Button size="sm" onClick={openAdd} className="gap-1.5">
-              <Plus className="h-4 w-4" /> Adicionar Material
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Material</TableHead>
-                <TableHead>Lote</TableHead>
-                <TableHead>Qtd</TableHead>
-                <TableHead>Fornecedor</TableHead>
-                <TableHead>Verificado</TableHead>
-                <TableHead>Qualidade</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {materials.map((m) => (
-                <TableRow key={m.id}>
-                  <TableCell className="text-xs">{format(m.date, "dd/MM/yyyy")}</TableCell>
-                  <TableCell className="font-medium">{m.material}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{m.lote}</TableCell>
-                  <TableCell>{m.quantidade} {m.unidade}</TableCell>
-                  <TableCell>{m.fornecedor}</TableCell>
-                  <TableCell>
-                    {m.verificado
-                      ? <CheckCircle2 className="h-4 w-4 text-primary" />
-                      : <AlertTriangle className="h-4 w-4 text-yellow-500" />}
-                  </TableCell>
-                  <TableCell>
-                    {m.conforme === null ? (
-                      <Badge variant="secondary" className="text-xs">Pendente</Badge>
-                    ) : m.conforme ? (
-                      <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5">Conforme</Badge>
-                    ) : (
-                      <Badge variant="destructive" className="text-xs">Não Conforme</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(m)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(m.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* ── Dialog Material ── */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Editar Material" : "Adicionar Material"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Material *</Label>
-                <Input placeholder="Ex: MDF 15mm" maxLength={100} value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Lote *</Label>
-                <Input placeholder="Ex: L-2026-0341" maxLength={50} value={form.lote} onChange={(e) => setForm({ ...form, lote: e.target.value })} />
+                <h3 className="text-base font-bold text-foreground mb-1.5">{item.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label>Quantidade *</Label>
-                <Input type="number" min="1" value={form.quantidade} onChange={(e) => setForm({ ...form, quantidade: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Unidade</Label>
-                <Select value={form.unidade} onValueChange={(v) => setForm({ ...form, unidade: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pcs">Peças</SelectItem>
-                    <SelectItem value="chapas">Chapas</SelectItem>
-                    <SelectItem value="kg">Kg</SelectItem>
-                    <SelectItem value="L">Litros</SelectItem>
-                    <SelectItem value="m">Metros</SelectItem>
-                    <SelectItem value="m2">m²</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Data *</Label>
-                <Popover open={matDatePickerOpen} onOpenChange={setMatDatePickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.date && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(form.date, "dd/MM/yyyy")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={form.date} locale={ptBR} className="pointer-events-auto"
-                      onSelect={(d) => { if (d) { setForm({ ...form, date: d }); setMatDatePickerOpen(false); } }} />
-                  </PopoverContent>
-                </Popover>
-              </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ──────────── FEATURES ──────────── */}
+      <section className="px-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            {
+              emoji: "🛡️",
+              title: "Durabilidade",
+              desc: "Materiais certificados e processos controlados que garantem produtos de longa vida útil.",
+              delay: "0.65s",
+            },
+            {
+              emoji: "🎯",
+              title: "Precisão",
+              desc: "Tolerâncias dimensionais rigorosas monitoradas em tempo real em cada máquina.",
+              delay: "0.75s",
+            },
+            {
+              emoji: "🌿",
+              title: "Sustentabilidade",
+              desc: "Madeira de origem certificada FSC com rastreabilidade total na cadeia produtiva.",
+              delay: "0.85s",
+            },
+            {
+              emoji: "✅",
+              title: "Qualidade",
+              desc: "Controle integrado em cada etapa do processo, do recebimento à expedição.",
+              delay: "0.95s",
+            },
+          ].map((f) => (
+            <div
+              key={f.title}
+              className="rounded-2xl border p-6 text-center hover:shadow-sm transition-all duration-300"
+              style={{
+                borderColor: "rgba(33,108,59,0.12)",
+                background: "rgba(33,108,59,0.025)",
+                opacity: on ? 1 : 0,
+                transform: on ? "translateY(0)" : "translateY(16px)",
+                transition: `opacity 0.5s ease ${f.delay}, transform 0.5s ease ${f.delay}`,
+              }}
+            >
+              <div className="text-3xl mb-3">{f.emoji}</div>
+              <h4 className="font-bold text-foreground mb-2 text-sm">{f.title}</h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Fornecedor *</Label>
-                <Input placeholder="Ex: Eucatex" maxLength={100} value={form.fornecedor} onChange={(e) => setForm({ ...form, fornecedor: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Verificação de Qualidade</Label>
-                <Select value={form.verificado} onValueChange={(v: "pendente" | "conforme" | "nao_conforme") => setForm({ ...form, verificado: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="conforme">Conforme</SelectItem>
-                    <SelectItem value="nao_conforme">Não Conforme</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ──────────── BOTTOM BANNER ──────────── */}
+      <section
+        className="mx-8 rounded-2xl overflow-hidden"
+        style={{
+          opacity: on ? 1 : 0,
+          transition: "opacity 0.7s ease 1.05s",
+          background: `linear-gradient(125deg, ${VERDE_DARK} 0%, ${VERDE} 100%)`,
+        }}
+      >
+        <div className="px-10 py-9 flex items-center justify-between gap-6">
+          <div>
+            <h2 className="text-xl font-black text-white mb-1.5 leading-snug">
+              Portas que unem design,<br />tecnologia e sustentabilidade.
+            </h2>
+            <p className="text-sm" style={{ color: "rgba(200,255,220,0.85)" }}>
+              Gestão de produção integrada · Rastreabilidade · Material Certificado FSC
+            </p>
           </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-            <Button onClick={handleSave}>{editingId ? "Salvar Alterações" : "Adicionar"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <img
+            src="/logo-concrem.png"
+            alt="Concrem"
+            className="h-12 object-contain flex-shrink-0 opacity-90"
+          />
+        </div>
+      </section>
+
+      <div className="pb-6" />
+
+      <style>{`
+        .callout-ping {
+          animation: callout-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        @keyframes callout-ping {
+          75%, 100% { transform: scale(2.2); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }
