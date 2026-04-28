@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import NaoConformidadesTab from "./NaoConformidadesTab";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -491,7 +492,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       <div className="border-b pb-3">
         <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Controle de Qualidade</p>
         <h1 className="text-xl font-bold" style={{ color: COR_VERDE }}>
-          {aba === "gramatura" ? "Gramatura" : "Recebimento de Insumos"}
+          {aba === "gramatura" ? "Gramatura" : aba === "recebimento" ? "Recebimento de Insumos" : "Não Conformidades"}
         </h1>
       </div>
 
@@ -863,6 +864,9 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
           </Card>
         </>
       )}
+
+      {/* ════ ABA NÃO CONFORMIDADES ════ */}
+      {aba === "nao-conformidades" && <NaoConformidadesTab />}
 
       {/* ════════════════════════════════════════════════════════════
           DIALOGS

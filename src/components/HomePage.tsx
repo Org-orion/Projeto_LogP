@@ -1,341 +1,229 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Factory, TrendingUp } from "lucide-react";
 import { DoorKitAnimation } from "./DoorKitAnimation";
+import { useKpisDia } from "@/hooks/useKpisDia";
+import { useProducaoDiaria } from "@/hooks/useProducaoDiaria";
+import { useProducaoGraficos } from "@/hooks/useProducaoGraficos";
+import {
+  AreaChart, Area, BarChart, Bar,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+} from "recharts";
 
-const VERDE      = "#216C3B";
-const VERDE_DARK = "#194f2c";
+const VERDE   = "#1f4d34";
+const VERDE_2 = "#0f3a22";
+const LINE    = "#e4e7e4";
+const INK     = "#0f1a14";
+const INK_S   = "#3a4a42";
+const MUTED   = "#6b7a72";
 
-function useEntrance() {
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setOn(true), 60);
-    return () => clearTimeout(t);
-  }, []);
-  return on;
+function formatDate() {
+  return new Date()
+    .toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+    .replace(/\//g, ".");
 }
 
-// ── Callout dot with pulsing ring ────────────────────────────────────────────
-function PulseCallout({
-  label,
-  style,
-  delay = 0,
-  flip = false,
-}: {
-  label: string;
-  style: React.CSSProperties;
-  delay?: number;
-  flip?: boolean;
-}) {
-  const [vis, setVis] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setVis(true), 750 + delay);
-    return () => clearTimeout(t);
-  }, [delay]);
+function firstWord(name: string) {
+  return name.trim().split(/\s+/)[0] || "usuário";
+}
 
+function KpiCard({ label, value, loading }: { label: string; value: number | null; loading: boolean }) {
+  const display = loading || value === null ? "—" : value.toLocaleString("pt-BR");
   return (
-    <div
-      className="absolute flex items-center gap-2"
-      style={{
-        ...style,
-        opacity: vis ? 1 : 0,
-        transform: vis ? "none" : "translateY(6px)",
-        transition: "opacity 0.4s ease, transform 0.4s ease",
-        flexDirection: flip ? "row-reverse" : "row",
-      }}
-    >
-      <div className="relative flex items-center justify-center w-3.5 h-3.5 shrink-0">
-        <span className="callout-ring absolute inset-0 rounded-full bg-white" />
-        <span className="relative w-2 h-2 rounded-full bg-white block" />
-      </div>
-      <div
-        className="text-[11px] font-bold px-2.5 py-1 rounded-full shadow-lg whitespace-nowrap"
-        style={{
-          background: "rgba(255,255,255,0.92)",
-          color: VERDE_DARK,
-          backdropFilter: "blur(6px)",
-        }}
-      >
+    <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 10, padding: "18px 20px" }}>
+      <div style={{ fontSize: 10, color: MUTED, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>
         {label}
       </div>
+      <div style={{ fontSize: 32, fontWeight: 300, color: INK, lineHeight: 1, letterSpacing: "-0.035em" }}>
+        {display}
+        {!loading && <span style={{ fontSize: 12, color: MUTED, marginLeft: 4, fontWeight: 500 }}>un</span>}
+      </div>
+      <div style={{ fontSize: 11, marginTop: 10, color: MUTED, fontWeight: 400 }}>Acumulado hoje</div>
     </div>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
-export default function HomePage() {
-  const on = useEntrance();
+export default function HomePage({ userName = "" }: { userName?: string }) {
+  const name     = firstWord(userName);
+  const today    = formatDate();
+  const kpis     = useKpisDia();
+  const producao = useProducaoDiaria();
+  const graficos = useProducaoGraficos();
 
   return (
-    <div className="space-y-0 -m-6">
+    <div style={{ padding: "40px 48px 60px" }}>
 
-      {/* ═══════════════════════════════════════ HERO ═══ */}
-      <section
-        className="relative overflow-hidden"
-        style={{
-          background: `linear-gradient(120deg, ${VERDE_DARK} 0%, ${VERDE} 55%, #2c9452 100%)`,
-        }}
-      >
-        <div className="relative z-10 flex flex-col md:flex-row items-center min-h-[340px]">
+      {/* ═══ HEADING ═══ */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: 10.5, letterSpacing: "0.28em", color: VERDE, textTransform: "uppercase", marginBottom: 14, fontWeight: 600 }}>
+          Visão geral · {today}
+        </div>
+        <h1 style={{ fontWeight: 300, fontSize: "clamp(36px, 3.6vw, 52px)", lineHeight: 1.02, letterSpacing: "-0.03em", color: VERDE_2, margin: 0 }}>
+          Bem-vindo,<br />
+          <em style={{ fontStyle: "normal", fontWeight: 600, color: VERDE, letterSpacing: "-0.035em" }}>{name}.</em>
+        </h1>
+        <p style={{ fontSize: 13.5, color: INK_S, marginTop: 14, maxWidth: 440, lineHeight: 1.55, fontWeight: 400, letterSpacing: "0.005em" }}>
+          Acompanhe a produção e a qualidade das Portas em tempo real.
+        </p>
+      </div>
 
-          {/* Left — headline */}
-          <div
-            className="px-10 py-12 max-w-md shrink-0"
-            style={{
-              opacity: on ? 1 : 0,
-              transform: on ? "none" : "translateX(-28px)",
-              transition: "opacity 0.7s ease, transform 0.7s ease",
-            }}
-          >
-            <p
-              className="text-[11px] font-bold uppercase tracking-[0.22em] mb-3"
-              style={{ color: "rgba(170,255,200,0.85)" }}
-            >
-              Concrem · Tecnologia em Portas
-            </p>
-            <h1 className="text-5xl font-black text-white leading-[1.06] mb-5">
-              Tecnologia<br />em portas.
-            </h1>
-            <p
-              className="text-sm leading-relaxed mb-8"
-              style={{ color: "rgba(210,255,225,0.88)" }}
-            >
-              Fabricamos portas e guarnições com precisão industrial,<br />
-              materiais certificados FSC e processos 100% rastreáveis.
-            </p>
-            <div className="flex gap-3 flex-wrap">
-              <button
-                className="px-6 py-2.5 text-sm font-bold rounded-lg transition-all hover:scale-[1.03] active:scale-95"
-                style={{ background: "#fff", color: VERDE_DARK }}
-              >
-                Ver Produção
-              </button>
-              <button
-                className="px-6 py-2.5 text-sm font-medium rounded-lg transition-all hover:bg-white/10"
-                style={{ border: "1.5px solid rgba(255,255,255,0.32)", color: "#fff" }}
-              >
-                Rastreabilidade
-              </button>
+      {/* ═══ KPIs ═══ */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
+        <KpiCard label="Portas Prensadas hoje"   value={kpis.portasPrensadas}   loading={kpis.loading} />
+        <KpiCard label="Kits Embalados hoje"      value={kpis.kitsEmbalados}      loading={kpis.loading} />
+        <KpiCard label="Batentes Revestidos hoje" value={kpis.batentesRevestidos} loading={kpis.loading} />
+        <KpiCard label="Alizares Revestidos hoje" value={kpis.alizaresRecobertos} loading={kpis.loading} />
+      </div>
+
+      {/* ═══ SHOWCASE ═══ */}
+      <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 12, overflow: "hidden", marginBottom: 20 }}>
+        <div style={{ overflow: "hidden", background: "linear-gradient(180deg, #fafbf8, #f4f5f2)" }}>
+          <DoorKitAnimation />
+        </div>
+      </div>
+
+      {/* ═══ BOTTOM GRID ═══ */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+
+        {/* ── Gráficos de produção ── */}
+        <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 10, padding: "20px 22px", display: "flex", flexDirection: "column", gap: 28 }}>
+
+          {/* Tendência 14 dias */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <TrendingUp size={15} style={{ color: VERDE, flexShrink: 0 }} />
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: VERDE_2, margin: 0, letterSpacing: "-0.01em" }}>
+                Produção — últimos 14 dias
+              </h3>
             </div>
+            <p style={{ fontSize: 11.5, color: MUTED, marginBottom: 14, fontWeight: 400 }}>
+              Total de peças conformes por dia.
+            </p>
+            {graficos.loading ? (
+              <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontSize: 12 }}>Carregando…</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={160}>
+                <AreaChart data={graficos.tendencia} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={VERDE} stopOpacity={0.18} />
+                      <stop offset="95%" stopColor={VERDE} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={LINE} vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: MUTED }} axisLine={false} tickLine={false} interval={1} />
+                  <YAxis tick={{ fontSize: 10, fill: MUTED }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ fontSize: 11, padding: "4px 10px", borderColor: LINE }}
+                    formatter={(v: number) => [v.toLocaleString("pt-BR") + " un", "Produção"]}
+                  />
+                  <Area type="monotone" dataKey="total" stroke={VERDE} strokeWidth={2} fill="url(#areaGrad)" dot={false} activeDot={{ r: 4, fill: VERDE }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
-          {/* Right — door photo with callout labels */}
-          <div
-            className="relative flex-1 self-stretch min-h-[280px] md:min-h-0"
-            style={{
-              opacity: on ? 1 : 0,
-              transform: on ? "none" : "translateX(36px)",
-              transition: "opacity 0.85s ease 0.18s, transform 0.85s ease 0.18s",
-            }}
-          >
-            {/* Fade edge left */}
-            <div
-              className="absolute inset-y-0 left-0 w-20 z-10 pointer-events-none"
-              style={{ background: `linear-gradient(to right, ${VERDE_DARK}, transparent)` }}
-            />
-
-            <img
-              src="/images/porta-pivotante.jpg"
-              alt="Porta Pivotante Bianco"
-              className="absolute inset-0 w-full h-full object-cover object-top"
-              style={{ opacity: 0.72 }}
-              draggable={false}
-            />
-
-            {/* Callout labels */}
-            <PulseCallout label="Alizar Bianco"     style={{ top: "16%", left: "14%" }} delay={0}   />
-            <PulseCallout label="Porta Pivotante"   style={{ top: "44%", right: "8%" }} delay={200} flip />
-            <PulseCallout label="Batente Melamínico" style={{ bottom: "20%", left: "9%" }} delay={400} />
-          </div>
-        </div>
-
-        {/* Decorative circles */}
-        <div
-          className="absolute -bottom-16 -left-16 w-72 h-72 rounded-full pointer-events-none"
-          style={{ background: "rgba(255,255,255,0.03)" }}
-        />
-        <div
-          className="absolute -top-10 right-[38%] w-48 h-48 rounded-full pointer-events-none"
-          style={{ background: "rgba(255,255,255,0.025)" }}
-        />
-      </section>
-
-      {/* ══════════════════════════ DOOR KIT ANIMATION ══ */}
-      <section
-        style={{
-          opacity: on ? 1 : 0,
-          transition: "opacity 0.6s ease 0.35s",
-        }}
-      >
-        <DoorKitAnimation />
-      </section>
-
-      {/* ════════════════════════════════════ FEATURES ══ */}
-      <section
-        className="px-8 py-8"
-        style={{ background: "rgba(33,108,59,0.02)" }}
-      >
-        <p
-          className="text-[11px] font-bold uppercase tracking-widest mb-6"
-          style={{
-            color: VERDE,
-            opacity: on ? 1 : 0,
-            transition: "opacity 0.5s ease 0.6s",
-          }}
-        >
-          Nossos Diferenciais
-        </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            {
-              e: "🛡️",
-              t: "Durabilidade",
-              d: "Materiais certificados e processos rigorosos para produtos com longa vida útil.",
-              delay: "0.65s",
-            },
-            {
-              e: "🎯",
-              t: "Precisão",
-              d: "Tolerâncias dimensionais controladas em tempo real em cada máquina de produção.",
-              delay: "0.76s",
-            },
-            {
-              e: "🌿",
-              t: "Sustentabilidade",
-              d: "Madeira certificada FSC com rastreabilidade total da cadeia de fornecimento.",
-              delay: "0.87s",
-            },
-            {
-              e: "✅",
-              t: "Qualidade",
-              d: "Controle integrado em cada etapa: do recebimento de insumos à expedição.",
-              delay: "0.98s",
-            },
-          ].map((f) => (
-            <div
-              key={f.t}
-              className="rounded-2xl border p-6 text-center hover:shadow-sm transition-shadow duration-300"
-              style={{
-                borderColor: "rgba(33,108,59,0.13)",
-                background: "rgba(33,108,59,0.025)",
-                opacity: on ? 1 : 0,
-                transform: on ? "none" : "translateY(14px)",
-                transition: `opacity 0.5s ease ${f.delay}, transform 0.5s ease ${f.delay}`,
-              }}
-            >
-              <div className="text-3xl mb-3">{f.e}</div>
-              <h4 className="font-bold text-foreground text-sm mb-2">{f.t}</h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">{f.d}</p>
+          {/* Top máquinas do mês */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <Factory size={15} style={{ color: VERDE, flexShrink: 0 }} />
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: VERDE_2, margin: 0, letterSpacing: "-0.01em" }}>
+                Top máquinas — mês atual
+              </h3>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════ COMPONENTS ══ */}
-      <section className="px-8 py-6">
-        <p
-          className="text-[11px] font-bold uppercase tracking-widest mb-5"
-          style={{
-            color: VERDE,
-            opacity: on ? 1 : 0,
-            transition: "opacity 0.5s ease 0.75s",
-          }}
-        >
-          Linha de Componentes
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {[
-            {
-              src: "/images/batente-melaminico.jpg",
-              alt: "Batente Melamínico Branco",
-              tag: "Batente",
-              title: "Batente Melamínico",
-              desc: "Acabamento premium em melamina com núcleo em MDF certificado. Alta resistência e precisão dimensional garantida em cada peça fabricada.",
-              delay: "0.8s",
-            },
-            {
-              src: "/images/alizar-bianco.jpg",
-              alt: "Alizar Bianco",
-              tag: "Alizar",
-              title: "Alizar Bianco",
-              desc: "Perfil em U com acabamento Bianco fabricado com materiais de alta qualidade e certificação FSC — beleza e durabilidade em harmonia.",
-              delay: "0.95s",
-            },
-          ].map((item) => (
-            <div
-              key={item.title}
-              className="group flex items-center gap-6 rounded-2xl border bg-card p-6 hover:shadow-md transition-all duration-300 cursor-default"
-              style={{
-                borderColor: "rgba(33,108,59,0.14)",
-                opacity: on ? 1 : 0,
-                transform: on ? "none" : "translateY(20px)",
-                transition: `opacity 0.6s ease ${item.delay}, transform 0.6s ease ${item.delay}, box-shadow 0.3s`,
-              }}
-            >
-              <div
-                className="w-36 h-28 shrink-0 rounded-xl overflow-hidden flex items-center justify-center"
-                style={{
-                  background: "rgba(33,108,59,0.04)",
-                  border: "1px solid rgba(33,108,59,0.1)",
-                }}
-              >
-                <img
-                  src={item.src}
-                  alt={item.alt}
-                  className="w-full h-full object-contain group-hover:scale-[1.07] transition-transform duration-500"
-                  draggable={false}
-                />
-              </div>
-              <div className="min-w-0">
-                <p
-                  className="text-[11px] font-bold uppercase tracking-widest mb-1"
-                  style={{ color: VERDE }}
+            <p style={{ fontSize: 11.5, color: MUTED, marginBottom: 14, fontWeight: 400 }}>
+              Peças conformes acumuladas no mês por máquina.
+            </p>
+            {graficos.loading ? (
+              <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontSize: 12 }}>Carregando…</div>
+            ) : graficos.topMaquinas.length === 0 ? (
+              <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontSize: 12 }}>Sem dados no mês.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={graficos.topMaquinas.length * 36 + 8}>
+                <BarChart
+                  layout="vertical"
+                  data={graficos.topMaquinas}
+                  margin={{ top: 0, right: 40, left: 4, bottom: 0 }}
+                  barSize={14}
                 >
-                  {item.tag}
-                </p>
-                <h3 className="text-base font-bold text-foreground mb-1.5">{item.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════ BOTTOM BANNER ══ */}
-      <section className="px-8 pb-8">
-        <div
-          className="rounded-2xl overflow-hidden"
-          style={{
-            opacity: on ? 1 : 0,
-            transition: "opacity 0.7s ease 1.05s",
-            background: `linear-gradient(120deg, ${VERDE_DARK} 0%, ${VERDE} 100%)`,
-          }}
-        >
-          <div className="px-10 py-9 flex items-center justify-between gap-6">
-            <div>
-              <h2 className="text-xl font-black text-white mb-1.5 leading-snug">
-                Portas que unem design,<br />tecnologia e sustentabilidade.
-              </h2>
-              <p className="text-sm" style={{ color: "rgba(200,255,220,0.82)" }}>
-                Gestão de produção integrada · Rastreabilidade · Material Certificado FSC
-              </p>
-            </div>
-            <img
-              src="/logo-concrem.png"
-              alt="Concrem"
-              className="h-12 object-contain shrink-0 opacity-90"
-            />
+                  <CartesianGrid strokeDasharray="3 3" stroke={LINE} horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: MUTED }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="maquina"
+                    tick={{ fontSize: 10, fill: INK }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={130}
+                    tickFormatter={(v: string) => v.length > 20 ? v.slice(0, 19) + "…" : v}
+                  />
+                  <Tooltip
+                    contentStyle={{ fontSize: 11, padding: "4px 10px", borderColor: LINE }}
+                    formatter={(v: number) => [v.toLocaleString("pt-BR") + " un", "Total"]}
+                  />
+                  <Bar dataKey="total" fill={VERDE} radius={[0, 4, 4, 0]} opacity={0.85}
+                    label={{ position: "right", fontSize: 10, fill: MUTED, formatter: (v: number) => v.toLocaleString("pt-BR") }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
-        </div>
-      </section>
 
-      {/* ── Keyframes ── */}
+        </div>
+
+        {/* ── Produção diária por máquina ── */}
+        <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 10, padding: "20px 22px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <Factory size={15} style={{ color: VERDE, flexShrink: 0 }} />
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: VERDE_2, margin: 0, letterSpacing: "-0.01em" }}>
+              Produção diária
+            </h3>
+          </div>
+          <p style={{ fontSize: 11.5, color: MUTED, marginBottom: 18, fontWeight: 400 }}>
+            Quantidade produzida hoje por máquina.
+          </p>
+
+          {producao.loading ? (
+            <div style={{ padding: "24px 0", textAlign: "center", color: MUTED, fontSize: 12 }}>Carregando…</div>
+          ) : producao.data.length === 0 ? (
+            <div style={{ padding: "24px 0", textAlign: "center", color: MUTED, fontSize: 12 }}>Sem registros hoje.</div>
+          ) : (
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+              {producao.data.map(m => {
+                const max = producao.data[0].total || 1;
+                const pct = Math.round((m.total / max) * 100);
+                return (
+                  <li key={m.maquina}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: INK, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {m.maquina}
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: VERDE, flexShrink: 0 }}>
+                        {m.total.toLocaleString("pt-BR")} un
+                      </span>
+                    </div>
+                    <div style={{ height: 4, background: LINE, borderRadius: 99, overflow: "hidden" }}>
+                      <div style={{
+                        height: "100%", width: `${pct}%`,
+                        background: "linear-gradient(90deg, #1f4d34, #3da06a)",
+                        borderRadius: 99, transition: "width .4s",
+                      }} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+      </div>
+
       <style>{`
-        .callout-ring {
-          animation: callout-ring 1.7s cubic-bezier(0,0,0.2,1) infinite;
+        @media (max-width: 1100px) {
+          .home-bottom { grid-template-columns: 1fr !important; }
         }
-        @keyframes callout-ring {
-          75%, 100% { transform: scale(2.4); opacity: 0; }
+        @media (max-width: 768px) {
+          .home-wrap { padding: 20px !important; }
         }
       `}</style>
     </div>

@@ -18,6 +18,7 @@ import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  Cell, LabelList,
 } from "recharts";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addWeeks,
@@ -61,23 +62,130 @@ interface ColunaDef {
 
 const c = (key: string, label: string, opts: Partial<Omit<ColunaDef,"key"|"label">> = {}): ColunaDef => ({ key, label, ...opts });
 
+// ─── Dashboard de Produção ────────────────────────────────────────────────────
+
+const COR_VERDE  = "#216C3B";
+const COR_BARRA  = "#16a34a";
+
+const MESES_DASH = [
+  "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+  "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro",
+];
+
+interface RowDash {
+  maquina:      string | null;
+  data:         string;
+  linha:        string | null;
+  padrao:       string | null;
+  largura_cm:   number | null;
+  qtd_conforme: number | null;
+}
+
+function pctBarD(pct: number) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ width: 70, height: 8, background: "#bbf7d0", borderRadius: 3, overflow: "hidden", flexShrink: 0 }}>
+        <div style={{ width: `${Math.min(pct, 100)}%`, height: "100%", background: COR_BARRA, borderRadius: 3 }} />
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 600, color: COR_VERDE, minWidth: 50, textAlign: "right" }}>
+        {pct.toFixed(2)}%
+      </span>
+    </div>
+  );
+}
+
+const ANOS_DASH = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i));
+
+type SetorDash = "todos" | "portas" | "guarnicao";
+
+const SETOR_DASH_LABELS: Record<SetorDash, string> = {
+  todos:     "Todos",
+  portas:    "Portas",
+  guarnicao: "Guarnição",
+};
+
+const KW_PORTAS_DASH = [
+  "embalagem de porta",
+  "esquadrejadeira",
+  "furação e corte",
+  "montagem do kit",
+  "prensa fria",
+  "colagem de borda",
+  "pintura de porta",
+  "pintura de tampo",
+  "linha de pintura",
+];
+
+const KW_GUARNICAO_DASH = [
+  "coladeira de alizar",
+  "moldureira de aliza",
+  "moldureira de batente",
+  "recobridora de perfil",
+  "unesa",
+  "gaidzinski",
+];
+
+function getSetorDash(maquina: string): "portas" | "guarnicao" | null {
+  const lower = (maquina ?? "").toLowerCase();
+  if (KW_PORTAS_DASH.some(k => lower.includes(k))) return "portas";
+  if (KW_GUARNICAO_DASH.some(k => lower.includes(k))) return "guarnicao";
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
-  "seccionadora": [
+  "seccionadora 1": [
+    // Material Recebido
     c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
     c("tipo_chapa","Tipo de Chapa"), c("tipo_material","Tipo Material"),
-    c("espessura_mm","Esp. (mm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("comprimento_cm","Comp. (cm)",{numeric:true}),
     c("qtd_chapas","Qtd. Chapas",{numeric:true}),
+    c("esp_recebido_mm","Esp. Recebida (mm)",{numeric:true}), c("larg_recebido_cm","Larg. Recebida (cm)",{numeric:true}), c("comp_recebido_cm","Comp. Recebido (cm)",{numeric:true}),
+    // Material Produzido
     c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("material_certificado_fsc","Mat. Certif. (FSC)"), c("seccionadora_aq009","SECC. (AQ009)"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"), c("qualidade","Qualidade"),
     c("produto","Produto"),
-    c("esp_recebido_mm","Esp. Prod. (mm)",{numeric:true}), c("larg_recebido_cm","Larg. Prod. (cm)",{numeric:true}), c("comp_recebido_cm","Comp. Prod. (cm)",{numeric:true}),
+    c("espessura_mm","Esp. Produzida (mm)",{numeric:true}), c("largura_cm","Larg. Produzida (cm)",{numeric:true}), c("comprimento_cm","Comp. Produzido (cm)",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    // Sobra
+    c("esp_sobra_mm","Esp. Sobra (mm)",{numeric:true}), c("larg_sobra_cm","Larg. Sobra (cm)",{numeric:true}), c("comp_sobra_cm","Comp. Sobra (cm)",{numeric:true}),
+    c("qtd_sobra","Qtd. Sobra",{numeric:true}), c("produto_sobra","Produto Sobra"),
+    // Complementar
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
+    c("seccionadora_aq009","SECC. (AQ009)"),
+    c("recebimento_chapa_aq01","Receb. Chapa (AQ001)"), c("recebimento_materiais_aq002","Receb. Materiais (AQ002)"),
+    c("observacao","Observação"),
+  ],
+  "seccionadora": [
+    // Material Recebido
+    c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
+    c("tipo_chapa","Tipo de Chapa"), c("tipo_material","Tipo Material"),
+    c("qtd_chapas","Qtd. Chapas",{numeric:true}),
+    c("esp_recebido_mm","Esp. Recebida (mm)",{numeric:true}), c("larg_recebido_cm","Larg. Recebida (cm)",{numeric:true}), c("comp_recebido_cm","Comp. Recebido (cm)",{numeric:true}),
+    // Material Produzido 1
+    c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"), c("qualidade","Qualidade"),
+    c("produto","Produto"),
+    c("espessura_mm","Esp. Produzida (mm)",{numeric:true}), c("largura_cm","Larg. Produzida (cm)",{numeric:true}), c("comprimento_cm","Comp. Produzido (cm)",{numeric:true}),
     c("qtd_producao_1","Qtd. Prod. 1",{numeric:true}),
+    // Material Produzido 2
     c("esp_produzido_2_mm","Esp. 2 (mm)",{numeric:true}), c("larg_produzido_2_cm","Larg. 2 (cm)",{numeric:true}), c("comp_produzido_2_cm","Comp. 2 (cm)",{numeric:true}),
     c("qtd_producao_2","Qtd. Prod. 2",{numeric:true}),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    // Sobra
     c("esp_sobra_mm","Esp. Sobra (mm)",{numeric:true}), c("larg_sobra_cm","Larg. Sobra (cm)",{numeric:true}), c("comp_sobra_cm","Comp. Sobra (cm)",{numeric:true}),
     c("qtd_sobra","Qtd. Sobra",{numeric:true}), c("produto_sobra","Produto Sobra"),
+    // Complementar
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
+    c("seccionadora_aq009","SECC. (AQ009)"),
     c("recebimento_chapa_aq01","Receb. Chapa (AQ001)"), c("recebimento_materiais_aq002","Receb. Materiais (AQ002)"),
+    c("observacao","Observação"),
   ],
   "multi serra perfil": [
     c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
@@ -212,6 +320,12 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
     c("recebimento_materiais_aq002","REC. MATERIAIS (AQ002)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
     c("multi_serra_perfil_aq010","M.S.P. (AQ010)"), c("coladeira_alizar_aq012","COL. ALIZAR (AQ012)"),
     c("plaina_moldureira_rodape_aq043","P.M. RODAPÉ (AQ043)"), c("plaina_moldureira_batente_aq011","P.M. BATENTE (AQ011)"),
+  ],
+  "montadora de grade": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("nucleo","Núcleo"),
+    c("largura_cm","Larg. (cm)",{numeric:true}), c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}),
   ],
   "montagem do kit": [
     c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
@@ -966,7 +1080,63 @@ export default function MaquinasPage() {
   const [editNome, setEditNome] = useState("");
   const [busca, setBusca] = useState("");
 
+  // ── Dashboard states ──
+  const [anoD,       setAnoD]       = useState(String(new Date().getFullYear()));
+  const [mesD,       setMesD]       = useState(String(new Date().getMonth() + 1));
+  const [diasSel,    setDiasSel]    = useState<Set<number>>(new Set());   // vazio = todos
+  const [setorD,     setSetorD]     = useState<SetorDash>("todos");
+  const [maqD,       setMaqD]       = useState("todos");
+  const [dashRows,   setDashRows]   = useState<RowDash[]>([]);
+  const [loadingD,   setLoadingD]   = useState(false);
+  const [dashErro,   setDashErro]   = useState<string | null>(null);
+  // drill-down selections
+  const [selMaq,     setSelMaq]     = useState<string | null>(null);
+  const [selLinha,   setSelLinha]   = useState<string | null>(null);
+  const [selPadrao,  setSelPadrao]  = useState<string | null>(null);
+
+  const clearDrill = () => { setSelMaq(null); setSelLinha(null); setSelPadrao(null); };
+  const handleSetorD = (s: SetorDash) => { setSetorD(s); setMaqD("todos"); clearDrill(); };
+  const handleAnoD   = (v: string)    => { setAnoD(v);   setDiasSel(new Set()); clearDrill(); };
+  const handleMesD   = (v: string)    => { setMesD(v);   setDiasSel(new Set()); clearDrill(); };
+  const handleMaqD   = (v: string)    => { setMaqD(v);   clearDrill(); };
+
+  // Seleções independentes — cada uma filtra as demais dimensões
+  const clickMaq    = (orig: string) => setSelMaq(p    => p    === orig ? null : orig);
+  const clickLinha  = (l: string)    => setSelLinha(p  => p    === l    ? null : l);
+  const clickPadrao = (pad: string)  => setSelPadrao(p => p    === pad  ? null : pad);
+
   const semanas = getSemanasMes();
+
+  const buscarDash = useCallback(async () => {
+    setLoadingD(true);
+    setDashErro(null);
+    const mm = String(Number(mesD)).padStart(2, "0");
+    const inicio = `${anoD}-${mm}-01`;
+    const fim    = format(endOfMonth(new Date(Number(anoD), Number(mesD) - 1, 1)), "yyyy-MM-dd");
+    const TAM = 1000;
+    let pagina = 0;
+    const todas: RowDash[] = [];
+    while (true) {
+      const { data, error } = await supabase
+        .from("registros_producao")
+        .select("*")
+        .gte("data", inicio)
+        .lte("data", fim)
+        .range(pagina * TAM, (pagina + 1) * TAM - 1);
+      if (error) {
+        setDashErro(`Erro Supabase: ${error.message} (código: ${error.code})`);
+        break;
+      }
+      if (!data || data.length === 0) break;
+      todas.push(...(data as RowDash[]));
+      if (data.length < TAM) break;
+      pagina++;
+    }
+    setDashRows(todas);
+    setLoadingD(false);
+  }, [anoD, mesD]);
+
+  useEffect(() => { void buscarDash(); }, [buscarDash]);
 
   const fetchDados = useCallback(async (setSpin: (v: boolean) => void) => {
     setSpin(true);
@@ -1093,8 +1263,523 @@ export default function MaquinasPage() {
     return !s || s === "ativa" || s === "ativo" || s === "active";
   }).length;
 
+  // ── Cálculos do Dashboard — filtro facetado ──
+  const dashPorSetor = setorD === "todos"
+    ? dashRows
+    : dashRows.filter(r => getSetorDash(r.maquina ?? "") === setorD);
+
+  const dashComDia = diasSel.size === 0
+    ? dashPorSetor
+    : dashPorSetor.filter(r => diasSel.has(Number(r.data.slice(8, 10))));
+
+  const dashFiltrados = maqD === "todos"
+    ? dashComDia
+    : dashComDia.filter(r => (r.maquina ?? "") === maqD);
+
+  // Helpers de filtro por dimensão
+  const byMaq    = (r: RowDash) => !selMaq    || (r.maquina ?? "")    === selMaq;
+  const byLinha  = (r: RowDash) => !selLinha  || (r.linha   || "—")   === selLinha;
+  const byPadrao = (r: RowDash) => !selPadrao || (r.padrao  || "—")   === selPadrao;
+
+  // KPIs — total geral (sem seleção de clique)
+  const totalDash = dashFiltrados.reduce((s, r) => s + (r.qtd_conforme ?? 0), 0);
+  const diasComProducao = new Set(dashFiltrados.filter(r => (r.qtd_conforme ?? 0) > 0).map(r => r.data)).size;
+  const mediaDiaria = diasComProducao > 0 ? Math.round(totalDash / diasComProducao) : 0;
+
+  // Gráfico de máquinas: vê todas as máquinas, filtrado por linha + padrão
+  // (a própria dimensão máquina NÃO filtra seu próprio gráfico — selMaq só destaca)
+  const ctxMaqChart = dashFiltrados.filter(r => byLinha(r) && byPadrao(r));
+  const dashMaqMap: Record<string, number> = {};
+  for (const r of ctxMaqChart) {
+    const m = r.maquina ?? "—";
+    dashMaqMap[m] = (dashMaqMap[m] ?? 0) + (r.qtd_conforme ?? 0);
+  }
+  const dashPorMaquina = Object.entries(dashMaqMap)
+    .map(([orig, total]) => ({ maquina: orig.toUpperCase(), orig, total }))
+    .filter(x => x.total > 0)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10);
+
+  // Gráfico diário: todas as dimensões aplicadas
+  const ctxDaily = dashFiltrados.filter(r => byMaq(r) && byLinha(r) && byPadrao(r));
+  const dashDiaMap: Record<string, number> = {};
+  for (const r of ctxDaily) {
+    const dd = r.data.slice(8, 10);
+    dashDiaMap[dd] = (dashDiaMap[dd] ?? 0) + (r.qtd_conforme ?? 0);
+  }
+  const dashPorDia = Object.entries(dashDiaMap)
+    .filter(([, t]) => t > 0)
+    .map(([dd, total]) => ({ label: Number(dd), total }))
+    .sort((a, b) => a.label - b.label);
+
+  // Tabela Linha: filtrada por máquina + padrão (não pela própria linha)
+  const ctxLinha = dashFiltrados.filter(r => byMaq(r) && byPadrao(r));
+  const total1 = ctxLinha.reduce((s, r) => s + (r.qtd_conforme ?? 0), 0);
+  const dashLinhaMap: Record<string, number> = {};
+  for (const r of ctxLinha) {
+    const l = r.linha || "—";
+    dashLinhaMap[l] = (dashLinhaMap[l] ?? 0) + (r.qtd_conforme ?? 0);
+  }
+  const dashPorLinha = Object.entries(dashLinhaMap)
+    .map(([linha, total]) => ({ linha, total, pct: total1 > 0 ? (total / total1) * 100 : 0 }))
+    .filter(x => x.total > 0).sort((a, b) => b.total - a.total);
+
+  // Tabela Padrão: filtrada por máquina + linha (não pelo próprio padrão)
+  const ctxPadrao = dashFiltrados.filter(r => byMaq(r) && byLinha(r));
+  const total2 = ctxPadrao.reduce((s, r) => s + (r.qtd_conforme ?? 0), 0);
+  const dashPadraoMap: Record<string, number> = {};
+  for (const r of ctxPadrao) {
+    const p = r.padrao || "—";
+    dashPadraoMap[p] = (dashPadraoMap[p] ?? 0) + (r.qtd_conforme ?? 0);
+  }
+  const dashPorPadrao = Object.entries(dashPadraoMap)
+    .map(([padrao, total]) => ({ padrao, total, pct: total2 > 0 ? (total / total2) * 100 : 0 }))
+    .filter(x => x.total > 0).sort((a, b) => b.total - a.total);
+
+  // Tabela Largura: todas as dimensões
+  const ctxLargura = dashFiltrados.filter(r => byMaq(r) && byLinha(r) && byPadrao(r));
+  const total3 = ctxLargura.reduce((s, r) => s + (r.qtd_conforme ?? 0), 0);
+  const dashLargMap: Record<string, number> = {};
+  for (const r of ctxLargura) {
+    const l = r.largura_cm != null ? String(r.largura_cm) : "—";
+    dashLargMap[l] = (dashLargMap[l] ?? 0) + (r.qtd_conforme ?? 0);
+  }
+  const dashPorLargura = Object.entries(dashLargMap)
+    .map(([largura, total]) => ({ largura, total, pct: total3 > 0 ? (total / total3) * 100 : 0 }))
+    .filter(x => x.total > 0).sort((a, b) => b.total - a.total);
+
+  // máquinas disponíveis para filtro do dashboard
+  const maqsDash = Array.from(new Set(dashPorSetor.map(r => r.maquina ?? ""))).filter(Boolean).sort();
+
+  const temSelecao = !!(selMaq || selLinha || selPadrao);
+
   return (
     <div className="max-w-6xl mx-auto space-y-5">
+
+      {/* ══ DASHBOARD DE PRODUÇÃO ══ */}
+      <div className="space-y-4">
+        {/* Toggle de Setor */}
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
+          {(["todos", "portas", "guarnicao"] as SetorDash[]).map(s => (
+            <button
+              key={s}
+              onClick={() => handleSetorD(s)}
+              className="px-4 py-1.5 rounded-md text-xs font-semibold transition-all"
+              style={
+                setorD === s
+                  ? { background: COR_VERDE, color: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }
+                  : { background: "transparent", color: "#6b7280" }
+              }
+            >
+              {SETOR_DASH_LABELS[s]}
+            </button>
+          ))}
+        </div>
+
+        {/* Filtros + KPIs */}
+        <div className="flex flex-wrap items-end gap-4">
+          {/* KPIs */}
+          <Card className="border-green-200 bg-green-50 shrink-0">
+            <CardContent className="p-4">
+              <p className="text-xs text-green-700 font-medium">Qtd. Conforme</p>
+              <p className="text-3xl font-bold text-green-800 leading-none mt-1">
+                {loadingD ? "…" : totalDash.toLocaleString("pt-BR")}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-green-200 bg-green-50 shrink-0">
+            <CardContent className="p-4">
+              <p className="text-xs text-green-700 font-medium">Média de Produção Diária</p>
+              <p className="text-3xl font-bold text-green-800 leading-none mt-1">
+                {loadingD ? "…" : mediaDiaria.toLocaleString("pt-BR")}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Filtros */}
+          <div className="flex flex-wrap gap-3 items-end ml-auto">
+            <div className="space-y-1">
+              <Label className="text-xs">Ano</Label>
+              <Select value={anoD} onValueChange={handleAnoD}>
+                <SelectTrigger className="h-8 w-24 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ANOS_DASH.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Mês</Label>
+              <Select value={mesD} onValueChange={handleMesD}>
+                <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MESES_DASH.map((m, i) => (
+                    <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Dia</Label>
+              {(() => {
+                const totalDias = getDaysInMonth(new Date(Number(anoD), Number(mesD) - 1, 1));
+                const nomeMes = MESES_DASH[Number(mesD) - 1].toLowerCase();
+                const todosSel = diasSel.size === 0;
+                const labelBtn = todosSel ? "Todos" : `${diasSel.size} dia${diasSel.size > 1 ? "s" : ""}`;
+
+                const toggleTodos = () => { setDiasSel(new Set()); clearDrill(); };
+                const toggleDia = (d: number) => {
+                  setDiasSel(prev => {
+                    const next = new Set(prev);
+                    if (next.has(d)) next.delete(d); else next.add(d);
+                    return next;
+                  });
+                  clearDrill();
+                };
+
+                return (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="h-8 text-xs w-28 border border-input rounded-md px-2 flex items-center justify-between bg-background hover:bg-accent transition-colors"
+                      >
+                        <span className="truncate">{labelBtn}</span>
+                        <ChevronDown className="h-3 w-3 ml-1 shrink-0 text-muted-foreground" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-44" align="start">
+                      <div className="max-h-72 overflow-y-auto text-xs">
+                        <label className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent cursor-pointer">
+                          <input type="checkbox" checked={todosSel} onChange={toggleTodos} className="h-3.5 w-3.5 accent-primary" />
+                          <span>Selecionar todos</span>
+                        </label>
+                        <div className="border-t my-0.5" />
+                        <div className="px-3 py-1 text-muted-foreground font-medium text-xs">{nomeMes}</div>
+                        {Array.from({ length: totalDias }, (_, i) => i + 1).map(d => (
+                          <label key={d} className="flex items-center gap-2 px-5 py-0.5 hover:bg-accent cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={todosSel || diasSel.has(d)}
+                              onChange={() => toggleDia(d)}
+                              className="h-3.5 w-3.5 accent-primary"
+                            />
+                            {d}
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                );
+              })()}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Máquina</Label>
+              <Select value={maqD} onValueChange={handleMaqD}>
+                <SelectTrigger className="h-8 w-52 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todas</SelectItem>
+                  {maqsDash.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => buscarDash()}
+              disabled={loadingD}
+              className="h-8 gap-1.5 self-end"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loadingD ? "animate-spin" : ""}`} />
+              {loadingD ? "Carregando..." : "Sincronizar"}
+            </Button>
+          </div>
+        </div>
+
+        {dashErro && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 font-mono">
+            {dashErro}
+          </div>
+        )}
+
+        {loadingD ? (
+          <div className="flex items-center justify-center h-40 gap-2 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" /> Carregando dados...
+          </div>
+        ) : (
+          <>
+            {/* Breadcrumb de seleção ativa */}
+            {temSelecao && (
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <span className="text-muted-foreground">Filtro ativo:</span>
+                {selMaq && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium text-white" style={{ background: COR_VERDE }}>
+                    {selMaq.toUpperCase()}
+                    <button onClick={() => { setSelMaq(null); setSelLinha(null); setSelPadrao(null); }} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
+                  </span>
+                )}
+                {selLinha && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium text-white" style={{ background: "#166534" }}>
+                    Linha: {selLinha}
+                    <button onClick={() => { setSelLinha(null); setSelPadrao(null); }} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
+                  </span>
+                )}
+                {selPadrao && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium text-white" style={{ background: "#14532d" }}>
+                    Padrão: {selPadrao}
+                    <button onClick={() => setSelPadrao(null)} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
+                  </span>
+                )}
+                <button onClick={clearDrill} className="text-muted-foreground underline hover:text-foreground">
+                  Limpar tudo
+                </button>
+              </div>
+            )}
+
+            {/* Gráficos */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Produção por Máquina — clicável */}
+              <Card className={selMaq ? "ring-2 ring-green-400" : ""}>
+                <CardContent className="pt-4 px-3 pb-4">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1 px-2">
+                    Produção de Portas
+                    <span className="ml-2 font-normal opacity-60">(clique para filtrar)</span>
+                  </p>
+                  {dashPorMaquina.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">Sem dados.</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={Math.max(120, dashPorMaquina.length * 40)}>
+                      <BarChart
+                        layout="vertical"
+                        data={dashPorMaquina}
+                        margin={{ top: 2, right: 54, left: 8, bottom: 16 }}
+                        barSize={16}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#bbf7d0" horizontal={false} />
+                        <XAxis
+                          type="number" tick={{ fontSize: 9 }} axisLine={false} tickLine={false}
+                          tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)} Mil` : String(v)}
+                          label={{ value: "Soma de Qtd. Conforme", position: "insideBottom", offset: -10, fontSize: 9, fill: "#9ca3af" }}
+                        />
+                        <YAxis
+                          type="category" dataKey="maquina" tick={{ fontSize: 9 }} width={160}
+                          axisLine={false} tickLine={false}
+                          tickFormatter={(v: string) => v.length > 22 ? v.slice(0, 21) + "…" : v}
+                        />
+                        <Tooltip contentStyle={{ fontSize: 11 }}
+                          formatter={(v: number) => [v.toLocaleString("pt-BR"), "Conforme"]} />
+                        <Bar
+                          dataKey="total"
+                          radius={[0, 4, 4, 0]}
+                          style={{ cursor: "pointer" }}
+                          onClick={(d: { orig: string }) => clickMaq(d.orig)}
+                        >
+                          {dashPorMaquina.map((item) => (
+                            <Cell
+                              key={item.orig}
+                              fill={!selMaq || selMaq === item.orig ? COR_VERDE : "#bbf7d0"}
+                              opacity={!selMaq || selMaq === item.orig ? 1 : 0.5}
+                            />
+                          ))}
+                          <LabelList dataKey="total" position="right"
+                            style={{ fontSize: 10, fontWeight: 600, fill: COR_VERDE }}
+                            formatter={(v: number) => v.toLocaleString("pt-BR")} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Produção Diária — reage à máquina selecionada */}
+              <Card>
+                <CardContent className="pt-4 px-3 pb-4">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1 px-2">
+                    Produção Diária
+                    {selMaq && <span className="ml-2 font-normal" style={{ color: COR_VERDE }}>· {selMaq.toUpperCase()}</span>}
+                  </p>
+                  {dashPorDia.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">Sem dados.</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart
+                        data={dashPorDia}
+                        margin={{ top: 16, right: 8, left: -10, bottom: 4 }}
+                        barSize={Math.max(6, Math.floor(320 / dashPorDia.length) - 4)}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#bbf7d0" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 9 }} axisLine={false} tickLine={false}
+                          label={{ value: "Dia", position: "insideBottom", offset: -2, fontSize: 9, fill: "#9ca3af" }} />
+                        <YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false}
+                          tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)} Mil` : String(v)}
+                          label={{ value: "Portas", angle: -90, position: "insideLeft", fontSize: 9, fill: "#9ca3af" }} />
+                        <Tooltip contentStyle={{ fontSize: 11 }}
+                          formatter={(v: number) => [v.toLocaleString("pt-BR"), "Conforme"]}
+                          labelFormatter={(l) => `Dia ${l}`} />
+                        <Bar dataKey="total" fill={COR_VERDE} radius={[3, 3, 0, 0]}>
+                          <LabelList dataKey="total" position="top"
+                            style={{ fontSize: 8, fontWeight: 600, fill: COR_VERDE }}
+                            formatter={(v: number) => v > 0 ? v.toLocaleString("pt-BR") : ""} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Tabelas por Linha / Padrão / Largura — drill-down em cascata */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Por Linha */}
+              <Card className={selLinha ? "ring-2 ring-green-400" : ""}>
+                <CardContent className="px-0 pb-0 pt-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr style={{ background: COR_VERDE }}>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-white">
+                            Linha <span className="font-normal opacity-60">(clique)</span>
+                          </th>
+                          <th className="px-3 py-2 text-right text-xs font-semibold text-white">Qtd.</th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-white">%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashPorLinha.length === 0 ? (
+                          <tr><td colSpan={3} className="px-3 py-5 text-center text-xs text-muted-foreground">Sem dados.</td></tr>
+                        ) : (
+                          <>
+                            {dashPorLinha.map((row) => {
+                              const ativo = selLinha === row.linha;
+                              return (
+                                <tr
+                                  key={row.linha}
+                                  onClick={() => clickLinha(row.linha)}
+                                  style={{
+                                    background: ativo ? "#dcfce7" : undefined,
+                                    borderBottom: "1px solid #f3f4f6",
+                                    cursor: "pointer",
+                                    fontWeight: ativo ? 700 : undefined,
+                                  }}
+                                  className="hover:bg-green-50 transition-colors"
+                                >
+                                  <td className="px-3 py-1.5 text-xs">{row.linha}</td>
+                                  <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{row.total.toLocaleString("pt-BR")}</td>
+                                  <td className="px-3 py-1.5">{pctBarD(row.pct)}</td>
+                                </tr>
+                              );
+                            })}
+                            <tr style={{ background: "#f0fdf4", borderTop: "2px solid #bbf7d0" }}>
+                              <td className="px-3 py-1.5 text-xs font-bold">Total</td>
+                              <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{total1.toLocaleString("pt-BR")}</td>
+                              <td className="px-3 py-1.5 text-xs font-bold" style={{ color: COR_VERDE }}>100,00%</td>
+                            </tr>
+                          </>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Por Padrão */}
+              <Card className={selPadrao ? "ring-2 ring-green-400" : ""}>
+                <CardContent className="px-0 pb-0 pt-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr style={{ background: COR_VERDE }}>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-white">
+                            Padrão <span className="font-normal opacity-60">(clique)</span>
+                          </th>
+                          <th className="px-3 py-2 text-right text-xs font-semibold text-white">Qtd.</th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-white">%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashPorPadrao.length === 0 ? (
+                          <tr><td colSpan={3} className="px-3 py-5 text-center text-xs text-muted-foreground">Sem dados.</td></tr>
+                        ) : (
+                          <>
+                            {dashPorPadrao.map((row) => {
+                              const ativo = selPadrao === row.padrao;
+                              return (
+                                <tr
+                                  key={row.padrao}
+                                  onClick={() => clickPadrao(row.padrao)}
+                                  style={{
+                                    background: ativo ? "#dcfce7" : undefined,
+                                    borderBottom: "1px solid #f3f4f6",
+                                    cursor: "pointer",
+                                    fontWeight: ativo ? 700 : undefined,
+                                  }}
+                                  className="hover:bg-green-50 transition-colors"
+                                >
+                                  <td className="px-3 py-1.5 text-xs">{row.padrao}</td>
+                                  <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{row.total.toLocaleString("pt-BR")}</td>
+                                  <td className="px-3 py-1.5">{pctBarD(row.pct)}</td>
+                                </tr>
+                              );
+                            })}
+                            <tr style={{ background: "#f0fdf4", borderTop: "2px solid #bbf7d0" }}>
+                              <td className="px-3 py-1.5 text-xs font-bold">Total</td>
+                              <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{total2.toLocaleString("pt-BR")}</td>
+                              <td className="px-3 py-1.5 text-xs font-bold" style={{ color: COR_VERDE }}>100,00%</td>
+                            </tr>
+                          </>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Por Largura */}
+              <Card>
+                <CardContent className="px-0 pb-0 pt-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr style={{ background: COR_VERDE }}>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-white">Largura (cm)</th>
+                          <th className="px-3 py-2 text-right text-xs font-semibold text-white">Qtd.</th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-white">%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashPorLargura.length === 0 ? (
+                          <tr><td colSpan={3} className="px-3 py-5 text-center text-xs text-muted-foreground">Sem dados.</td></tr>
+                        ) : (
+                          <>
+                            {dashPorLargura.map((row) => (
+                              <tr key={row.largura} style={{ borderBottom: "1px solid #f3f4f6" }}
+                                className="hover:bg-green-50 transition-colors">
+                                <td className="px-3 py-1.5 text-xs font-medium">{row.largura}</td>
+                                <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{row.total.toLocaleString("pt-BR")}</td>
+                                <td className="px-3 py-1.5">{pctBarD(row.pct)}</td>
+                              </tr>
+                            ))}
+                            <tr style={{ background: "#f0fdf4", borderTop: "2px solid #bbf7d0" }}>
+                              <td className="px-3 py-1.5 text-xs font-bold">Total</td>
+                              <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{total3.toLocaleString("pt-BR")}</td>
+                              <td className="px-3 py-1.5 text-xs font-bold" style={{ color: COR_VERDE }}>100,00%</td>
+                            </tr>
+                          </>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ══ DIVISOR ══ */}
+      <div className="border-t pt-4">
+        <p className="text-sm font-semibold text-muted-foreground mb-4">Produção por Máquina — Mês Atual</p>
+      </div>
+
       {/* Cabeçalho resumo */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Card className="px-4 py-3">

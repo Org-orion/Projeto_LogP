@@ -1,11 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import ConnectionBadge from "@/components/ConnectionBadge";
-import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { TopNav } from "@/components/TopNav";
 import { RelatoriosPage, RegistrosPage, AjudaPage } from "@/components/PlaceholderPages";
 import ConfiguracoesPage from "@/components/ConfiguracoesPage";
 import QualidadePage from "@/components/QualidadePage";
@@ -15,25 +11,11 @@ import UsuariosPage from "@/components/UsuariosPage";
 import RastreabilidadePage from "@/components/RastreabilidadePage";
 import MaterialCertificadoPage from "@/components/MaterialCertificadoPage";
 
-const ALL_SECTIONS = ["home", "machines", "rastreabilidade", "qualidade", "material-fsc", "relatorios", "registros", "usuarios", "configuracoes", "ajuda"];
-
-const SECTION_TITLES: Record<string, string> = {
-  home: "Home",
-  machines: "Máquinas",
-  rastreabilidade: "Rastreabilidade",
-  qualidade: "Controle de Qualidade",
-  "material-fsc": "Material Certificado (FSC)",
-  relatorios: "Relatórios",
-  registros: "Registros",
-  usuarios: "Usuários",
-  configuracoes: "Configurações",
-  ajuda: "Ajuda",
-};
-
-const QUALIDADE_SUB_TITLES: Record<string, string> = {
-  gramatura: "Gramatura",
-  recebimento: "Recebimento de Insumos",
-};
+const ALL_SECTIONS = [
+  "home", "machines", "rastreabilidade", "qualidade",
+  "material-fsc", "relatorios", "registros", "usuarios",
+  "configuracoes", "ajuda",
+];
 
 interface UsuarioLogado {
   id: number;
@@ -60,70 +42,52 @@ const Dashboard = ({ user, onLogout }: DashboardProps) => {
 
   const [qualidadeSubSection, setQualidadeSubSection] = useState("gramatura");
 
-  const handleSectionSelect = (section: string) => {
+  function handleSectionSelect(section: string) {
     localStorage.setItem("logp_section", section);
     setActiveSection(section);
-  };
+  }
 
-  const handleQualidadeSubSelect = (sub: string) => {
+  function handleQualidadeSubSelect(sub: string) {
     setQualidadeSubSection(sub);
-  };
+  }
 
-  // Título no header: para qualidade, mostra "Controle de Qualidade › Sub-seção"
-  const headerTitle = activeSection === "qualidade"
-    ? `${SECTION_TITLES.qualidade} › ${QUALIDADE_SUB_TITLES[qualidadeSubSection] ?? ""}`
-    : SECTION_TITLES[activeSection];
-
-  const renderContent = () => {
+  function renderContent() {
     switch (activeSection) {
-      case "home": return <HomePage />;
-      case "machines": return <MaquinasPage />;
+      case "home":          return <HomePage userName={user.nome} />;
+      case "machines":      return <MaquinasPage />;
       case "rastreabilidade": return <RastreabilidadePage />;
-      case "qualidade": return <QualidadePage subSection={qualidadeSubSection} />;
-      case "material-fsc": return <MaterialCertificadoPage />;
-      case "usuarios": return <UsuariosPage isAdmin={isAdmin} />;
-      case "relatorios": return <RelatoriosPage />;
-      case "registros": return <RegistrosPage />;
+      case "qualidade":     return <QualidadePage subSection={qualidadeSubSection} />;
+      case "material-fsc":  return <MaterialCertificadoPage />;
+      case "usuarios":      return <UsuariosPage isAdmin={isAdmin} />;
+      case "relatorios":    return <RelatoriosPage />;
+      case "registros":     return <RegistrosPage />;
       case "configuracoes": return <ConfiguracoesPage />;
-      case "ajuda": return <AjudaPage />;
-      default: return <HomePage />;
+      case "ajuda":         return <AjudaPage />;
+      default:              return <HomePage userName={user.nome} />;
     }
-  };
+  }
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar
-          activeSection={activeSection}
-          onSectionSelect={handleSectionSelect}
-          allowedSections={allowedSections}
-          qualidadeSubSection={qualidadeSubSection}
-          onQualidadeSubSelect={handleQualidadeSubSelect}
-        />
-
-        <div className="flex-1 flex flex-col min-w-0">
-          <header className="bg-card border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger />
-              <div className="h-5 w-px bg-border" />
-              <h1 className="text-sm font-semibold text-foreground">{headerTitle}</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground hidden sm:block">{user.nome}</span>
-              <ConnectionBadge />
-              <Button variant="ghost" size="sm" onClick={onLogout} className="gap-1.5 text-muted-foreground">
-                <LogOut className="h-4 w-4" />
-                Sair
-              </Button>
-            </div>
-          </header>
-
-          <main className="flex-1 overflow-auto p-6">
+    <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))" }}>
+      <TopNav
+        activeSection={activeSection}
+        onSectionSelect={handleSectionSelect}
+        allowedSections={allowedSections}
+        qualidadeSubSection={qualidadeSubSection}
+        onQualidadeSubSelect={handleQualidadeSubSelect}
+        user={user}
+        onLogout={onLogout}
+      />
+      <main className="flex-1 overflow-auto">
+        {activeSection === "home" ? (
+          renderContent()
+        ) : (
+          <div className="p-6">
             {renderContent()}
-          </main>
-        </div>
-      </div>
-    </SidebarProvider>
+          </div>
+        )}
+      </main>
+    </div>
   );
 };
 

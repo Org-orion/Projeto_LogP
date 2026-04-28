@@ -780,6 +780,81 @@ export default function MaterialCertificadoPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Últimas NFs cadastradas */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Package className="h-4 w-4 text-emerald-600" />
+                Últimas notas cadastradas
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {carregando ? (
+                <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />Carregando…
+                </div>
+              ) : registros.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
+                  <Inbox className="h-8 w-8 opacity-30" />
+                  <span className="text-sm">Nenhum registro encontrado.</span>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-28 pl-4">Data</TableHead>
+                        <TableHead>Nota Fiscal</TableHead>
+                        <TableHead>Fornecedor</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead className="text-right pr-4">Quantidade</TableHead>
+                        <TableHead className="w-28">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {registros.slice(0, 8).map((r) => (
+                        <TableRow key={r.id} className="hover:bg-muted/40">
+                          <TableCell className="pl-4 text-xs text-muted-foreground">
+                            {fmtData(r.data_recebimento)}
+                          </TableCell>
+                          <TableCell className="font-medium text-sm">
+                            {r.numero_nota_fiscal || <span className="text-muted-foreground italic">—</span>}
+                          </TableCell>
+                          <TableCell className="text-sm max-w-[200px] truncate" title={r.fornecedor}>
+                            {r.fornecedor}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`${COR_TIPO[r.tipo_material] ?? "bg-gray-100 text-gray-700"} border-0 text-xs`}>
+                              {r.tipo_material}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right pr-4 font-mono text-sm">
+                            {r.quantidade.toLocaleString("pt-BR", { maximumFractionDigits: 4 })}
+                            <span className="text-muted-foreground text-xs ml-1">{r.unidade}</span>
+                          </TableCell>
+                          <TableCell>
+                            <BadgeStatus status={r.status} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              {registros.length > 8 && (
+                <div className="px-4 py-2 border-t text-xs text-muted-foreground flex items-center justify-between">
+                  <span>Exibindo 8 de {registros.length} registros</span>
+                  <button
+                    className="text-emerald-700 font-medium hover:underline"
+                    onClick={() => setAbaAtiva("registros")}
+                  >
+                    Ver todos →
+                  </button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ─── ABA: Registros ───────────────────────────────────────────────── */}
