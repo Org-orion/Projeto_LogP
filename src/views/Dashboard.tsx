@@ -1,19 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { TopNav } from "@/components/TopNav";
-import { RelatoriosPage, RegistrosPage, AjudaPage } from "@/components/PlaceholderPages";
-import ConfiguracoesPage from "@/components/ConfiguracoesPage";
-import QualidadePage from "@/components/QualidadePage";
-import HomePage from "@/components/HomePage";
-import MaquinasPage from "@/components/MaquinasPage";
-import UsuariosPage from "@/components/UsuariosPage";
-import RastreabilidadePage from "@/components/RastreabilidadePage";
-import MaterialCertificadoPage from "@/components/MaterialCertificadoPage";
+import { Loader2 } from "lucide-react";
+
+const HomePage              = lazy(() => import("@/components/HomePage"));
+const MaquinasPage          = lazy(() => import("@/components/MaquinasPage"));
+const RastreabilidadePage   = lazy(() => import("@/components/RastreabilidadePage"));
+const PedidosPage           = lazy(() => import("@/components/PedidosPage"));
+const MetasPage             = lazy(() => import("@/components/MetasPage"));
+const QualidadePage         = lazy(() => import("@/components/QualidadePage"));
+const MaterialCertificadoPage = lazy(() => import("@/components/MaterialCertificadoPage"));
+const AuditoriasPage        = lazy(() => import("@/components/AuditoriasPage"));
+const UsuariosPage          = lazy(() => import("@/components/UsuariosPage"));
+const ConfiguracoesPage     = lazy(() => import("@/components/ConfiguracoesPage"));
+const RelatoriosPage        = lazy(() => import("@/components/PlaceholderPages").then(m => ({ default: m.RelatoriosPage })));
+const RegistrosPage         = lazy(() => import("@/components/PlaceholderPages").then(m => ({ default: m.RegistrosPage })));
+const AjudaPage             = lazy(() => import("@/components/PlaceholderPages").then(m => ({ default: m.AjudaPage })));
+
+function PageLoader() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh" }}>
+      <Loader2 size={28} strokeWidth={1.5} style={{ color: "#1a5c35", animation: "spin 1s linear infinite" }} />
+    </div>
+  );
+}
 
 const ALL_SECTIONS = [
-  "home", "machines", "rastreabilidade", "qualidade",
-  "material-fsc", "relatorios", "registros", "usuarios",
+  "home", "machines", "rastreabilidade", "pedidos", "metas", "qualidade",
+  "material-fsc", "auditorias", "relatorios", "registros", "usuarios",
   "configuracoes", "ajuda",
 ];
 
@@ -51,13 +66,25 @@ const Dashboard = ({ user, onLogout }: DashboardProps) => {
     setQualidadeSubSection(sub);
   }
 
+  function handleNavigateNC() {
+    handleSectionSelect("qualidade");
+    setQualidadeSubSection("nao-conformidades");
+  }
+
+  function handleNavigateNF() {
+    handleSectionSelect("material-fsc");
+  }
+
   function renderContent() {
     switch (activeSection) {
       case "home":          return <HomePage userName={user.nome} />;
-      case "machines":      return <MaquinasPage />;
+      case "machines":      return <MaquinasPage user={user} />;
       case "rastreabilidade": return <RastreabilidadePage />;
+      case "pedidos":         return <PedidosPage />;
+      case "metas":           return <MetasPage />;
       case "qualidade":     return <QualidadePage subSection={qualidadeSubSection} />;
       case "material-fsc":  return <MaterialCertificadoPage />;
+      case "auditorias":    return <AuditoriasPage isAdmin={isAdmin} />;
       case "usuarios":      return <UsuariosPage isAdmin={isAdmin} />;
       case "relatorios":    return <RelatoriosPage />;
       case "registros":     return <RegistrosPage />;
@@ -77,15 +104,19 @@ const Dashboard = ({ user, onLogout }: DashboardProps) => {
         onQualidadeSubSelect={handleQualidadeSubSelect}
         user={user}
         onLogout={onLogout}
+        onNavigateNC={handleNavigateNC}
+        onNavigateNF={handleNavigateNF}
       />
-      <main className="flex-1 overflow-auto">
-        {activeSection === "home" ? (
-          renderContent()
-        ) : (
-          <div className="p-6">
-            {renderContent()}
-          </div>
-        )}
+      <main key={activeSection} className="flex-1 overflow-auto page-fade">
+        <Suspense fallback={<PageLoader />}>
+          {activeSection === "home" ? (
+            renderContent()
+          ) : (
+            <div className="p-6">
+              {renderContent()}
+            </div>
+          )}
+        </Suspense>
       </main>
     </div>
   );

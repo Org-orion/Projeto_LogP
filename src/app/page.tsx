@@ -18,8 +18,29 @@ export default function Home() {
 
   useEffect(() => {
     const stored = localStorage.getItem("logp_user");
-    if (stored) setUser(JSON.parse(stored));
-    setMounted(true);
+    if (!stored) { setMounted(true); return; }
+
+    // Valida se o cookie de sessão ainda é válido antes de entrar no app
+    fetch("/api/auth/me")
+      .then(async (res) => {
+        if (res.ok) {
+          const json = await res.json();
+          // Atualiza dados do user caso o perfil tenha mudado no servidor
+          const updated = { ...JSON.parse(stored), ...json.user };
+          localStorage.setItem("logp_user", JSON.stringify(updated));
+          setUser(updated);
+        } else {
+          // Sessão expirada ou inválida — limpa o estado e volta ao login
+          localStorage.removeItem("logp_user");
+          localStorage.removeItem("logp_section");
+        }
+        setMounted(true);
+      })
+      .catch(() => {
+        // Falha de rede: mantém o usuário logado para não desconectar por engano
+        setUser(JSON.parse(stored));
+        setMounted(true);
+      });
   }, []);
 
   if (!mounted) return null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -195,30 +195,37 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
     c("dimensao_produto","Dim. Produto"), c("dimensao_sobra","Dim. Sobra"), c("qtd_sobra","Qtd. Sobra",{numeric:true}),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
     c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
     c("observacao","Observação"),
     c("lixamento_aq041","LIXAMENTO (AQ041)"), c("seccionadora_aq009","SECC. (AQ009)"), c("prensa_fria_aq017","PRENSA FRIA (AQ017)"),
   ],
-  "plaina moldureira de batente": [
-    c("data","Data",{date:true}), c("registro","Registro"), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+  "moldureira de batente": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
     c("plaina_moldureira_batente_aq011","P.M.B. (AQ011)"),
-    c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_batente_cm","Larg. Batente (cm)",{numeric:true}),
-    c("espessura_batente_mm","Esp. Batente (mm)",{numeric:true}),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. Batente (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
     c("profundidade_rasgo_regulagem","Prof. Rasgo Regulagem",{numeric:true}), c("profundidade_rasgo_borracha","Prof. Rasgo Borracha",{numeric:true}),
-    c("profundidade_rebaixo_batente","Prof. Rebaixo Batente",{numeric:true}), c("profundidade_rasgo_fixo","Prof. Rasgo Fixo",{numeric:true}),
-    c("espessura_rasgo_fixo","Esp. Rasgo Fixo",{numeric:true}), c("categoria","Categoria"),
+    c("categoria","Categoria"),
     c("espessura_rasgo_regulagem","Esp. Rasgo Regulagem",{numeric:true}),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
     c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
     c("observacao","Observação"), c("multi_serra_perfil_aq010","M.S.P. (AQ010)"),
   ],
   "coladeira de alizar": [
     c("data","Data",{date:true}), c("maquina","Máquina"), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("coladeira_alizar_aq012","COL. ALIZAR (AQ012)"), c("produto","Produto"),
+    c("coladeira_alizar_aq0012","COL. ALIZAR (AQ012)"), c("produto","Produto"),
     c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("espessura_regua_cm","Esp. Régua (cm)",{numeric:true}),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("esp_regua_cm","Esp. Régua (cm)",{numeric:true}),
     c("esp_aba_cm","Esp. Aba (cm)",{numeric:true}),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
     c("multi_serra_aba_aq010","M.S.P. Aba (AQ010)"), c("multi_serra_regua_aq010","M.S.P. Régua (AQ010)"),
   ],
   "esquadrejadeira": [
@@ -231,9 +238,10 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
     c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
     c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
-    c("tipo_defeito_3","Defeito 3"), c("tipo_defeito_4","Defeito 4"),
-    c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
-    c("observacao","Observação"), c("fornecedor","Fornecedor"), c("prensa_fria_aq017","PRENSA FRIA (AQ017)"),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
+    c("observacao","Observação"), c("fornecedor","Fornecedor"),
+    c("esquadrejadeira_aq040","ESQUAD. (AQ040)"), c("prensa_fria_aq017","PRENSA FRIA (AQ017)"),
   ],
   "lixadeira": [
     c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
@@ -275,6 +283,10 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
     c("nucleo","Núcleo"), c("padrao","Padrão"), c("tipo_cola","Tipo de Cola"),
     c("largura_cm","Larg. (cm)",{numeric:true}), c("comprimento_cm","Comp. Porta (cm)",{numeric:true}), c("espessura_mm","Esp. Porta (mm)",{numeric:true}),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
     c("observacao","Observação"), c("esquadrejadeira_aq040","ESQUAD. (AQ040)"),
   ],
   "linha de pintura de tampo": [
@@ -302,6 +314,9 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
     c("sentido_abertura_dir","Sentido Dir."), c("sentido_abertura_esq","Sentido Esq."),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
     c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
     c("observacao","Observação"),
     c("colagem_borda_aq020","COL. BORDA (AQ020)"), c("usinagem_friso_aq022","USIN. FRISO (AQ022)"),
     c("recebimento_ferragens_aq005","REC. FERRAGENS (AQ005)"),
@@ -311,21 +326,45 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
     c("maquina","Máquina"), c("recobrimento_perfil_aq025","RECOB. PERFIL (AQ025)"),
     c("produto","Produto"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
     c("rasgo_borracha","Rasgo Borracha"), c("qualidade","Qualidade"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_perfil","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
     c("largura_papel_cm","Larg. Papel (cm)",{numeric:true}), c("tipo_cola","Tipo de Cola"),
     c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}), c("padrao","Padrão"),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
     c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
     c("observacao","Observação"), c("setor","Setor"), c("local","Local"),
     c("recebimento_materiais_aq002","REC. MATERIAIS (AQ002)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
-    c("multi_serra_perfil_aq010","M.S.P. (AQ010)"), c("coladeira_alizar_aq012","COL. ALIZAR (AQ012)"),
+    c("multi_serra_perfil_aq010","M.S.P. (AQ010)"), c("coladeira_alizar_aq0012","COL. ALIZAR (AQ012)"),
+    c("plaina_moldureira_rodape_aq043","P.M. RODAPÉ (AQ043)"), c("plaina_moldureira_batente_aq011","P.M. BATENTE (AQ011)"),
+  ],
+  "recobridora de perfil": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("maquina","Máquina"), c("recobrimento_perfil_aq025","RECOB. PERFIL (AQ025)"),
+    c("produto","Produto"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("rasgo_borracha","Rasgo Borracha"), c("qualidade","Qualidade"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_perfil","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("largura_papel_cm","Larg. Papel (cm)",{numeric:true}), c("tipo_cola","Tipo de Cola"),
+    c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}), c("padrao","Padrão"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
+    c("observacao","Observação"), c("setor","Setor"), c("local","Local"),
+    c("recebimento_materiais_aq002","REC. MATERIAIS (AQ002)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
+    c("multi_serra_perfil_aq010","M.S.P. (AQ010)"), c("coladeira_alizar_aq0012","COL. ALIZAR (AQ012)"),
     c("plaina_moldureira_rodape_aq043","P.M. RODAPÉ (AQ043)"), c("plaina_moldureira_batente_aq011","P.M. BATENTE (AQ011)"),
   ],
   "montadora de grade": [
     c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
     c("nucleo","Núcleo"),
     c("largura_cm","Larg. (cm)",{numeric:true}), c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
   ],
   "montagem do kit": [
     c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
@@ -341,6 +380,10 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
     c("qualidade_visual_final","Qual. Visual"), c("etiqueta_identificacao","Etiqueta"),
     c("sentido_abertura_dir","Sentido Dir."), c("sentido_abertura_esq","Sentido Esq."),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
   ],
   "prensa fria": [
     c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
@@ -351,6 +394,10 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
     c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. Porta (mm)",{numeric:true}),
     c("numero_maquina","N° Máquina"),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
     c("observacao","Observação"),
     c("seccionadora_aq009","SECC. (AQ009)"), c("linha_pintura_aq021","L. PINTURA TAMPO (AQ021)"),
     c("recobrimento_aq019","RECOBRIMENTO (AQ019)"), c("montadora_grade_aq039","MONT. GRADE (AQ039)"),
@@ -363,7 +410,23 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
     c("largura_batente_cm","Larg. Batente (cm)",{numeric:true}),
     c("linha","Linha"), c("nucleo","Núcleo"), c("padrao","Padrão"),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
     c("observacao","Observação"), c("montagem_kit_aq029","MONT. KIT (AQ029)"),
+  ],
+  "embalagem de portas": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("cliente","Cliente"), c("nome_cliente","Nome Cliente"),
+    c("linha","Linha"), c("nucleo","Núcleo"), c("padrao","Padrão"),
+    c("largura_cm","Larg. (cm)",{numeric:true}), c("comprimento_cm","Comp. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
+    c("observacao","Observação"), c("embalagem_portas_aq024","EMBALAGEM PORTAS (AQ024)"), c("colagem_borda_aq020","COL. BORDA (AQ020)"),
   ],
   "linha de pintura de portas": [
     c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
@@ -374,6 +437,9 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
     c("qualidade","Qualidade"), c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
     c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+    c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+    c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
     c("observacao","Observação"),
     c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"), c("colagem_borda_aq020","COL. BORDA (AQ020)"),
     c("usinagem_portas_aq023","FURAÇÃO/CORTE (AQ023)"), c("usinagem_friso_aq022","USIN. FRISO (AQ022)"),
@@ -384,7 +450,10 @@ const COLUNAS_DEFAULT: ColunaDef[] = [
   c("data","Data",{date:true}), c("hora_final","H. Final"), c("produto","Produto"),
   c("linha","Linha"), c("nucleo","Núcleo"), c("padrao","Cor/Padrão"),
   c("largura_cm","Larg. (cm)",{numeric:true}), c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-  c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}),
+  c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+  c("tipo_defeito_2","Defeito 2"), c("qtd_nao_conforme_2","Qtd. NC 2",{numeric:true}),
+  c("tipo_defeito_3","Defeito 3"), c("qtd_nao_conforme_3","Qtd. NC 3",{numeric:true}),
+  c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
 ];
 
 function getColunasParaMaquina(nomeMaquina: string): ColunaDef[] {
@@ -432,20 +501,22 @@ const MESES = [
 
 // ─── Histórico de Produção ────────────────────────────────────────────────────
 
-function HistoricoSheet({ maquina, open, onClose }: {
+function HistoricoSheet({ maquina, open, onClose, canEdit }: {
   maquina: Maquina | null;
   open: boolean;
   onClose: () => void;
+  canEdit: boolean;
 }) {
   const hoje = new Date();
   const [anoFiltro, setAnoFiltro] = useState<string>(String(hoje.getFullYear()));
+  const histReqRef = useRef(0);
   const [todosMD, setTodosMD] = useState<boolean>(true);
   const [selecaoMD, setSelecaoMD] = useState<Set<string>>(new Set());
   const [mesesExpandidos, setMesesExpandidos] = useState<Set<string>>(new Set());
   const [todosRegistros, setTodosRegistros] = useState<RegistroProducao[]>([]);
   const [loadingHist, setLoadingHist] = useState(false);
   const [editReg, setEditReg] = useState<RegistroProducao | null>(null);
-  const [editForm, setEditForm] = useState<Partial<RegistroProducao>>({});
+  const [editForm, setEditForm] = useState<Record<string, unknown>>({});
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Filtragem client-side por mês/dia
@@ -459,25 +530,42 @@ function HistoricoSheet({ maquina, open, onClose }: {
 
   const buscarHistorico = useCallback(async () => {
     if (!maquina?.nome) return;
+    histReqRef.current += 1;
+    const myReq = histReqRef.current;
     setLoadingHist(true);
 
     const nomeMaquina = (maquina.nome as string).trim();
-    let query = supabase
-      .from("registros_producao")
-      .select("*")
-      .ilike("maquina", nomeMaquina)
-      .order("data", { ascending: false });
+    const TAM = 1000;
+    let pagina = 0;
+    const todos: RegistroProducao[] = [];
 
-    if (anoFiltro !== "todos") {
-      query = query.gte("data", `${anoFiltro}-01-01`).lte("data", `${anoFiltro}-12-31`);
+    while (true) {
+      let query = supabase
+        .from("registros_producao")
+        .select("*")
+        .ilike("maquina", `%${nomeMaquina}%`)
+        .order("data", { ascending: false })
+        .order("hora_inicial", { ascending: true, nullsFirst: false })
+        .range(pagina * TAM, (pagina + 1) * TAM - 1);
+
+      if (anoFiltro !== "todos") {
+        query = query.gte("data", `${anoFiltro}-01-01`).lte("data", `${anoFiltro}-12-31`);
+      }
+
+      const { data, error } = await query;
+      if (myReq !== histReqRef.current) return;
+      if (error) {
+        toast.error("Erro ao buscar histórico: " + error.message);
+        break;
+      }
+      if (!data || data.length === 0) break;
+      todos.push(...data);
+      if (data.length < TAM) break;
+      pagina++;
     }
 
-    const { data, error } = await query;
-    if (error) {
-      toast.error("Erro ao buscar histórico: " + error.message);
-    } else {
-      setTodosRegistros(data ?? []);
-    }
+    if (myReq !== histReqRef.current) return;
+    setTodosRegistros(todos);
     setLoadingHist(false);
   }, [maquina, anoFiltro]);
 
@@ -485,10 +573,15 @@ function HistoricoSheet({ maquina, open, onClose }: {
     if (open && maquina) buscarHistorico();
   }, [open, maquina, buscarHistorico]);
 
-  // Dados para o gráfico — agrupa por dia se apenas 1 mês, por mês caso contrário
+  // Dados para o gráfico — agrupa por dia se apenas 1 mês, por ano-mês se "todos", por mês caso contrário
   const dadosGrafico = (() => {
+    const MESES_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+
+    const anosComDados = new Set(registros.map(r => r.data.slice(0, 4)));
     const mesesComDados = new Set(registros.map(r => r.data.slice(5, 7)));
-    if (mesesComDados.size <= 1 && registros.length > 0) {
+
+    // Um único mês → mostra por dia
+    if (anosComDados.size <= 1 && mesesComDados.size <= 1 && registros.length > 0) {
       const mm = [...mesesComDados][0];
       const anoNum = anoFiltro === "todos" ? hoje.getFullYear() : Number(anoFiltro);
       const diasNo = getDaysInMonth(new Date(anoNum, Number(mm) - 1, 1));
@@ -498,18 +591,47 @@ function HistoricoSheet({ maquina, open, onClose }: {
         const d = r.data.slice(8, 10);
         mapa[d] = (mapa[d] ?? 0) + (Number(r.qtd_conforme) || 0);
       }
-      return Object.entries(mapa).map(([label, producao]) => ({ label, producao }));
+      return Object.entries(mapa)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([label, producao]) => ({ label, producao }));
     }
+
+    // "Todos" ou múltiplos anos → agrupa por ano-mês ordenado cronologicamente
+    if (anoFiltro === "todos" || anosComDados.size > 1) {
+      const mapa: Record<string, number> = {};
+      for (const r of registros) {
+        const ym = r.data.slice(0, 7); // "2024-01"
+        mapa[ym] = (mapa[ym] ?? 0) + (Number(r.qtd_conforme) || 0);
+      }
+      return Object.entries(mapa)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([ym, producao]) => {
+          const [ano, mm] = ym.split("-");
+          return { label: `${MESES_PT[Number(mm) - 1]}/${ano.slice(2)}`, producao };
+        });
+    }
+
+    // Ano específico → agrupa por mês, ordenado numericamente
     const mapa: Record<string, number> = {};
     for (let m = 1; m <= 12; m++) mapa[String(m).padStart(2, "0")] = 0;
     for (const r of registros) {
       const m = r.data.slice(5, 7);
       mapa[m] = (mapa[m] ?? 0) + (Number(r.qtd_conforme) || 0);
     }
-    return Object.entries(mapa).map(([m, producao]) => ({
-      label: MESES[Number(m) - 1].slice(0, 3),
-      producao,
-    }));
+    // Limite: ano atual → até o mês corrente; ano passado → até o último mês com dados
+    const ultimoComDados = Object.entries(mapa)
+      .filter(([, v]) => v > 0).map(([m]) => Number(m))
+      .reduce((max, m) => Math.max(max, m), 0);
+    const limite = anoFiltro === String(hoje.getFullYear())
+      ? Math.max(hoje.getMonth() + 1, ultimoComDados)
+      : ultimoComDados || 12;
+    return Object.entries(mapa)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .filter(([m]) => Number(m) <= limite)
+      .map(([m, producao]) => ({
+        label: MESES[Number(m) - 1].slice(0, 3),
+        producao,
+      }));
   })();
 
   const total = registros.reduce((s, r) => s + (Number(r.qtd_conforme) || 0), 0);
@@ -667,17 +789,16 @@ function HistoricoSheet({ maquina, open, onClose }: {
   async function salvarEdicao() {
     if (!editReg) return;
     setSavingEdit(true);
-    const payload = {
-      data:               editForm.data,
-      hora_final:         editForm.hora_final || null,
-      produto:            editForm.produto || null,
-      linha:              editForm.linha || null,
-      nucleo:             editForm.nucleo || null,
-      padrao:             editForm.padrao || null,
-      largura_cm:         editForm.largura_cm !== undefined ? editForm.largura_cm : null,
-      qtd_conforme:       editForm.qtd_conforme !== undefined ? editForm.qtd_conforme : null,
-      qtd_nao_conforme_1: editForm.qtd_nao_conforme_1 !== undefined ? editForm.qtd_nao_conforme_1 : null,
-    };
+    const colunas = getColunasParaMaquina(maquina?.nome ?? "");
+    const payload: Record<string, unknown> = {};
+    for (const col of colunas) {
+      const raw = editForm[col.key];
+      if (col.numeric) {
+        payload[col.key] = raw === "" || raw === undefined || raw === null ? null : Number(raw);
+      } else {
+        payload[col.key] = raw === "" ? null : (raw ?? null);
+      }
+    }
     const { error } = await supabase.from("registros_producao").update(payload).eq("id", editReg.id);
     setSavingEdit(false);
     if (error) { toast.error("Erro ao salvar: " + error.message); return; }
@@ -689,14 +810,14 @@ function HistoricoSheet({ maquina, open, onClose }: {
   return (
     <>
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+      <DialogContent className="max-w-5xl w-full h-[85vh] flex flex-col gap-0 p-0 overflow-hidden mt-[72px]">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             Produção — {(maquina?.nome as string) ?? ""}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-shrink-0 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-shrink-0 overflow-y-auto px-6 py-4 space-y-4 max-h-[280px]">
           {/* Filtros */}
           <div className="flex flex-wrap gap-2 items-end">
             {/* Ano */}
@@ -862,7 +983,7 @@ function HistoricoSheet({ maquina, open, onClose }: {
                             {col.label}
                           </th>
                         ))}
-                        <th className="px-3 py-2 text-xs font-medium text-muted-foreground text-right">Ações</th>
+                        {canEdit && <th className="px-3 py-2 text-xs font-medium text-muted-foreground text-right">Ações</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -873,11 +994,13 @@ function HistoricoSheet({ maquina, open, onClose }: {
                               {fmtCelula((r as Record<string,unknown>)[col.key], col)}
                             </td>
                           ))}
-                          <td className="px-3 py-2 text-right">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                          </td>
+                          {canEdit && (
+                            <td className="px-3 py-2 text-right">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -891,60 +1014,39 @@ function HistoricoSheet({ maquina, open, onClose }: {
 
     {/* Dialog de edição de registro */}
     <Dialog open={!!editReg} onOpenChange={(v) => { if (!v) setEditReg(null); }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-3xl w-full">
         <DialogHeader>
           <DialogTitle>Editar Registro</DialogTitle>
         </DialogHeader>
-        {editReg && (
-          <div className="grid gap-3 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Data</Label>
-                <Input type="date" value={editForm.data ?? ""} onChange={(e) => setEditForm({ ...editForm, data: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Hora Final</Label>
-                <Input type="time" value={editForm.hora_final ?? ""} onChange={(e) => setEditForm({ ...editForm, hora_final: e.target.value })} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Produto</Label>
-                <Input value={editForm.produto ?? ""} onChange={(e) => setEditForm({ ...editForm, produto: e.target.value })} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Linha</Label>
-                <Input value={editForm.linha ?? ""} onChange={(e) => setEditForm({ ...editForm, linha: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Núcleo</Label>
-                <Input value={editForm.nucleo ?? ""} onChange={(e) => setEditForm({ ...editForm, nucleo: e.target.value })} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Cor / Padrão</Label>
-                <Input value={editForm.padrao ?? ""} onChange={(e) => setEditForm({ ...editForm, padrao: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Largura (cm)</Label>
-                <Input type="number" value={editForm.largura_cm ?? ""} onChange={(e) => setEditForm({ ...editForm, largura_cm: e.target.value === "" ? null : Number(e.target.value) })} />
+        {editReg && (() => {
+          const colunasEdit = getColunasParaMaquina(maquina?.nome ?? "");
+          return (
+            <div className="max-h-[60vh] overflow-y-auto py-2 pr-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {colunasEdit.map((col) => {
+                  const inputType = col.date
+                    ? "date"
+                    : (col.key === "hora_inicial" || col.key === "hora_final")
+                      ? "time"
+                      : col.numeric
+                        ? "number"
+                        : "text";
+                  return (
+                    <div key={col.key} className="space-y-1.5">
+                      <Label className="text-xs">{col.label}</Label>
+                      <Input
+                        type={inputType}
+                        value={String(editForm[col.key] ?? "")}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, [col.key]: e.target.value }))}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Qtd. Conforme</Label>
-                <Input type="number" value={editForm.qtd_conforme ?? ""} onChange={(e) => setEditForm({ ...editForm, qtd_conforme: e.target.value === "" ? null : Number(e.target.value) })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Qtd. Não Conforme</Label>
-                <Input type="number" value={editForm.qtd_nao_conforme_1 ?? ""} onChange={(e) => setEditForm({ ...editForm, qtd_nao_conforme_1: e.target.value === "" ? null : Number(e.target.value) })} />
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
         <DialogFooter>
           <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
           <Button onClick={salvarEdicao} disabled={savingEdit}>
@@ -966,12 +1068,14 @@ function MaquinaCard({
   totalMes,
   onClick,
   onEdit,
+  canEdit,
 }: {
   maquina: Maquina;
   producaoPorSemana: { label: string; producao: number }[];
   totalMes: number;
   onClick: () => void;
   onEdit: (m: Maquina) => void;
+  canEdit: boolean;
 }) {
   const nome = (maquina.nome as string) || `Máquina ${maquina.id}`;
   const status = (maquina.status as string) || null;
@@ -1008,15 +1112,17 @@ function MaquinaCard({
               </div>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-            onClick={(e) => { e.stopPropagation(); onEdit(maquina); }}
-            title="Editar nome"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
+          {canEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={(e) => { e.stopPropagation(); onEdit(maquina); }}
+              title="Editar nome"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
       </CardHeader>
 
@@ -1065,7 +1171,7 @@ function MaquinaCard({
 
 const EMPTY_MAQUINA = { nome: "" };
 
-export default function MaquinasPage() {
+export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
   const [producao, setProducao] = useState<Record<string, Record<string, number>>>({});
   const [loading, setLoading] = useState(true);
@@ -1085,20 +1191,23 @@ export default function MaquinasPage() {
   const [mesD,       setMesD]       = useState(String(new Date().getMonth() + 1));
   const [diasSel,    setDiasSel]    = useState<Set<number>>(new Set());   // vazio = todos
   const [setorD,     setSetorD]     = useState<SetorDash>("todos");
-  const [maqD,       setMaqD]       = useState("todos");
+  const [maqsSel,    setMaqsSel]    = useState<Set<string>>(new Set()); // vazio = todas
   const [dashRows,   setDashRows]   = useState<RowDash[]>([]);
   const [loadingD,   setLoadingD]   = useState(false);
   const [dashErro,   setDashErro]   = useState<string | null>(null);
   // drill-down selections
   const [selMaq,     setSelMaq]     = useState<string | null>(null);
-  const [selLinha,   setSelLinha]   = useState<string | null>(null);
-  const [selPadrao,  setSelPadrao]  = useState<string | null>(null);
+  const [selLinha,        setSelLinha]        = useState<string | null>(null);
+  const [selPadrao,       setSelPadrao]       = useState<string | null>(null);
+  const [showAllPadrao,   setShowAllPadrao]   = useState(false);
+  const [showAllLargura,  setShowAllLargura]  = useState(false);
+
+  const canEdit = ["administrador", "supervisor"].includes((user.perfil ?? "").toLowerCase());
 
   const clearDrill = () => { setSelMaq(null); setSelLinha(null); setSelPadrao(null); };
-  const handleSetorD = (s: SetorDash) => { setSetorD(s); setMaqD("todos"); clearDrill(); };
+  const handleSetorD = (s: SetorDash) => { setSetorD(s); setMaqsSel(new Set()); clearDrill(); };
   const handleAnoD   = (v: string)    => { setAnoD(v);   setDiasSel(new Set()); clearDrill(); };
   const handleMesD   = (v: string)    => { setMesD(v);   setDiasSel(new Set()); clearDrill(); };
-  const handleMaqD   = (v: string)    => { setMaqD(v);   clearDrill(); };
 
   // Seleções independentes — cada uma filtra as demais dimensões
   const clickMaq    = (orig: string) => setSelMaq(p    => p    === orig ? null : orig);
@@ -1106,23 +1215,28 @@ export default function MaquinasPage() {
   const clickPadrao = (pad: string)  => setSelPadrao(p => p    === pad  ? null : pad);
 
   const semanas = getSemanasMes();
+  const dashReqRef = useRef(0);
 
   const buscarDash = useCallback(async () => {
+    dashReqRef.current += 1;
+    const myReq = dashReqRef.current;
     setLoadingD(true);
     setDashErro(null);
     const mm = String(Number(mesD)).padStart(2, "0");
-    const inicio = `${anoD}-${mm}-01`;
-    const fim    = format(endOfMonth(new Date(Number(anoD), Number(mesD) - 1, 1)), "yyyy-MM-dd");
+    const inicio = mesD === "0" ? `${anoD}-01-01` : `${anoD}-${mm}-01`;
+    const fim    = mesD === "0" ? `${anoD}-12-31`
+      : format(endOfMonth(new Date(Number(anoD), Number(mesD) - 1, 1)), "yyyy-MM-dd");
     const TAM = 1000;
     let pagina = 0;
     const todas: RowDash[] = [];
     while (true) {
       const { data, error } = await supabase
         .from("registros_producao")
-        .select("*")
+        .select("maquina,data,linha,padrao,largura_cm,qtd_conforme")
         .gte("data", inicio)
         .lte("data", fim)
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
+      if (myReq !== dashReqRef.current) return;
       if (error) {
         setDashErro(`Erro Supabase: ${error.message} (código: ${error.code})`);
         break;
@@ -1132,6 +1246,7 @@ export default function MaquinasPage() {
       if (data.length < TAM) break;
       pagina++;
     }
+    if (myReq !== dashReqRef.current) return;
     setDashRows(todas);
     setLoadingD(false);
   }, [anoD, mesD]);
@@ -1272,9 +1387,9 @@ export default function MaquinasPage() {
     ? dashPorSetor
     : dashPorSetor.filter(r => diasSel.has(Number(r.data.slice(8, 10))));
 
-  const dashFiltrados = maqD === "todos"
+  const dashFiltrados = maqsSel.size === 0
     ? dashComDia
-    : dashComDia.filter(r => (r.maquina ?? "") === maqD);
+    : dashComDia.filter(r => maqsSel.has(r.maquina ?? ""));
 
   // Helpers de filtro por dimensão
   const byMaq    = (r: RowDash) => !selMaq    || (r.maquina ?? "")    === selMaq;
@@ -1300,17 +1415,35 @@ export default function MaquinasPage() {
     .sort((a, b) => b.total - a.total)
     .slice(0, 10);
 
-  // Gráfico diário: todas as dimensões aplicadas
+  // Gráfico mensal: todas as dimensões aplicadas
   const ctxDaily = dashFiltrados.filter(r => byMaq(r) && byLinha(r) && byPadrao(r));
-  const dashDiaMap: Record<string, number> = {};
-  for (const r of ctxDaily) {
-    const dd = r.data.slice(8, 10);
-    dashDiaMap[dd] = (dashDiaMap[dd] ?? 0) + (r.qtd_conforme ?? 0);
+  const _MESES_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+  const dashMesMap: Record<string, number> = {};
+  if (mesD === "0") {
+    for (let m = 1; m <= 12; m++) {
+      dashMesMap[`${anoD}-${String(m).padStart(2, "0")}`] = 0;
+    }
   }
-  const dashPorDia = Object.entries(dashDiaMap)
-    .filter(([, t]) => t > 0)
-    .map(([dd, total]) => ({ label: Number(dd), total }))
-    .sort((a, b) => a.label - b.label);
+  for (const r of ctxDaily) {
+    const mes = r.data.slice(0, 7); // "2026-05"
+    dashMesMap[mes] = (dashMesMap[mes] ?? 0) + (r.qtd_conforme ?? 0);
+  }
+  // Limite: ano atual → até o mês corrente; ano passado → até o último mês com dados
+  const _agora = new Date();
+  const anoAtualStr = String(_agora.getFullYear());
+  const mesAtualKey = `${anoD}-${String(_agora.getMonth() + 1).padStart(2, "0")}`;
+  const ultimoDashKey = Object.entries(dashMesMap)
+    .filter(([, v]) => v > 0).map(([k]) => k).sort().pop() ?? "";
+  const limiteDashKey = anoD === anoAtualStr
+    ? (ultimoDashKey > mesAtualKey ? ultimoDashKey : mesAtualKey)
+    : (ultimoDashKey || `${anoD}-12`);
+  const dashPorDia = Object.entries(dashMesMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .filter(([key]) => key <= limiteDashKey)
+    .map(([mes, total]) => {
+      const [ano, mm] = mes.split("-");
+      return { label: `${_MESES_PT[Number(mm) - 1]}/${ano.slice(2)}`, mesKey: mes, total };
+    });
 
   // Tabela Linha: filtrada por máquina + padrão (não pela própria linha)
   const ctxLinha = dashFiltrados.filter(r => byMaq(r) && byPadrao(r));
@@ -1354,7 +1487,7 @@ export default function MaquinasPage() {
   const temSelecao = !!(selMaq || selLinha || selPadrao);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5">
+    <div className="w-full space-y-5">
 
       {/* ══ DASHBOARD DE PRODUÇÃO ══ */}
       <div className="space-y-4">
@@ -1412,13 +1545,14 @@ export default function MaquinasPage() {
               <Select value={mesD} onValueChange={handleMesD}>
                 <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="0">Todos</SelectItem>
                   {MESES_DASH.map((m, i) => (
                     <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            {mesD !== "0" && <div className="space-y-1">
               <Label className="text-xs">Dia</Label>
               {(() => {
                 const totalDias = getDaysInMonth(new Date(Number(anoD), Number(mesD) - 1, 1));
@@ -1471,16 +1605,60 @@ export default function MaquinasPage() {
                   </Popover>
                 );
               })()}
-            </div>
+            </div>}
             <div className="space-y-1">
               <Label className="text-xs">Máquina</Label>
-              <Select value={maqD} onValueChange={handleMaqD}>
-                <SelectTrigger className="h-8 w-52 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todas</SelectItem>
-                  {maqsDash.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {(() => {
+                const todasExpl = maqsSel.size === maqsDash.length && maqsDash.length > 0;
+                const nenhuma   = maqsSel.size === 0;
+                const labelBtn  = nenhuma ? "Todas" : `${maqsSel.size} máq.`;
+                const toggleTodas = () => {
+                  if (todasExpl || !nenhuma) { setMaqsSel(new Set()); }
+                  else { setMaqsSel(new Set(maqsDash)); }
+                  clearDrill();
+                };
+                const toggleMaq = (m: string) => {
+                  setMaqsSel(prev => {
+                    const next = new Set(prev);
+                    if (next.has(m)) next.delete(m); else next.add(m);
+                    return next;
+                  });
+                  clearDrill();
+                };
+                return (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="h-8 text-xs w-52 border border-input rounded-md px-2 flex items-center justify-between bg-background hover:bg-accent transition-colors"
+                      >
+                        <span className="truncate">{labelBtn}</span>
+                        <ChevronDown className="h-3 w-3 ml-1 shrink-0 text-muted-foreground" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-64" align="start">
+                      <div className="max-h-72 overflow-y-auto text-xs">
+                        <label className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent cursor-pointer">
+                          <input type="checkbox" checked={todasExpl} onChange={toggleTodas} className="h-3.5 w-3.5 accent-primary" />
+                          <span>Selecionar todas</span>
+                        </label>
+                        <div className="border-t my-0.5" />
+                        {maqsDash.map(m => (
+                          <label key={m} className="flex items-center gap-2 px-3 py-1 hover:bg-accent cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={maqsSel.has(m)}
+                              onChange={() => toggleMaq(m)}
+                              className="h-3.5 w-3.5 accent-primary"
+                            />
+                            <span className="leading-tight">{m}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                );
+              })()}
             </div>
             <Button
               size="sm"
@@ -1594,7 +1772,7 @@ export default function MaquinasPage() {
               <Card>
                 <CardContent className="pt-4 px-3 pb-4">
                   <p className="text-xs font-semibold text-muted-foreground mb-1 px-2">
-                    Produção Diária
+                    Produção Mensal
                     {selMaq && <span className="ml-2 font-normal" style={{ color: COR_VERDE }}>· {selMaq.toUpperCase()}</span>}
                   </p>
                   {dashPorDia.length === 0 ? (
@@ -1608,13 +1786,13 @@ export default function MaquinasPage() {
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="#bbf7d0" vertical={false} />
                         <XAxis dataKey="label" tick={{ fontSize: 9 }} axisLine={false} tickLine={false}
-                          label={{ value: "Dia", position: "insideBottom", offset: -2, fontSize: 9, fill: "#9ca3af" }} />
+                          label={{ value: "Mês", position: "insideBottom", offset: -2, fontSize: 9, fill: "#9ca3af" }} />
                         <YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false}
                           tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)} Mil` : String(v)}
                           label={{ value: "Portas", angle: -90, position: "insideLeft", fontSize: 9, fill: "#9ca3af" }} />
                         <Tooltip contentStyle={{ fontSize: 11 }}
                           formatter={(v: number) => [v.toLocaleString("pt-BR"), "Conforme"]}
-                          labelFormatter={(l) => `Dia ${l}`} />
+                          labelFormatter={(l) => String(l)} />
                         <Bar dataKey="total" fill={COR_VERDE} radius={[3, 3, 0, 0]}>
                           <LabelList dataKey="total" position="top"
                             style={{ fontSize: 8, fontWeight: 600, fill: COR_VERDE }}
@@ -1700,7 +1878,7 @@ export default function MaquinasPage() {
                           <tr><td colSpan={3} className="px-3 py-5 text-center text-xs text-muted-foreground">Sem dados.</td></tr>
                         ) : (
                           <>
-                            {dashPorPadrao.map((row) => {
+                            {(showAllPadrao ? dashPorPadrao : dashPorPadrao.slice(0, 6)).map((row) => {
                               const ativo = selPadrao === row.padrao;
                               return (
                                 <tr
@@ -1720,6 +1898,19 @@ export default function MaquinasPage() {
                                 </tr>
                               );
                             })}
+                            {dashPorPadrao.length > 6 && (
+                              <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
+                                <td colSpan={3} className="px-3 py-1.5 text-center">
+                                  <button
+                                    onClick={() => setShowAllPadrao(v => !v)}
+                                    className="text-xs font-medium hover:underline"
+                                    style={{ color: COR_VERDE }}
+                                  >
+                                    {showAllPadrao ? "▲ ver menos" : `▼ ver mais (${dashPorPadrao.length - 6} itens)`}
+                                  </button>
+                                </td>
+                              </tr>
+                            )}
                             <tr style={{ background: "#f0fdf4", borderTop: "2px solid #bbf7d0" }}>
                               <td className="px-3 py-1.5 text-xs font-bold">Total</td>
                               <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{total2.toLocaleString("pt-BR")}</td>
@@ -1750,7 +1941,7 @@ export default function MaquinasPage() {
                           <tr><td colSpan={3} className="px-3 py-5 text-center text-xs text-muted-foreground">Sem dados.</td></tr>
                         ) : (
                           <>
-                            {dashPorLargura.map((row) => (
+                            {(showAllLargura ? dashPorLargura : dashPorLargura.slice(0, 6)).map((row) => (
                               <tr key={row.largura} style={{ borderBottom: "1px solid #f3f4f6" }}
                                 className="hover:bg-green-50 transition-colors">
                                 <td className="px-3 py-1.5 text-xs font-medium">{row.largura}</td>
@@ -1758,6 +1949,19 @@ export default function MaquinasPage() {
                                 <td className="px-3 py-1.5">{pctBarD(row.pct)}</td>
                               </tr>
                             ))}
+                            {dashPorLargura.length > 6 && (
+                              <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
+                                <td colSpan={3} className="px-3 py-1.5 text-center">
+                                  <button
+                                    onClick={() => setShowAllLargura(v => !v)}
+                                    className="text-xs font-medium hover:underline"
+                                    style={{ color: COR_VERDE }}
+                                  >
+                                    {showAllLargura ? "▲ ver menos" : `▼ ver mais (${dashPorLargura.length - 6} itens)`}
+                                  </button>
+                                </td>
+                              </tr>
+                            )}
                             <tr style={{ background: "#f0fdf4", borderTop: "2px solid #bbf7d0" }}>
                               <td className="px-3 py-1.5 text-xs font-bold">Total</td>
                               <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{total3.toLocaleString("pt-BR")}</td>
@@ -1895,6 +2099,7 @@ export default function MaquinasPage() {
         maquina={maquinaSelecionada}
         open={maquinaSelecionada !== null}
         onClose={() => setMaquinaSelecionada(null)}
+        canEdit={canEdit}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1915,6 +2120,7 @@ export default function MaquinasPage() {
               totalMes={totalMes}
               onClick={() => setMaquinaSelecionada(m)}
               onEdit={abrirEdicao}
+              canEdit={canEdit}
             />
           );
         })}
