@@ -18,6 +18,7 @@ import {
   ClipboardList, Package, Hammer, Factory, Layers, Truck,
   Activity, ChevronLeft, ExternalLink, ScanLine, X,
 } from "lucide-react";
+import { SpinnerCustom } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -1475,7 +1476,7 @@ export default function RastreabilidadePage() {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5">
+    <div className="w-full space-y-5">
 
       {/* Cabeçalho */}
       <div className="border-b pb-3">
@@ -1551,10 +1552,7 @@ export default function RastreabilidadePage() {
           </Card>
 
           {loadingDetail && (
-            <div className="flex items-center justify-center py-16 gap-3">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <span className="text-muted-foreground">Carregando rastreabilidade...</span>
-            </div>
+            <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
           )}
 
           {hasSearched && searchGroups.length === 0 && mode === "search" && !isLoading && (
@@ -1711,10 +1709,7 @@ export default function RastreabilidadePage() {
               </div>
 
               {aqNumbersLoading ? (
-                <div className="flex items-center justify-center py-12 gap-3">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  <span className="text-sm text-muted-foreground">Buscando números emitidos por {selectedAQCode}...</span>
-                </div>
+                <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
               ) : aqNumbers.length === 0 ? (
                 <div className="space-y-4">
                   <div className="flex flex-col items-center gap-2 py-8">
@@ -1885,10 +1880,7 @@ export default function RastreabilidadePage() {
               )}
 
               {aqJourneyLoading ? (
-                <div className="flex items-center justify-center py-12 gap-3">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  <span className="text-sm text-muted-foreground">Rastreando número {selectedAQNumber}...</span>
-                </div>
+                <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
               ) : aqJourneyRecords.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-2">
                   <AlertCircle className="h-8 w-8 text-muted-foreground/30" />

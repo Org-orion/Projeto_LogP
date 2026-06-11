@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { SpinnerCustom } from "@/components/ui/spinner";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -241,6 +242,7 @@ export default function MaterialCertificadoPage() {
   const [vincularGrupo, setVincularGrupo] = useState<GrupoMDF | null>(null);
   const [grupoAQsAberto, setGrupoAQsAberto] = useState<GrupoMDF | null>(null);
   const [loteDetalheAberto, setLoteDetalheAberto] = useState<GrupoMDF | null>(null);
+  const [loteDetalheAbertoTipo, setLoteDetalheAbertoTipo] = useState<string>("MDF");
   const [vincularArquivo,  setVincularArquivo]  = useState<File | null>(null);
   const [vincularPreview,  setVincularPreview]  = useState<string | null>(null);
   const [vincularSalvando, setVincularSalvando] = useState(false);
@@ -791,8 +793,8 @@ export default function MaterialCertificadoPage() {
             </CardHeader>
             <CardContent className="p-0">
               {carregando ? (
-                <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />Carregando…
+                <div className="flex items-center justify-center py-10">
+                  <SpinnerCustom />
                 </div>
               ) : registros.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
@@ -935,9 +937,8 @@ export default function MaterialCertificadoPage() {
                   <TableBody>
                     {carregando ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-12 text-muted-foreground text-sm">
-                          <RefreshCw className="h-4 w-4 animate-spin mx-auto mb-2" />
-                          Carregando registros...
+                        <TableCell colSpan={10} className="text-center py-12">
+                          <SpinnerCustom className="justify-center" />
                         </TableCell>
                       </TableRow>
                     ) : registrosFiltrados.length === 0 ? (
@@ -1091,9 +1092,8 @@ export default function MaterialCertificadoPage() {
                       <TableBody>
                         {mdfCarregando ? (
                           <TableRow>
-                            <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
-                              <RefreshCw className="h-4 w-4 animate-spin mx-auto mb-2" />
-                              Buscando registros de Recebimento de Chapa...
+                            <TableCell colSpan={7} className="text-center py-12">
+                              <SpinnerCustom className="justify-center" />
                             </TableCell>
                           </TableRow>
                         ) : (() => {
@@ -1122,7 +1122,7 @@ export default function MaterialCertificadoPage() {
                               <TableRow
                                 key={grupo.nota_fiscal ?? rep.id}
                                 className="cursor-pointer hover:bg-muted/50"
-                                onClick={() => setLoteDetalheAberto(grupo)}
+                                onClick={() => { setLoteDetalheAbertoTipo("MDF"); setLoteDetalheAberto(grupo); }}
                               >
                                 <TableCell className="text-xs">{grupo.data ? fmtData(grupo.data) : "—"}</TableCell>
                                 <TableCell className="text-xs font-mono font-medium">{grupo.nota_fiscal ?? "—"}</TableCell>
@@ -1248,9 +1248,8 @@ export default function MaterialCertificadoPage() {
                       <TableBody>
                         {outrosCarregando ? (
                           <TableRow>
-                            <TableCell colSpan={6} className="text-center py-12 text-muted-foreground text-sm">
-                              <RefreshCw className="h-4 w-4 animate-spin mx-auto mb-2" />
-                              Buscando registros de Recebimento de Materiais...
+                            <TableCell colSpan={6} className="text-center py-12">
+                              <SpinnerCustom className="justify-center" />
                             </TableCell>
                           </TableRow>
                         ) : (() => {
@@ -1281,14 +1280,14 @@ export default function MaterialCertificadoPage() {
                               (fsc) => fsc.tipo_material === tipo && fsc.numero_nota_fiscal === grupo.nota_fiscal && !!grupo.nota_fiscal
                             );
                             return (
-                              <TableRow key={grupo.nota_fiscal ?? rep.id} className="hover:bg-muted/50">
+                              <TableRow key={grupo.nota_fiscal ?? rep.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setLoteDetalheAbertoTipo(tipo); setLoteDetalheAberto(grupo); }}>
                                 <TableCell className="text-xs">{grupo.data ? fmtData(grupo.data) : "—"}</TableCell>
                                 <TableCell className="text-xs font-mono font-medium">{grupo.nota_fiscal ?? "—"}</TableCell>
                                 <TableCell className="text-xs max-w-[10rem] truncate" title={grupo.fornecedor ?? ""}>{grupo.fornecedor || "—"}</TableCell>
                                 <TableCell>
                                   <Badge className={`${COR_TIPO[tipo] ?? "bg-gray-100 text-gray-700"} border-0 text-xs`}>{tipo}</Badge>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell onClick={(e) => e.stopPropagation()}>
                                   {nfVinculada ? (
                                     <Badge className="bg-emerald-100 text-emerald-700 border-0 gap-1 text-xs">
                                       <CheckCircle2 className="h-3 w-3" />NF Vinculada
@@ -1299,7 +1298,7 @@ export default function MaterialCertificadoPage() {
                                     </Badge>
                                   )}
                                 </TableCell>
-                                <TableCell>
+                                <TableCell onClick={(e) => e.stopPropagation()}>
                                   {nfVinculada ? (
                                     <div className="flex items-center gap-1">
                                       <Button
@@ -1876,11 +1875,17 @@ export default function MaterialCertificadoPage() {
           </DialogHeader>
           {loteDetalheAberto && (() => {
             const grupo = loteDetalheAberto;
+            const isMDF = loteDetalheAbertoTipo === "MDF";
             const nfVinculada = registros.find(
-              (fsc) => fsc.tipo_material === "MDF" && fsc.numero_nota_fiscal === grupo.nota_fiscal && !!grupo.nota_fiscal
+              (fsc) => fsc.tipo_material === loteDetalheAbertoTipo && fsc.numero_nota_fiscal === grupo.nota_fiscal && !!grupo.nota_fiscal
             );
-            const totalM3 = grupo.registros.reduce((soma, r) =>
-              soma + (r.comprimento_cm ?? 0) * (r.largura_cm ?? 0) * ((r.espessura_mm ?? 0) / 1000) * (r.qtd_conforme ?? 0), 0);
+            const totalM3 = isMDF
+              ? grupo.registros.reduce((soma, r) =>
+                  soma + (r.comprimento_cm ?? 0) * (r.largura_cm ?? 0) * ((r.espessura_mm ?? 0) / 1000) * (r.qtd_conforme ?? 0), 0)
+              : 0;
+            const totalQtd = !isMDF
+              ? grupo.registros.reduce((soma, r) => soma + (r.qtd_conforme ?? 0), 0)
+              : 0;
 
             return (
               <div className="space-y-4">
@@ -1900,6 +1905,10 @@ export default function MaterialCertificadoPage() {
                       <span className="text-muted-foreground">Fornecedor</span>
                       <span className="font-medium">{grupo.fornecedor ?? "—"}</span>
                     </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Tipo de Material</span>
+                      <Badge className={`${COR_TIPO[loteDetalheAbertoTipo] ?? "bg-gray-100 text-gray-700"} border-0 text-[10px]`}>{loteDetalheAbertoTipo}</Badge>
+                    </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Registros</span>
                       <span className="font-medium">{grupo.registros.length}</span>
@@ -1908,14 +1917,23 @@ export default function MaterialCertificadoPage() {
 
                   <div className="rounded-lg border bg-muted/30 px-4 py-3 space-y-2">
                     <p className="font-semibold text-sm mb-1">Totais</p>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Volume total</span>
-                      <span className="font-bold text-emerald-700">{totalM3.toFixed(4)} m³</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">AQs geradas</span>
-                      <span className="font-medium">{grupo.aqs.length}</span>
-                    </div>
+                    {isMDF ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Volume total</span>
+                          <span className="font-bold text-emerald-700">{totalM3.toFixed(4)} m³</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">AQs geradas</span>
+                          <span className="font-medium">{grupo.aqs.length}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Qtd. total</span>
+                        <span className="font-bold text-emerald-700">{totalQtd}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Status NF</span>
                       {nfVinculada ? (
@@ -1931,8 +1949,8 @@ export default function MaterialCertificadoPage() {
                   </div>
                 </div>
 
-                {/* AQs geradas */}
-                {grupo.aqs.length > 0 && (
+                {/* AQs geradas — apenas MDF */}
+                {isMDF && grupo.aqs.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold mb-2 flex items-center gap-1.5">
                       <ScanLine className="h-3.5 w-3.5 text-blue-600" />AQs Geradas
@@ -1956,34 +1974,56 @@ export default function MaterialCertificadoPage() {
                         <TableRow>
                           <TableHead className="text-xs">Lote</TableHead>
                           <TableHead className="text-xs">Produto</TableHead>
-                          <TableHead className="text-xs text-right">Comp. (cm)</TableHead>
-                          <TableHead className="text-xs text-right">Larg. (cm)</TableHead>
-                          <TableHead className="text-xs text-right">Esp. (mm)</TableHead>
+                          {isMDF ? (
+                            <>
+                              <TableHead className="text-xs text-right">Comp. (cm)</TableHead>
+                              <TableHead className="text-xs text-right">Larg. (cm)</TableHead>
+                              <TableHead className="text-xs text-right">Esp. (mm)</TableHead>
+                            </>
+                          ) : null}
                           <TableHead className="text-xs text-right">Qtd.</TableHead>
-                          <TableHead className="text-xs text-right">m³</TableHead>
+                          {isMDF && <TableHead className="text-xs text-right">m³</TableHead>}
                           <TableHead className="text-xs">RQ</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {grupo.registros.map((r) => {
-                          const vol = (r.comprimento_cm ?? 0) * (r.largura_cm ?? 0) * ((r.espessura_mm ?? 0) / 1000) * (r.qtd_conforme ?? 0);
+                          const vol = isMDF
+                            ? (r.comprimento_cm ?? 0) * (r.largura_cm ?? 0) * ((r.espessura_mm ?? 0) / 1000) * (r.qtd_conforme ?? 0)
+                            : 0;
                           return (
                             <TableRow key={r.id}>
                               <TableCell className="text-xs font-mono">{r.n_lote ?? r.lote_fornecedor ?? "—"}</TableCell>
                               <TableCell className="text-xs max-w-[8rem] truncate" title={r.produto ?? ""}>{r.produto ?? "—"}</TableCell>
-                              <TableCell className="text-xs text-right tabular-nums">{r.comprimento_cm ?? "—"}</TableCell>
-                              <TableCell className="text-xs text-right tabular-nums">{r.largura_cm ?? "—"}</TableCell>
-                              <TableCell className="text-xs text-right tabular-nums">{r.espessura_mm ?? "—"}</TableCell>
+                              {isMDF ? (
+                                <>
+                                  <TableCell className="text-xs text-right tabular-nums">{r.comprimento_cm ?? "—"}</TableCell>
+                                  <TableCell className="text-xs text-right tabular-nums">{r.largura_cm ?? "—"}</TableCell>
+                                  <TableCell className="text-xs text-right tabular-nums">{r.espessura_mm ?? "—"}</TableCell>
+                                </>
+                              ) : null}
                               <TableCell className="text-xs text-right tabular-nums">{r.qtd_conforme ?? "—"}</TableCell>
-                              <TableCell className="text-xs text-right tabular-nums text-emerald-700 font-medium">{vol.toFixed(4)}</TableCell>
+                              {isMDF && (
+                                <TableCell className="text-xs text-right tabular-nums text-emerald-700 font-medium">{vol.toFixed(4)}</TableCell>
+                              )}
                               <TableCell className="text-xs font-mono text-muted-foreground">{r.codigo_rq ?? "—"}</TableCell>
                             </TableRow>
                           );
                         })}
                         <TableRow className="bg-muted/30 font-semibold">
-                          <TableCell colSpan={6} className="text-xs text-right text-muted-foreground">Total</TableCell>
-                          <TableCell className="text-xs text-right tabular-nums text-emerald-700">{totalM3.toFixed(4)}</TableCell>
-                          <TableCell />
+                          {isMDF ? (
+                            <>
+                              <TableCell colSpan={6} className="text-xs text-right text-muted-foreground">Total</TableCell>
+                              <TableCell className="text-xs text-right tabular-nums text-emerald-700">{totalM3.toFixed(4)}</TableCell>
+                              <TableCell />
+                            </>
+                          ) : (
+                            <>
+                              <TableCell colSpan={3} className="text-xs text-right text-muted-foreground">Total</TableCell>
+                              <TableCell className="text-xs text-right tabular-nums text-emerald-700">{totalQtd}</TableCell>
+                              <TableCell />
+                            </>
+                          )}
                         </TableRow>
                       </TableBody>
                     </Table>

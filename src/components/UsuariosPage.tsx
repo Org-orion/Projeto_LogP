@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Pencil, Trash2, Loader2, AlertCircle, Users, HardHat, Eye, EyeOff, Search, BookUser } from "lucide-react";
+import { SpinnerCustom } from "@/components/ui/spinner";
 import { toast } from "sonner";
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
@@ -59,10 +60,7 @@ interface Operador {
 
 function LoadingState() {
   return (
-    <div className="flex items-center justify-center h-40 gap-2 text-muted-foreground">
-      <Loader2 className="h-4 w-4 animate-spin" />
-      Carregando...
-    </div>
+    <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
   );
 }
 

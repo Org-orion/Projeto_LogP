@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Cog, Loader2, AlertCircle, RefreshCw, Plus, History, Pencil, FileText, Search, FileSpreadsheet, ChevronDown, ChevronRight } from "lucide-react";
+import { SpinnerCustom } from "@/components/ui/spinner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -20,6 +21,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   Cell, LabelList,
 } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addWeeks,
   getDaysInMonth, parseISO,
@@ -965,9 +967,7 @@ function HistoricoSheet({ maquina, open, onClose, canEdit }: {
         <div className="flex-1 min-h-0 relative border-t">
           <div className="absolute inset-0 overflow-auto">
             {loadingHist ? (
-              <div className="flex items-center justify-center h-32 gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
-              </div>
+              <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
             ) : registros.length === 0 ? (
               <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
                 Nenhum registro encontrado para o período.
@@ -1201,6 +1201,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   const [selPadrao,       setSelPadrao]       = useState<string | null>(null);
   const [showAllPadrao,   setShowAllPadrao]   = useState(false);
   const [showAllLargura,  setShowAllLargura]  = useState(false);
+  const [showAllMaq,      setShowAllMaq]      = useState(false);
 
   const canEdit = ["administrador", "supervisor"].includes((user.perfil ?? "").toLowerCase());
 
@@ -1346,9 +1347,8 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 gap-3 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
-        <span>Carregando máquinas...</span>
+      <div className="flex items-center justify-center h-64">
+        <SpinnerCustom />
       </div>
     );
   }
@@ -1396,9 +1396,10 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   const byLinha  = (r: RowDash) => !selLinha  || (r.linha   || "—")   === selLinha;
   const byPadrao = (r: RowDash) => !selPadrao || (r.padrao  || "—")   === selPadrao;
 
-  // KPIs — total geral (sem seleção de clique)
-  const totalDash = dashFiltrados.reduce((s, r) => s + (r.qtd_conforme ?? 0), 0);
-  const diasComProducao = new Set(dashFiltrados.filter(r => (r.qtd_conforme ?? 0) > 0).map(r => r.data)).size;
+  // KPIs — aplica todos os filtros de clique (máquina, linha, padrão)
+  const ctxKpi = dashFiltrados.filter(r => byMaq(r) && byLinha(r) && byPadrao(r));
+  const totalDash = ctxKpi.reduce((s, r) => s + (r.qtd_conforme ?? 0), 0);
+  const diasComProducao = new Set(ctxKpi.filter(r => (r.qtd_conforme ?? 0) > 0).map(r => r.data)).size;
   const mediaDiaria = diasComProducao > 0 ? Math.round(totalDash / diasComProducao) : 0;
 
   // Gráfico de máquinas: vê todas as máquinas, filtrado por linha + padrão
@@ -1409,11 +1410,11 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
     const m = r.maquina ?? "—";
     dashMaqMap[m] = (dashMaqMap[m] ?? 0) + (r.qtd_conforme ?? 0);
   }
-  const dashPorMaquina = Object.entries(dashMaqMap)
+  const dashPorMaquinaAll = Object.entries(dashMaqMap)
     .map(([orig, total]) => ({ maquina: orig.toUpperCase(), orig, total }))
     .filter(x => x.total > 0)
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 10);
+    .sort((a, b) => b.total - a.total);
+  const dashPorMaquina = showAllMaq ? dashPorMaquinaAll : dashPorMaquinaAll.slice(0, 10);
 
   // Gráfico mensal: todas as dimensões aplicadas
   const ctxDaily = dashFiltrados.filter(r => byMaq(r) && byLinha(r) && byPadrao(r));
@@ -1680,9 +1681,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
         )}
 
         {loadingD ? (
-          <div className="flex items-center justify-center h-40 gap-2 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /> Carregando dados...
-          </div>
+          <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
         ) : (
           <>
             {/* Breadcrumb de seleção ativa */}
@@ -1714,95 +1713,160 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
             )}
 
             {/* Gráficos */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
               {/* Produção por Máquina — clicável */}
-              <Card className={selMaq ? "ring-2 ring-green-400" : ""}>
-                <CardContent className="pt-4 px-3 pb-4">
-                  <p className="text-xs font-semibold text-muted-foreground mb-1 px-2">
-                    Produção de Portas
-                    <span className="ml-2 font-normal opacity-60">(clique para filtrar)</span>
-                  </p>
-                  {dashPorMaquina.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">Sem dados.</p>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={Math.max(120, dashPorMaquina.length * 40)}>
-                      <BarChart
-                        layout="vertical"
-                        data={dashPorMaquina}
-                        margin={{ top: 2, right: 54, left: 8, bottom: 16 }}
-                        barSize={16}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#bbf7d0" horizontal={false} />
-                        <XAxis
-                          type="number" tick={{ fontSize: 9 }} axisLine={false} tickLine={false}
-                          tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)} Mil` : String(v)}
-                          label={{ value: "Soma de Qtd. Conforme", position: "insideBottom", offset: -10, fontSize: 9, fill: "#9ca3af" }}
-                        />
-                        <YAxis
-                          type="category" dataKey="maquina" tick={{ fontSize: 9 }} width={160}
-                          axisLine={false} tickLine={false}
-                          tickFormatter={(v: string) => v.length > 22 ? v.slice(0, 21) + "…" : v}
-                        />
-                        <Tooltip contentStyle={{ fontSize: 11 }}
-                          formatter={(v: number) => [v.toLocaleString("pt-BR"), "Conforme"]} />
-                        <Bar
-                          dataKey="total"
-                          radius={[0, 4, 4, 0]}
-                          style={{ cursor: "pointer" }}
-                          onClick={(d: { orig: string }) => clickMaq(d.orig)}
-                        >
-                          {dashPorMaquina.map((item) => (
-                            <Cell
-                              key={item.orig}
-                              fill={!selMaq || selMaq === item.orig ? COR_VERDE : "#bbf7d0"}
-                              opacity={!selMaq || selMaq === item.orig ? 1 : 0.5}
-                            />
-                          ))}
-                          <LabelList dataKey="total" position="right"
-                            style={{ fontSize: 10, fontWeight: 600, fill: COR_VERDE }}
-                            formatter={(v: number) => v.toLocaleString("pt-BR")} />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
+              {(() => {
+                const chartConfig: ChartConfig = {
+                  total: { label: "Conforme", color: COR_VERDE },
+                  label: { color: "#ffffff" },
+                };
+                return (
+                  <Card className={selMaq ? "ring-2 ring-green-400" : ""}>
+                    <CardContent className="pt-4 px-3 pb-2">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 px-2">
+                        Produção de Portas
+                        <span className="ml-2 font-normal opacity-60">(clique para filtrar)</span>
+                      </p>
+                      {dashPorMaquina.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-8">Sem dados.</p>
+                      ) : (
+                        <>
+                          <ChartContainer
+                            config={chartConfig}
+                            className="w-full [&_.recharts-wrapper]:!aspect-auto"
+                            style={{ height: Math.max(160, dashPorMaquina.length * 44) }}
+                          >
+                            <BarChart
+                              layout="vertical"
+                              data={dashPorMaquina}
+                              margin={{ top: 0, right: 64, left: 0, bottom: 0 }}
+                              barSize={22}
+                            >
+                              <YAxis
+                                dataKey="maquina"
+                                type="category"
+                                tickLine={false}
+                                axisLine={false}
+                                hide
+                              />
+                              <XAxis dataKey="total" type="number" hide />
+                              <ChartTooltip
+                                cursor={false}
+                                content={
+                                  <ChartTooltipContent
+                                    indicator="line"
+                                    formatter={(value) => [
+                                      (value as number).toLocaleString("pt-BR"),
+                                      "Conforme",
+                                    ]}
+                                  />
+                                }
+                              />
+                              <Bar
+                                dataKey="total"
+                                radius={4}
+                                style={{ cursor: "pointer" }}
+                                onClick={(d: { orig: string }) => clickMaq(d.orig)}
+                              >
+                                {dashPorMaquina.map((item) => (
+                                  <Cell
+                                    key={item.orig}
+                                    fill={!selMaq || selMaq === item.orig ? COR_VERDE : "#bbf7d0"}
+                                  />
+                                ))}
+                                <LabelList
+                                  dataKey="maquina"
+                                  position="insideLeft"
+                                  offset={10}
+                                  style={{ fill: "#ffffff", fontSize: 11, fontWeight: 500 }}
+                                />
+                                <LabelList
+                                  dataKey="total"
+                                  position="right"
+                                  offset={8}
+                                  style={{ fontSize: 11, fontWeight: 600 }}
+                                  formatter={(v: number) => v.toLocaleString("pt-BR")}
+                                />
+                              </Bar>
+                            </BarChart>
+                          </ChartContainer>
+                          {dashPorMaquinaAll.length > 10 && (
+                            <button
+                              onClick={() => setShowAllMaq(p => !p)}
+                              className="mt-2 w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1 border-t border-dashed"
+                            >
+                              {showAllMaq
+                                ? "Ver menos ↑"
+                                : `Ver mais ${dashPorMaquinaAll.length - 10} máquina${dashPorMaquinaAll.length - 10 > 1 ? "s" : ""} ↓`}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
 
-              {/* Produção Diária — reage à máquina selecionada */}
-              <Card>
-                <CardContent className="pt-4 px-3 pb-4">
-                  <p className="text-xs font-semibold text-muted-foreground mb-1 px-2">
-                    Produção Mensal
-                    {selMaq && <span className="ml-2 font-normal" style={{ color: COR_VERDE }}>· {selMaq.toUpperCase()}</span>}
-                  </p>
-                  {dashPorDia.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">Sem dados.</p>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart
-                        data={dashPorDia}
-                        margin={{ top: 16, right: 8, left: -10, bottom: 4 }}
-                        barSize={Math.max(6, Math.floor(320 / dashPorDia.length) - 4)}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#bbf7d0" vertical={false} />
-                        <XAxis dataKey="label" tick={{ fontSize: 9 }} axisLine={false} tickLine={false}
-                          label={{ value: "Mês", position: "insideBottom", offset: -2, fontSize: 9, fill: "#9ca3af" }} />
-                        <YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false}
-                          tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)} Mil` : String(v)}
-                          label={{ value: "Portas", angle: -90, position: "insideLeft", fontSize: 9, fill: "#9ca3af" }} />
-                        <Tooltip contentStyle={{ fontSize: 11 }}
-                          formatter={(v: number) => [v.toLocaleString("pt-BR"), "Conforme"]}
-                          labelFormatter={(l) => String(l)} />
-                        <Bar dataKey="total" fill={COR_VERDE} radius={[3, 3, 0, 0]}>
-                          <LabelList dataKey="total" position="top"
-                            style={{ fontSize: 8, fontWeight: 600, fill: COR_VERDE }}
-                            formatter={(v: number) => v > 0 ? v.toLocaleString("pt-BR") : ""} />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
+              {/* Produção Mensal — reage à máquina selecionada */}
+              {(() => {
+                const chartConfig: ChartConfig = {
+                  total: { label: "Conforme", color: COR_VERDE },
+                };
+                return (
+                  <Card>
+                    <CardHeader className="pb-2 pt-4 px-5">
+                      <CardTitle className="text-sm font-semibold text-muted-foreground">
+                        Produção Mensal
+                        {selMaq && (
+                          <span className="ml-2 font-normal" style={{ color: COR_VERDE }}>
+                            · {selMaq.toUpperCase()}
+                          </span>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-3 pb-4">
+                      {dashPorDia.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-8">Sem dados.</p>
+                      ) : (
+                        <ChartContainer config={chartConfig} className="w-full [&_.recharts-wrapper]:!aspect-auto" style={{ height: 260 }}>
+                          <BarChart data={dashPorDia} margin={{ top: 24, right: 8, left: -10, bottom: 4 }}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis
+                              dataKey="label"
+                              tickLine={false}
+                              tickMargin={10}
+                              axisLine={false}
+                              tick={{ fontSize: 10 }}
+                              tickFormatter={(v: string) => v.slice(0, 3)}
+                            />
+                            <ChartTooltip
+                              cursor={false}
+                              content={
+                                <ChartTooltipContent
+                                  hideLabel
+                                  formatter={(value, name) => [
+                                    (value as number).toLocaleString("pt-BR"),
+                                    name === "total" ? "Conforme" : name,
+                                  ]}
+                                />
+                              }
+                            />
+                            <Bar dataKey="total" fill="var(--color-total)" radius={8}>
+                              <LabelList
+                                position="top"
+                                offset={12}
+                                className="fill-foreground"
+                                fontSize={12}
+                                formatter={(v: number) => v > 0 ? v.toLocaleString("pt-BR") : ""}
+                              />
+                            </Bar>
+                          </BarChart>
+                        </ChartContainer>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
             </div>
 
             {/* Tabelas por Linha / Padrão / Largura — drill-down em cascata */}

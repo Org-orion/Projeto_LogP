@@ -2,7 +2,7 @@
 
 import { useState, lazy, Suspense } from "react";
 import { TopNav } from "@/components/TopNav";
-import { Loader2 } from "lucide-react";
+import { SpinnerCustom } from "@/components/ui/spinner";
 
 const HomePage              = lazy(() => import("@/components/HomePage"));
 const MaquinasPage          = lazy(() => import("@/components/MaquinasPage"));
@@ -20,9 +20,7 @@ const AjudaPage             = lazy(() => import("@/components/PlaceholderPages")
 
 function PageLoader() {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh" }}>
-      <Loader2 size={28} strokeWidth={1.5} style={{ color: "#1a5c35", animation: "spin 1s linear infinite" }} />
-    </div>
+    <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
   );
 }
 

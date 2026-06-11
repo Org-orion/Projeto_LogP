@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { format, endOfMonth, getDaysInMonth } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Loader2, XCircle, ChevronDown } from "lucide-react";
+import { XCircle, ChevronDown } from "lucide-react";
+import { SpinnerCustom } from "@/components/ui/spinner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import RncRelatoriosTab from "./RncRelatoriosTab";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LabelList,
@@ -85,7 +87,11 @@ const SETOR_LABELS: Record<Setor, string> = {
   guarnicao: "Guarnição",
 };
 
+type AbaNC = "analise" | "relatorios";
+
 export default function NaoConformidadesTab() {
+  const [abaNC, setAbaNC] = useState<AbaNC>("analise");
+
   const [anoFiltro,   setAnoFiltro]   = useState(String(hoje.getFullYear()));
   const [mesFiltro,   setMesFiltro]   = useState("todos");
   const [setorFiltro, setSetorFiltro] = useState<Setor>("todos");
@@ -94,30 +100,51 @@ export default function NaoConformidadesTab() {
   const [rows,        setRows]        = useState<RowNC[]>([]);
   const [loading,     setLoading]     = useState(false);
 
+  const ncReqRef = useRef(0);
+
   const buscar = useCallback(async () => {
+    ncReqRef.current += 1;
+    const myReq = ncReqRef.current;
     setLoading(true);
-    let q = supabase
-      .from("registros_producao")
-      .select("maquina,data,padrao,tipo_defeito_1,qtd_nao_conforme_1,tipo_defeito_2,qtd_nao_conforme_2,tipo_defeito_3,qtd_nao_conforme_3,tipo_defeito_4,qtd_nao_conforme_4")
-      .gte("data", `${anoFiltro}-01-01`)
-      .lte("data", `${anoFiltro}-12-31`);
+
+    const anoInicio = `${anoFiltro}-01-01`;
+    const anoFim    = `${anoFiltro}-12-31`;
+    let dataInicio = anoInicio;
+    let dataFim    = anoFim;
 
     if (mesFiltro !== "todos") {
       const mm = String(Number(mesFiltro)).padStart(2, "0");
-      const fimMes = format(endOfMonth(new Date(Number(anoFiltro), Number(mesFiltro) - 1, 1)), "yyyy-MM-dd");
-      q = q.gte("data", `${anoFiltro}-${mm}-01`).lte("data", fimMes);
+      dataInicio = `${anoFiltro}-${mm}-01`;
+      dataFim    = format(endOfMonth(new Date(Number(anoFiltro), Number(mesFiltro) - 1, 1)), "yyyy-MM-dd");
     }
 
-    const { data, error } = await q;
-    if (!error && data) {
-      const filtrado = (data as RowNC[]).filter(r =>
-        (r.qtd_nao_conforme_1 ?? 0) > 0 ||
-        (r.qtd_nao_conforme_2 ?? 0) > 0 ||
-        (r.qtd_nao_conforme_3 ?? 0) > 0 ||
-        (r.qtd_nao_conforme_4 ?? 0) > 0
-      );
-      setRows(filtrado);
+    const COLS = "maquina,data,padrao,tipo_defeito_1,qtd_nao_conforme_1,tipo_defeito_2,qtd_nao_conforme_2,tipo_defeito_3,qtd_nao_conforme_3,tipo_defeito_4,qtd_nao_conforme_4";
+    const TAM = 1000;
+    let pagina = 0;
+    const todas: RowNC[] = [];
+
+    while (true) {
+      const { data, error } = await supabase
+        .from("registros_producao")
+        .select(COLS)
+        .gte("data", dataInicio)
+        .lte("data", dataFim)
+        .range(pagina * TAM, (pagina + 1) * TAM - 1);
+
+      if (myReq !== ncReqRef.current) return;
+      if (error || !data) break;
+      todas.push(...(data as RowNC[]));
+      if (data.length < TAM) break;
+      pagina++;
     }
+
+    if (myReq !== ncReqRef.current) return;
+    setRows(todas.filter(r =>
+      (r.qtd_nao_conforme_1 ?? 0) > 0 ||
+      (r.qtd_nao_conforme_2 ?? 0) > 0 ||
+      (r.qtd_nao_conforme_3 ?? 0) > 0 ||
+      (r.qtd_nao_conforme_4 ?? 0) > 0
+    ));
     setLoading(false);
   }, [anoFiltro, mesFiltro]);
 
@@ -180,10 +207,19 @@ export default function NaoConformidadesTab() {
               (r.qtd_nao_conforme_3 ?? 0) + (r.qtd_nao_conforme_4 ?? 0);
     ncMesMap[mm] = (ncMesMap[mm] ?? 0) + v;
   }
-  const ncMes = Object.entries(ncMesMap).map(([mm, total]) => ({
-    label: MESES_NOMES[Number(mm) - 1],
-    total,
-  }));
+  const ncMesTodos = Object.entries(ncMesMap)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([mm, total]) => ({
+      label: MESES_NOMES[Number(mm) - 1],
+      mes: Number(mm),
+      total,
+    }));
+  // Limite: ano atual → até o mês corrente; ano passado → até o último mês com NC
+  const ultimoNCMes = [...ncMesTodos].reverse().find(m => m.total > 0)?.mes ?? 0;
+  const limiteNC = anoFiltro === String(hoje.getFullYear())
+    ? Math.max(hoje.getMonth() + 1, ultimoNCMes)
+    : ultimoNCMes || 12;
+  const ncMes = ncMesTodos.filter(m => m.mes <= limiteNC);
 
   // NC por Padrão
   const ncPadraoMap: Record<string, number> = {};
@@ -218,6 +254,30 @@ export default function NaoConformidadesTab() {
 
   return (
     <div className="space-y-5">
+
+      {/* ── Abas internas ── */}
+      <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
+        {([
+          { id: "analise",    label: "Análise" },
+          { id: "relatorios", label: "Relatórios RNC/AC" },
+        ] as { id: AbaNC; label: string }[]).map(a => (
+          <button key={a.id} onClick={() => setAbaNC(a.id)}
+            className="px-4 py-1.5 rounded-md text-xs font-semibold transition-all"
+            style={
+              abaNC === a.id
+                ? { background: COR_VERDE, color: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }
+                : { background: "transparent", color: "#6b7280" }
+            }>
+            {a.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Conteúdo: Relatórios RNC/AC ── */}
+      {abaNC === "relatorios" && <RncRelatoriosTab />}
+
+      {/* ── Conteúdo: Análise (existente) ── */}
+      {abaNC === "analise" && <>
 
       {/* ── Setor Toggle ── */}
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
@@ -347,9 +407,7 @@ export default function NaoConformidadesTab() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-48 gap-2 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" /> Carregando...
-        </div>
+        <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
       ) : (
         <>
           {/* ── Gráficos ── */}
@@ -424,7 +482,7 @@ export default function NaoConformidadesTab() {
               <CardContent className="px-3 pb-4">
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart
-                    data={ncMes.filter(m => m.total > 0 || mesFiltro !== "todos")}
+                    data={ncMes}
                     margin={{ top: 16, right: 8, left: -10, bottom: 4 }}
                     barSize={28}
                   >
@@ -546,6 +604,8 @@ export default function NaoConformidadesTab() {
           </div>
         </>
       )}
+
+      </>}
     </div>
   );
 }

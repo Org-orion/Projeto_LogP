@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, Loader2, Users, Target, Factory, RefreshCw, UserCheck, Search, X } from "lucide-react";
+import { SpinnerCustom } from "@/components/ui/spinner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { format, startOfMonth, addMonths, subMonths, parseISO } from "date-fns";
@@ -799,9 +800,7 @@ export default function MetasPage() {
             )}
 
             {loadingFunc ? (
-              <div className="flex items-center justify-center h-32 gap-2 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" /> Carregando...
-              </div>
+              <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
             ) : funcionarios.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">Nenhum funcionário cadastrado.</p>
             ) : funcionariosFiltrados.length === 0 ? (
@@ -906,9 +905,7 @@ export default function MetasPage() {
             </div>
 
             {loadingInd ? (
-              <div className="flex items-center justify-center h-32 gap-2 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" /> Carregando...
-              </div>
+              <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
             ) : indicadores.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
                 Nenhuma meta registrada para {fmtMes(indMes)}.

@@ -19,6 +19,7 @@ import {
   XCircle, Package,
   ClipboardCheck, Plus, Pencil, Trash2, CalendarIcon, Scale, Loader2,
 } from "lucide-react";
+import { SpinnerCustom } from "@/components/ui/spinner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -105,8 +106,10 @@ interface RQ40Entry {
   gramatura_papel: number | null;
   aderencia_papel: string;
   tonalidade_papel: string;
+  umidade: string | null;
   quantidade: number;
   resultado: string;
+  observacao: string | null;
 }
 
 interface RecebimentoSummary {
@@ -157,8 +160,10 @@ const EMPTY_RQ40_FORM = {
   gramatura_papel:  "",
   aderencia_papel:  "" as "" | "conforme" | "nao_conforme",
   tonalidade_papel: "" as "" | "conforme" | "nao_conforme",
+  umidade:          "",
   quantidade:       "",
   resultado:        "" as "" | "conforme" | "nao_conforme",
+  observacao:       "",
 };
 
 const EMPTY_RQ41_FORM = {
@@ -376,8 +381,10 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       gramatura_papel:  r.gramatura_papel !== null ? String(r.gramatura_papel) : "",
       aderencia_papel:  r.aderencia_papel  as "" | "conforme" | "nao_conforme",
       tonalidade_papel: r.tonalidade_papel as "" | "conforme" | "nao_conforme",
+      umidade:          r.umidade ?? "",
       quantidade:       String(r.quantidade),
       resultado:        r.resultado as "" | "conforme" | "nao_conforme",
+      observacao:       r.observacao ?? "",
     });
     setRq40Dialog(true);
   }
@@ -409,8 +416,10 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       gramatura_papel:  rq40Form.gramatura_papel !== "" ? Number(rq40Form.gramatura_papel) : null,
       aderencia_papel:  rq40Form.aderencia_papel,
       tonalidade_papel: rq40Form.tonalidade_papel,
+      umidade:          rq40Form.umidade.trim() || null,
       quantidade:       qty,
       resultado:        rq40Form.resultado,
+      observacao:       rq40Form.observacao.trim() || null,
     };
     const { error } = rq40EditId !== null
       ? await supabase.from("controle_qualidade").update(payload).eq("id", rq40EditId)
@@ -500,9 +509,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       {aba === "gramatura" && (
         <>
           {loadingGram ? (
-            <div className="flex items-center justify-center h-48 gap-2 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" /> Carregando medições...
-            </div>
+            <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
           ) : (
             <>
               {/* KPIs */}
@@ -691,9 +698,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
               </CardHeader>
               <CardContent>
                 {loadingReceb ? (
-                  <div className="flex items-center justify-center h-24 gap-2 text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
-                  </div>
+                  <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
                 ) : entriesForDate.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-8 text-center">
                     {selectedDate ? "Nenhum recebimento nesta data." : "Selecione uma data no calendário."}
@@ -760,9 +765,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
               {/* RQ40 */}
               {tipoRecebimento === "rq40" && (
                 loadingRQ40 ? (
-                  <div className="flex items-center justify-center h-32 gap-2 text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
-                  </div>
+                  <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
                 ) : rq40s.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-8 text-center">Nenhum registro RQ40. Clique em "Adicionar" para começar.</p>
                 ) : (
@@ -807,9 +810,7 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
               {/* RQ41 */}
               {tipoRecebimento === "rq41" && (
                 loadingRQ41 ? (
-                  <div className="flex items-center justify-center h-32 gap-2 text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin" /> Carregando...
-                  </div>
+                  <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
                 ) : (
                   <div>
                     <div className="flex justify-end mb-3">
@@ -1038,19 +1039,33 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
               </div>
             </div>
 
-            {/* Linha 7: Quantidade + Resultado */}
+            {/* Linha 7: Umidade + Quantidade */}
             <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="rq40-umid">Umidade</Label>
+                <Input id="rq40-umid" placeholder="Ex: 8%" value={rq40Form.umidade} onChange={(e) => setRq40Form({ ...rq40Form, umidade: e.target.value })} />
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="rq40-qtd">Quantidade *</Label>
                 <Input id="rq40-qtd" type="number" min="1" placeholder="0" value={rq40Form.quantidade} onChange={(e) => setRq40Form({ ...rq40Form, quantidade: e.target.value })} />
               </div>
-              <div className="space-y-1.5">
-                <Label>Resultado *</Label>
-                <Select value={rq40Form.resultado} onValueChange={(v: "" | "conforme" | "nao_conforme") => setRq40Form({ ...rq40Form, resultado: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>{OPCOES_QUALIDADE.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
+            </div>
+
+            {/* Linha 8: Resultado */}
+            <div className="space-y-1.5">
+              <Label>Resultado *</Label>
+              <Select value={rq40Form.resultado} onValueChange={(v: "" | "conforme" | "nao_conforme") => setRq40Form({ ...rq40Form, resultado: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>{OPCOES_QUALIDADE.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+
+            {/* Linha 9: Observação */}
+            <div className="space-y-1.5">
+              <Label htmlFor="rq40-obs">Observação</Label>
+              <textarea id="rq40-obs" rows={2} placeholder="Observações adicionais..." value={rq40Form.observacao}
+                onChange={(e) => setRq40Form({ ...rq40Form, observacao: e.target.value })}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none" />
             </div>
 
           </div>
