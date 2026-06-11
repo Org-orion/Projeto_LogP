@@ -100,4 +100,26 @@
   .field-label {
     @apply text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block;
   }
+
+  .page-fade {
+    animation: pageFadeIn 0.18s ease-out both;
+  }
 }
+
+@keyframes pageFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes livePing {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  70%  { transform: scale(2.4); opacity: 0;   }
+  100% { transform: scale(2.4); opacity: 0;   }
+}
+.live-ping { animation: livePing 2s ease-out infinite; }
+
+@keyframes feedRowFlash {
+  from { background: rgba(26, 92, 53, 0.07); }
+  to   { background: transparent; }
+}
+.feed-row-new { animation: feedRowFlash 2s ease-out forwards; }

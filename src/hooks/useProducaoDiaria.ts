@@ -18,7 +18,7 @@ export function useProducaoDiaria() {
   useEffect(() => {
     let cancelled = false;
 
-    async function fetch() {
+    async function load() {
       const today = todayStr();
       const { data: rows, error } = await supabase
         .from("registros_producao")
@@ -42,8 +42,19 @@ export function useProducaoDiaria() {
       setLoading(false);
     }
 
-    void fetch();
-    return () => { cancelled = true; };
+    void load();
+
+    const channel = supabase
+      .channel("producao-diaria-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "registros_producao" }, () => {
+        void load();
+      })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return { data, loading };

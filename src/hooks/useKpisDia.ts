@@ -29,7 +29,7 @@ export function useKpisDia(): KpisDia {
   useEffect(() => {
     let cancelled = false;
 
-    async function fetch() {
+    async function load() {
       const today = todayStr();
 
       const { data, error } = await supabase
@@ -68,8 +68,19 @@ export function useKpisDia(): KpisDia {
       });
     }
 
-    void fetch();
-    return () => { cancelled = true; };
+    void load();
+
+    const channel = supabase
+      .channel("kpis-dia-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "registros_producao" }, () => {
+        void load();
+      })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return state;

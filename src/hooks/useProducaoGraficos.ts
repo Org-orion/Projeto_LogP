@@ -87,7 +87,18 @@ export function useProducaoGraficos(): ProducaoGraficos {
     }
 
     void fetchData();
-    return () => { cancelled = true; };
+
+    const channel = supabase
+      .channel("producao-graficos-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "registros_producao" }, () => {
+        void fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return state;
