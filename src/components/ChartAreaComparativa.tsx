@@ -116,7 +116,9 @@ export function ChartAreaComparativa() {
                 strokeWidth={2}
                 stackId="a"
               />
-              <ChartLegend content={<ChartLegendContent />} />
+              <ChartLegend content={({ payload }) => (
+                <ChartLegendContent payload={payload ? [...payload].reverse() : []} />
+              )} />
             </AreaChart>
           </ChartContainer>
         )}
