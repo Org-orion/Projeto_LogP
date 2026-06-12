@@ -24,7 +24,7 @@ async function fetchTudo(tabela: string, select = "*") {
       .select(select)
       .range(pagina * PAGE, (pagina + 1) * PAGE - 1);
     if (error || !data || data.length === 0) break;
-    rows.push(...(data as Record<string, unknown>[]));
+    rows.push(...(data as unknown as Record<string, unknown>[]));
     if (data.length < PAGE) break;
     pagina++;
   }
