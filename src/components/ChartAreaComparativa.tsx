@@ -101,18 +101,18 @@ export function ChartAreaComparativa() {
                 }
               />
               <Area
-                dataKey="prensaFria"
-                type="natural"
-                fill="url(#fillPrensaFria)"
-                stroke="var(--color-prensaFria)"
-                strokeWidth={2}
-                stackId="a"
-              />
-              <Area
                 dataKey="montagemKit"
                 type="natural"
                 fill="url(#fillMontagemKit)"
                 stroke="var(--color-montagemKit)"
+                strokeWidth={2}
+                stackId="a"
+              />
+              <Area
+                dataKey="prensaFria"
+                type="natural"
+                fill="url(#fillPrensaFria)"
+                stroke="var(--color-prensaFria)"
                 strokeWidth={2}
                 stackId="a"
               />
