@@ -14,11 +14,11 @@ import { useProducaoComparativa } from "@/hooks/useProducaoComparativa";
 const chartConfig = {
   prensaFria: {
     label: "Prensa Fria",
-    color: "#216C3B",
+    color: "#86efac",
   },
   montagemKit: {
     label: "Montagem do Kit",
-    color: "#86efac",
+    color: "#216C3B",
   },
 } satisfies ChartConfig;
 
