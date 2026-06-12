@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS ext_programacoes_embarque (
   criado_em         timestamptz,
   production_status text,
   shipment_status   text,
+  status            text,
+  updated_at        timestamptz,
   estimated_weight  numeric,
   freight_value     numeric,
   synced_at         timestamptz DEFAULT now()
@@ -30,10 +32,10 @@ CREATE TABLE IF NOT EXISTS ext_entregas (
   status           text,
   entregue_em      timestamptz,
   numero_nota      text,
-  ordem_entrega    integer,
-  qtd_kits         integer,
-  qtd_pallets      integer,
-  qtd_volumes      integer,
+  ordem_entrega    numeric,
+  qtd_kits         numeric,
+  qtd_pallets      numeric,
+  qtd_volumes      numeric,
   synced_at        timestamptz DEFAULT now()
 );
 
