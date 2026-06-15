@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
-const COR_VERDE = "#216C3B";
+const COR_VERDE = "hsl(var(--primary))";
 
 const FAMILIAS_NC = [
   "NÃO CONFORMIDADES DE AUDITORIA",

@@ -18,7 +18,7 @@ const chartConfig = {
   },
   montagemKit: {
     label: "Montagem do Kit",
-    color: "#216C3B",
+    color: "hsl(var(--primary))",
   },
 } satisfies ChartConfig;
 

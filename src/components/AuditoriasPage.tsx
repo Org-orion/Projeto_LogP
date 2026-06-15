@@ -680,8 +680,8 @@ function AuditoriaRow({ auditoria, usuarios, isAdmin }: { auditoria: AuditoriaDB
   const [error, setError]     = useState<string | null>(null);
   const loadedRef             = useRef(false);
 
-  const VERDE = "#1f4d34";
-  const LINE  = "#e4e7e4";
+  const VERDE = "hsl(var(--primary))";
+  const LINE  = "hsl(var(--border))";
 
   async function loadDetail() {
     if (loadedRef.current) return;
@@ -947,7 +947,7 @@ export default function AuditoriasPage({ isAdmin = false }: { isAdmin?: boolean 
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
 
-  const VERDE = "#1f4d34";
+  const VERDE = "hsl(var(--primary))";
 
   useEffect(() => {
     async function load() {

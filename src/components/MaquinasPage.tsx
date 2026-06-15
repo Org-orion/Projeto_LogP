@@ -66,7 +66,7 @@ const c = (key: string, label: string, opts: Partial<Omit<ColunaDef,"key"|"label
 
 // ─── Dashboard de Produção ────────────────────────────────────────────────────
 
-const COR_VERDE  = "#216C3B";
+const COR_VERDE  = "hsl(var(--primary))";
 const COR_BARRA  = "#16a34a";
 
 const MESES_DASH = [

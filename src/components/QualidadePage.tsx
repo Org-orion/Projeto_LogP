@@ -28,7 +28,7 @@ import NaoConformidadesTab from "./NaoConformidadesTab";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const COR_VERDE = "#216C3B";
+const COR_VERDE = "hsl(var(--primary))";
 
 const MAQUINAS_GRAMATURA = [
   "Coladeira de Alizar 1",

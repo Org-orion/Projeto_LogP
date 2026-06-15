@@ -46,7 +46,7 @@ interface ProducaoMaquina {
   ultima_data: string;
 }
 
-const COR_VERDE = "#216C3B";
+const COR_VERDE = "hsl(var(--primary))";
 
 function fmtDate(d: string | null): string {
   if (!d) return "—";

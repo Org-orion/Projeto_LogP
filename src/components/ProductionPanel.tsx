@@ -74,7 +74,7 @@ export function ProductionPanel({ insights, maquinas, maquinasLoading }: Props) 
 
   return (
     <div style={{
-      background: "linear-gradient(160deg, #071a0e 0%, #0e2818 55%, #071a0e 100%)",
+      background: "linear-gradient(160deg, hsl(var(--sidebar-background)) 0%, hsl(var(--sidebar-accent)) 50%, hsl(var(--sidebar-background)) 100%)",
       position: "relative", overflow: "hidden",
     }}>
 
@@ -210,7 +210,7 @@ export function ProductionPanel({ insights, maquinas, maquinasLoading }: Props) 
                   }}>
                     <div style={{
                       height: "100%", width: `${pct}%`,
-                      background: "linear-gradient(90deg, #216C3B 0%, #5dc287 100%)",
+                      background: "linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--sidebar-primary)) 100%)",
                       borderRadius: 99,
                       transition: "width 0.8s cubic-bezier(0.16,1,0.3,1)",
                     }} />

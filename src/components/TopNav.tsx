@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useTheme } from "next-themes";
 import {
   Home, Factory, ShieldCheck, BadgeCheck, UserCog, Settings,
-  Search, ChevronDown, LogOut, Menu, X,
+  Search, ChevronDown, LogOut, Menu, X, Sun, Moon,
 } from "lucide-react";
 
 import ConnectionBadge from "./ConnectionBadge";
@@ -49,7 +50,7 @@ const dropdownListStyle: React.CSSProperties = {
   top: "calc(100% + 8px)",
   left: 0,
   minWidth: 210,
-  background: "#0a3620",
+  background: "hsl(var(--sidebar-background))",
   border: "1px solid rgba(255,255,255,0.08)",
   borderRadius: 10,
   padding: 6,
@@ -269,6 +270,8 @@ export function TopNav({
     setMobileMenuOpen(false);
   }
 
+  const { theme, setTheme } = useTheme();
+
   const initials  = getInitials(user.nome);
   const firstName = getFirstName(user.nome);
 
@@ -277,7 +280,7 @@ export function TopNav({
       ref={headerRef}
       style={{
         position: "sticky", top: 0, zIndex: 60,
-        background: "linear-gradient(180deg, #0a3620 0%, #08301c 100%)",
+        background: "linear-gradient(180deg, hsl(var(--sidebar-background)) 0%, hsl(var(--sidebar-border)) 100%)",
         color: "rgba(255,255,255,0.9)",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
         boxShadow: "0 2px 12px rgba(10,40,24,0.15)",
@@ -414,6 +417,24 @@ export function TopNav({
             />
           </div>
 
+          {/* Theme toggle */}
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            title={theme === "dark" ? "Modo claro" : "Modo escuro"}
+            className="topnav-btn"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 34, height: 34, borderRadius: 8,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              cursor: "pointer",
+              color: "rgba(255,255,255,0.65)",
+              transition: "background .2s, color .2s",
+            }}
+          >
+            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+
           {/* Connection status */}
           <ConnectionBadge />
 
@@ -476,7 +497,7 @@ export function TopNav({
             {userMenuOpen && (
               <div style={{
                 position: "absolute", top: "calc(100% + 8px)", right: 0,
-                background: "#0a3620",
+                background: "hsl(var(--sidebar-background))",
                 border: "1px solid rgba(255,255,255,0.08)",
                 borderRadius: 10, padding: 6,
                 boxShadow: "0 16px 40px rgba(6,24,16,0.5)",
@@ -529,7 +550,7 @@ export function TopNav({
         <nav
           className="topnav-mobile-drawer"
           style={{
-            background: "#071e12",
+            background: "hsl(var(--sidebar-background))",
             borderTop: "1px solid rgba(255,255,255,0.06)",
             maxHeight: "calc(100dvh - 64px)",
             overflowY: "auto",

@@ -8,8 +8,8 @@ import {
 
 const E_LAUNCH: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const E_SETTLE: [number, number, number, number] = [0.43, 0.13, 0.23, 0.96];
-const VERDE = "#216C3B";
-const VERDE_DARK = "#1a3d22";
+const VERDE = "hsl(var(--primary))";
+const VERDE_DARK = "hsl(var(--sidebar-background))";
 
 const ALZ_W = 72,  ALZ_H = 286;
 const BAT_W = 118, BAT_H = 328;
@@ -221,7 +221,12 @@ export function DoorKitAnimation() {
   }
 
   useEffect(() => {
-    if (!isInView && asmRef.current) { runningRef.current = false; resetAll(); }
+    if (!isInView && asmRef.current) {
+      runningRef.current = false;
+      resetAll();
+    } else if (isInView && !asmRef.current && !runningRef.current) {
+      void assemble();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInView]);
 
@@ -244,8 +249,8 @@ export function DoorKitAnimation() {
       className="relative w-full select-none overflow-hidden"
       style={{
         height: 480,
-        background: "linear-gradient(160deg, #f4f7f4 0%, #ecf1ed 100%)",
-        borderTop: "1px solid rgba(33,108,59,0.07)",
+        background: "linear-gradient(160deg, #eaf2ed 0%, #dceae0 60%, #cfe4d5 100%)",
+        borderTop: "1px solid rgba(33,108,59,0.12)",
         cursor: assembled ? "crosshair" : "default",
       }}
       onMouseMove={handleMouseMove}

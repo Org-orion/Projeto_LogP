@@ -13,12 +13,12 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 
-const VERDE   = "#1f4d34";
-const VERDE_2 = "#0f3a22";
-const LINE    = "#e4e7e4";
-const INK     = "#0f1a14";
-const INK_S   = "#3a4a42";
-const MUTED   = "#6b7a72";
+const VERDE   = "hsl(var(--primary))";
+const VERDE_2 = "hsl(var(--primary))";
+const LINE    = "hsl(var(--border))";
+const INK     = "hsl(var(--foreground))";
+const INK_S   = "hsl(var(--muted-foreground))";
+const MUTED   = "hsl(var(--muted-foreground))";
 
 function formatDate() {
   return new Date()
@@ -64,7 +64,7 @@ function Skel({ w, h = 12 }: { w: number; h?: number }) {
   return (
     <div
       className="animate-pulse rounded"
-      style={{ width: w, height: h, background: "#e4e7e4" }}
+      style={{ width: w, height: h, background: "hsl(var(--muted))" }}
     />
   );
 }
@@ -81,7 +81,7 @@ function InsightCard({
 }) {
   return (
     <div style={{
-      background: "#fff", border: `1px solid ${LINE}`,
+      background: "hsl(var(--card))", border: `1px solid ${LINE}`,
       borderRadius: 10, padding: "16px 18px",
       display: "flex", flexDirection: "column", gap: 6,
     }}>
@@ -303,7 +303,7 @@ export default function HomePage({ userName = "" }: { userName?: string }) {
                     <div style={{ height: 4, background: LINE, borderRadius: 99, overflow: "hidden" }}>
                       <div style={{
                         height: "100%", width: `${pct}%`,
-                        background: "linear-gradient(90deg, #1f4d34, #3da06a)",
+                        background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--sidebar-accent)))",
                         borderRadius: 99, transition: "width .4s",
                       }} />
                     </div>

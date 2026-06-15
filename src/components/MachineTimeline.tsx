@@ -39,12 +39,11 @@ const BLOCK_COLORS = [
 const ROW_H   = 44;
 const BLOCK_H = 22;
 
-// Light theme tokens
-const LINE  = "#eaeceb";
-const MUTED = "#6b7a72";
-const TICK  = "#9ca3af";
-const TRACK = "#e4e7e4";
-const TITLE = "#1a5c35";
+const LINE  = "hsl(var(--border))";
+const MUTED = "hsl(var(--muted-foreground))";
+const TICK  = "hsl(var(--muted-foreground))";
+const TRACK = "hsl(var(--muted))";
+const TITLE = "hsl(var(--primary))";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -299,7 +298,7 @@ export function MachineTimeline() {
   for (let m = Math.ceil(rangeStart / 60) * 60; m <= rangeEnd; m += 60) ticks.push(m);
 
   return (
-    <div style={{ background: "#fff", position: "relative", overflow: "visible", fontFamily: "inherit" }}>
+    <div style={{ background: "hsl(var(--card))", position: "relative", overflow: "visible", fontFamily: "inherit" }}>
 
       {/* Dot grid sutil */}
       <div aria-hidden style={{
@@ -313,7 +312,7 @@ export function MachineTimeline() {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "16px 24px 12px",
         borderBottom: `1px solid ${LINE}`,
-        background: "linear-gradient(180deg, #f8faf8 0%, #fff 100%)",
+        background: "hsl(var(--card))",
         position: "relative",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

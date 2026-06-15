@@ -17,7 +17,7 @@ import {
 
 const COR_NC    = "#dc2626";
 const COR_BARRA = "#b91c1c";
-const COR_VERDE = "#216C3B";
+const COR_VERDE = "hsl(var(--primary))";
 
 const MESES_NOMES = [
   "janeiro","fevereiro","março","abril","maio","junho",

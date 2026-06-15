@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-const VERDE = "#1f4d34";
-const MUTED = "#6b7a72";
-const LINE  = "#e4e7e4";
+const VERDE = "hsl(var(--primary))";
+const MUTED = "hsl(var(--muted-foreground))";
+const LINE  = "hsl(var(--border))";
 
 interface FeedRow {
   id: number | string;
@@ -137,14 +137,14 @@ export function LiveFeed() {
   }, []);
 
   return (
-    <div style={{ background: "#fff" }}>
+    <div style={{ background: "hsl(var(--card))" }}>
 
       {/* ── Header ── */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "13px 20px",
         borderBottom: `1px solid ${LINE}`,
-        background: "linear-gradient(180deg, #f8faf8 0%, #fff 100%)",
+        background: "hsl(var(--card))",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -176,11 +176,11 @@ export function LiveFeed() {
           display: "grid", gridTemplateColumns: "52px 1fr 1fr 64px 56px",
           gap: "0 16px", padding: "7px 20px",
           borderBottom: `1px solid ${LINE}`,
-          background: "#fafbfa",
+          background: "hsl(var(--muted))",
         }}>
           {["Hora", "Máquina", "Produto", "Qtde", "Conf."].map((h, i) => (
             <span key={h} style={{
-              fontSize: 9.5, fontWeight: 700, color: "#9ca3af",
+              fontSize: 9.5, fontWeight: 700, color: "hsl(var(--muted-foreground))",
               letterSpacing: "0.1em", textTransform: "uppercase",
               textAlign: i >= 3 ? "right" : "left",
             }}>

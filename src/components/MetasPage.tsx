@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Loader2, Users, Target, Factory, RefreshCw, UserCheck, Search, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Users, Target, Factory, RefreshCw, UserCheck, Search, X, FileDown } from "lucide-react";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -18,7 +18,7 @@ import { format, startOfMonth, addMonths, subMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
-const COR_VERDE = "#216C3B";
+const COR_VERDE = "hsl(var(--primary))";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -648,6 +648,84 @@ export default function MetasPage() {
   const totalSetoresMeta  = indicadores.length;
   const somaMetas         = indicadores.reduce((s, i) => s + (i.meta_producao ?? 0), 0);
 
+  // ─── PDF ──────────────────────────────────────────────────────────────────
+
+  function gerarPDF() {
+    const mesFormatado = fmtMes(indMes);
+    const logoUrl = window.location.origin + "/leaf-concrem.png";
+    const linhas = indicadores.map(ind => {
+      const realPct = ind.meta_producao && ind.producao_atual
+        ? ind.producao_atual / ind.meta_producao * 100 : null;
+      const cor = realPct === null ? "#6b7280"
+        : realPct >= 100 ? "#16a34a"
+        : realPct >= 80  ? "#d97706"
+        : "#dc2626";
+      const pctStr = realPct === null ? "—" : realPct.toFixed(1) + "%";
+      const enc = ind.nome_encarregado
+        ? `${ind.nome_encarregado} (${ind.matricula_encarregado})`  : "—";
+      const sup = ind.nome_supervisor
+        ? `${ind.nome_supervisor} (${ind.matricula_supervisor})` : "—";
+      const metaFmt = ind.meta_producao?.toLocaleString("pt-BR") ?? "—";
+      const prodFmt = ind.producao_atual?.toLocaleString("pt-BR") ?? "—";
+      return `<tr>
+        <td>${ind.setor}</td>
+        <td>${enc}</td>
+        <td>${sup}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums">${metaFmt}</td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums">${prodFmt}</td>
+        <td style="text-align:right;color:${cor};font-weight:700">${pctStr}</td>
+      </tr>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Metas de Produção — ${mesFormatado}</title>
+<style>
+  @page { size: A4 landscape; margin: 1.5cm; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; color: #111; font-size: 10px; }
+  .header { display:flex; align-items:center; gap:16px; margin-bottom:18px;
+            padding-bottom:12px; border-bottom:2px solid #216C3B; }
+  .header img { height:38px; }
+  .header h1 { font-size:16px; color:#216C3B; font-weight:700; }
+  .header p  { font-size:11px; color:#555; margin-top:2px; }
+  .kpis { display:flex; gap:18px; margin-bottom:16px; }
+  .kpi { padding:8px 14px; border:1px solid #d1d5db; border-radius:6px; }
+  .kpi-label { font-size:9px; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; }
+  .kpi-value { font-size:15px; font-weight:700; color:#216C3B; }
+  table { width:100%; border-collapse:collapse; }
+  th { background:#216C3B; color:#fff; padding:7px 8px; text-align:left;
+       font-size:9px; text-transform:uppercase; letter-spacing:.05em; }
+  th:nth-child(n+4), td:nth-child(n+4) { text-align:right; }
+  td { padding:6px 8px; border-bottom:1px solid #e5e7eb; font-size:9.5px; }
+  tr:nth-child(even) td { background:#f9fafb; }
+  .footer { margin-top:14px; font-size:9px; color:#9ca3af; text-align:right; }
+</style></head><body>
+<div class="header">
+  <img src="${logoUrl}" alt="Concrem" />
+  <div><h1>Metas de Produção</h1>
+    <p>Período: ${mesFormatado} &nbsp;·&nbsp; ${indicadores.length} setor(es)</p></div>
+</div>
+<div class="kpis">
+  <div class="kpi"><div class="kpi-label">Soma das Metas</div>
+    <div class="kpi-value">${somaMetas.toLocaleString("pt-BR")}</div></div>
+  <div class="kpi"><div class="kpi-label">Setores ≥ 100%</div>
+    <div class="kpi-value">${indicadores.filter(i => i.meta_producao && i.producao_atual && i.producao_atual / i.meta_producao >= 1).length}</div></div>
+</div>
+<table>
+  <thead><tr><th>Setor</th><th>Encarregado</th><th>Supervisor</th>
+    <th>Meta</th><th>Produção Atual</th><th>% Real</th></tr></thead>
+  <tbody>${linhas}</tbody>
+</table>
+<div class="footer">Gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</div>
+</body></html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) { alert("Permita pop-ups para gerar o PDF."); return; }
+    win.document.write(html);
+    win.document.close();
+    win.onload = () => { win.focus(); win.print(); };
+  }
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -897,6 +975,10 @@ export default function MetasPage() {
                   onClick={() => sincronizarProducao(indicadores)}>
                   <RefreshCw className={cn("h-4 w-4", sincronizando && "animate-spin")} />
                   {sincronizando ? "Sincronizando..." : "Sincronizar"}
+                </Button>
+                <Button size="sm" variant="outline" className="gap-1.5"
+                  onClick={gerarPDF} disabled={indicadores.length === 0}>
+                  <FileDown className="h-4 w-4" /> Baixar PDF
                 </Button>
                 <Button size="sm" onClick={openBulkAdd} className="gap-1.5">
                   <Plus className="h-4 w-4" /> Nova Meta
