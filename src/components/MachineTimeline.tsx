@@ -384,7 +384,7 @@ export function MachineTimeline() {
                 {/* Machine label */}
                 <div style={{
                   width: 148, flexShrink: 0, paddingRight: 16,
-                  fontSize: 11, fontWeight: 500, color: "#374151",
+                  fontSize: 11, fontWeight: 500, color: "hsl(var(--foreground))",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}>
                   {row.maquina}
