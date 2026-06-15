@@ -125,8 +125,8 @@ export function NotificationPanel({ onNavigateNC, onNavigateNF }: NotificationPa
         <div style={{
           position: "absolute", top: "calc(100% + 10px)", right: 0,
           width: 350, maxHeight: 520,
-          background: "#fff",
-          border: "1px solid #e5e7eb",
+          background: "hsl(var(--card))",
+          border: "1px solid hsl(var(--border))",
           borderRadius: 12,
           boxShadow: "0 16px 48px rgba(0,0,0,0.14)",
           zIndex: 90,
@@ -137,11 +137,11 @@ export function NotificationPanel({ onNavigateNC, onNavigateNF }: NotificationPa
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "14px 16px 12px",
-            borderBottom: "1px solid #f3f4f6",
+            borderBottom: "1px solid hsl(var(--border))",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Bell size={14} style={{ color: "#374151" }} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Notificações</span>
+              <Bell size={14} style={{ color: "hsl(var(--foreground))" }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--foreground))" }}>Notificações</span>
               {unreadCount > 0 && (
                 <span style={{
                   fontSize: 10, fontWeight: 600,
@@ -250,13 +250,13 @@ function AlertItem({
         display: "flex", alignItems: "center", gap: 12,
         padding: "11px 16px",
         borderBottom: "1px solid #f9fafb",
-        background: hover ? "#f3f4f6" : lida ? "#fff" : bgUnread,
+        background: hover ? "hsl(var(--muted))" : lida ? "hsl(var(--card))" : bgUnread,
         border: "none", cursor: "pointer", transition: "background .15s",
       }}
     >
       <div style={{
         width: 34, height: 34, borderRadius: 8, flexShrink: 0,
-        background: lida ? "#f3f4f6" : iconBgUnread,
+        background: lida ? "hsl(var(--muted))" : iconBgUnread,
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
         {icon}
@@ -264,7 +264,7 @@ function AlertItem({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: 12, fontWeight: lida ? 400 : 600,
-          color: lida ? "#6b7280" : "#111",
+          color: lida ? "hsl(var(--muted-foreground))" : "hsl(var(--foreground))",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         }}>
           {title}

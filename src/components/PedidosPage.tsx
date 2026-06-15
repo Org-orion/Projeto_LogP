@@ -664,7 +664,7 @@ export default function PedidosPage() {
               style={{
                 display: "flex", alignItems: "center", gap: 4,
                 padding: "5px 10px", borderRadius: 6, fontSize: 12,
-                border: "1px solid #d1d5db", background: "#fff", cursor: pagina === 0 ? "not-allowed" : "pointer",
+                border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", cursor: pagina === 0 ? "not-allowed" : "pointer",
                 opacity: pagina === 0 ? 0.4 : 1,
               }}
             >
@@ -679,7 +679,7 @@ export default function PedidosPage() {
               style={{
                 display: "flex", alignItems: "center", gap: 4,
                 padding: "5px 10px", borderRadius: 6, fontSize: 12,
-                border: "1px solid #d1d5db", background: "#fff", cursor: pagina >= totalPaginas - 1 ? "not-allowed" : "pointer",
+                border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", cursor: pagina >= totalPaginas - 1 ? "not-allowed" : "pointer",
                 opacity: pagina >= totalPaginas - 1 ? 0.4 : 1,
               }}
             >

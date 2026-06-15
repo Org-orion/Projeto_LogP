@@ -301,7 +301,7 @@ function SetorCard({
 
   return (
     <div style={{
-      background: "#fff", borderRadius: 10,
+      background: "hsl(var(--card))", borderRadius: 10,
       border: "1px solid #e5e7eb",
       borderLeft: `4px solid ${setor.cor}`,
       overflow: "hidden",
@@ -478,9 +478,9 @@ function SetorCard({
                     onKeyDown={e => { if (e.key === "Enter") submitNewDoc(); if (e.key === "Escape") cancelAdd(); }}
                     placeholder="Nome do documento…"
                     style={{
-                      flex: 1, border: "1px solid #d1d5db", borderRadius: 6,
-                      padding: "5px 10px", fontSize: 12.5, color: "#0f1a14",
-                      background: "#fff", outline: "none", fontFamily: "inherit",
+                      flex: 1, border: "1px solid hsl(var(--border))", borderRadius: 6,
+                      padding: "5px 10px", fontSize: 12.5, color: "hsl(var(--foreground))",
+                      background: "hsl(var(--background))", outline: "none", fontFamily: "inherit",
                     }}
                   />
                   <button
@@ -630,7 +630,7 @@ function AuditoriaDetail({
       {/* Search */}
       <div style={{
         display: "flex", alignItems: "center", gap: 10,
-        background: "#fff", border: `1px solid ${LINE}`,
+        background: "hsl(var(--card))", border: `1px solid ${LINE}`,
         borderRadius: 8, padding: "9px 14px", marginBottom: 14,
       }}>
         <Search size={14} style={{ color: "#9ca3af", flexShrink: 0 }} />
@@ -841,7 +841,7 @@ function AuditoriaRow({ auditoria, usuarios, isAdmin }: { auditoria: AuditoriaDB
   return (
     <div style={{
       border: `1px solid ${open ? "rgba(31,77,52,0.3)" : LINE}`,
-      borderRadius: 12, background: "#fff", overflow: "hidden",
+      borderRadius: 12, background: "hsl(var(--card))", overflow: "hidden",
       transition: "border-color .2s",
       boxShadow: open ? "0 4px 20px rgba(31,77,52,0.08)" : "none",
     }}>

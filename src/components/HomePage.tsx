@@ -113,7 +113,7 @@ function InsightCard({
 
 function KpiCard({ label, value, loading }: { label: string; value: number | null; loading: boolean }) {
   return (
-    <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 10, padding: "18px 20px" }}>
+    <div style={{ background: "hsl(var(--card))", border: `1px solid ${LINE}`, borderRadius: 10, padding: "18px 20px" }}>
       <div style={{ fontSize: 10, color: MUTED, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>
         {label}
       </div>
@@ -217,7 +217,7 @@ export default function HomePage({ userName = "" }: { userName?: string }) {
       <div className="home-bottom" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
 
         {/* ── Gráficos de produção ── */}
-        <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 10, padding: "20px 22px", display: "flex", flexDirection: "column", gap: 28 }}>
+        <div style={{ background: "hsl(var(--card))", border: `1px solid ${LINE}`, borderRadius: 10, padding: "20px 22px", display: "flex", flexDirection: "column", gap: 28 }}>
 
           {/* Comparativo Prensa Fria × Montagem do Kit */}
           <ChartAreaComparativa />
@@ -270,7 +270,7 @@ export default function HomePage({ userName = "" }: { userName?: string }) {
         </div>
 
         {/* ── Produção diária por máquina ── */}
-        <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 10, padding: "20px 22px" }}>
+        <div style={{ background: "hsl(var(--card))", border: `1px solid ${LINE}`, borderRadius: 10, padding: "20px 22px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
             <Factory size={15} style={{ color: VERDE, flexShrink: 0 }} />
             <h3 style={{ fontSize: 15, fontWeight: 600, color: VERDE_2, margin: 0, letterSpacing: "-0.01em" }}>
