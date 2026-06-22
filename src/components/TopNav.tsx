@@ -13,6 +13,7 @@ import { NotificationPanel } from "./NotificationPanel";
 const PRODUCAO_SUBS = [
   { id: "machines",        name: "Produção" },
   { id: "rastreabilidade", name: "Rastreabilidade" },
+  { id: "consumo",         name: "Uso e Consumo" },
   { id: "pedidos",         name: "Pedidos" },
   { id: "metas",           name: "Metas" },
 ];

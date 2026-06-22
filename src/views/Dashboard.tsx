@@ -17,6 +17,7 @@ const ConfiguracoesPage     = lazy(() => import("@/components/ConfiguracoesPage"
 const RelatoriosPage        = lazy(() => import("@/components/PlaceholderPages").then(m => ({ default: m.RelatoriosPage })));
 const RegistrosPage         = lazy(() => import("@/components/PlaceholderPages").then(m => ({ default: m.RegistrosPage })));
 const AjudaPage             = lazy(() => import("@/components/PlaceholderPages").then(m => ({ default: m.AjudaPage })));
+const UsoeConsumoPage       = lazy(() => import("@/components/UsoeConsumoPage"));
 
 function PageLoader() {
   return (
@@ -25,7 +26,7 @@ function PageLoader() {
 }
 
 const ALL_SECTIONS = [
-  "home", "machines", "rastreabilidade", "pedidos", "metas", "qualidade",
+  "home", "machines", "rastreabilidade", "consumo", "pedidos", "metas", "qualidade",
   "material-fsc", "auditorias", "relatorios", "registros", "usuarios",
   "configuracoes", "ajuda",
 ];
@@ -79,6 +80,7 @@ const Dashboard = ({ user, onLogout }: DashboardProps) => {
       case "machines":      return <MaquinasPage user={user} />;
       case "rastreabilidade": return <RastreabilidadePage />;
       case "pedidos":         return <PedidosPage />;
+      case "consumo":         return <UsoeConsumoPage />;
       case "metas":           return <MetasPage />;
       case "qualidade":     return <QualidadePage subSection={qualidadeSubSection} />;
       case "material-fsc":  return <MaterialCertificadoPage />;

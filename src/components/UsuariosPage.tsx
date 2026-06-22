@@ -23,21 +23,44 @@ import { toast } from "sonner";
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
-const ALL_PAGES = [
-  { id: "home",            label: "Home" },
-  { id: "machines",        label: "Máquinas" },
-  { id: "rastreabilidade", label: "Rastreabilidade" },
-  { id: "pedidos",         label: "Pedidos" },
-  { id: "metas",           label: "Metas de Produção" },
-  { id: "qualidade",       label: "Controle de Qualidade" },
-  { id: "material-fsc",    label: "Material Certificado (FSC)" },
-  { id: "auditorias",      label: "Auditorias" },
-  { id: "relatorios",      label: "Relatórios" },
-  { id: "registros",       label: "Registros" },
-  { id: "usuarios",        label: "Usuários" },
-  { id: "configuracoes",   label: "Configurações" },
-  { id: "ajuda",           label: "Ajuda" },
+const PAGE_GROUPS = [
+  {
+    grupo: "Produção",
+    pages: [
+      { id: "home",            label: "Home" },
+      { id: "rastreabilidade", label: "Rastreabilidade" },
+      { id: "consumo",         label: "Uso e Consumo" },
+      { id: "metas",           label: "Metas de Produção" },
+      { id: "registros",       label: "Registros" },
+      { id: "machines",        label: "Máquinas" },
+    ],
+  },
+  {
+    grupo: "Qualidade",
+    pages: [
+      { id: "qualidade",    label: "Controle de Qualidade" },
+      { id: "auditorias",   label: "Auditorias" },
+      { id: "material-fsc", label: "Material Certificado (FSC)" },
+    ],
+  },
+  {
+    grupo: "Comercial",
+    pages: [
+      { id: "pedidos",    label: "Pedidos" },
+      { id: "relatorios", label: "Relatórios" },
+    ],
+  },
+  {
+    grupo: "Sistema",
+    pages: [
+      { id: "usuarios",      label: "Usuários" },
+      { id: "configuracoes", label: "Configurações" },
+      { id: "ajuda",         label: "Ajuda" },
+    ],
+  },
 ];
+
+const ALL_PAGES = PAGE_GROUPS.flatMap(g => g.pages);
 
 interface Usuario {
   id: number;
@@ -262,28 +285,39 @@ function UsuariosWebTab({ isAdmin }: { isAdmin: boolean }) {
                   <span className="ml-2 text-xs text-muted-foreground">(Administrador acessa tudo)</span>
                 )}
               </Label>
-              <div className="grid grid-cols-2 gap-2">
-                {ALL_PAGES.map((page) => {
+              <div className="space-y-3">
+                {PAGE_GROUPS.map(group => {
                   const perfisAdmin = form.perfil === "Administrador";
-                  const checked = perfisAdmin || form.paginas.includes(page.id);
                   return (
-                    <div key={page.id} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`page-${page.id}`}
-                        checked={checked}
-                        disabled={perfisAdmin}
-                        onCheckedChange={(c) => {
-                          setForm((prev) => ({
-                            ...prev,
-                            paginas: c
-                              ? [...prev.paginas, page.id]
-                              : prev.paginas.filter((p) => p !== page.id),
-                          }));
-                        }}
-                      />
-                      <label htmlFor={`page-${page.id}`} className="text-sm cursor-pointer select-none">
-                        {page.label}
-                      </label>
+                    <div key={group.grupo}>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                        {group.grupo}
+                      </p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {group.pages.map(page => {
+                          const checked = perfisAdmin || form.paginas.includes(page.id);
+                          return (
+                            <div key={page.id} className="flex items-center gap-2">
+                              <Checkbox
+                                id={`page-${page.id}`}
+                                checked={checked}
+                                disabled={perfisAdmin}
+                                onCheckedChange={(c) => {
+                                  setForm(prev => ({
+                                    ...prev,
+                                    paginas: c
+                                      ? [...prev.paginas, page.id]
+                                      : prev.paginas.filter(p => p !== page.id),
+                                  }));
+                                }}
+                              />
+                              <label htmlFor={`page-${page.id}`} className="text-sm cursor-pointer select-none">
+                                {page.label}
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })}

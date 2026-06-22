@@ -35,6 +35,7 @@ const MENU_ITEMS = [
 const PRODUCAO_SUBS = [
   { id: "machines",        name: "Máquinas" },
   { id: "rastreabilidade", name: "Rastreabilidade" },
+  { id: "consumo",         name: "Uso e Consumo" },
 ];
 
 // Sub-itens de Controle de Qualidade
