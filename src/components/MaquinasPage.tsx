@@ -259,7 +259,7 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
     c("observacao","Observação"),
     c("destopadeira_sarrafo_aq015","DESTOP. SARRAFO (AQ015)"), c("seccionadora_aq009","SECC. (AQ009)"),
   ],
-  "recobrimento de tampo": [
+  "recobridora de tampo": [
     c("data","Data",{date:true}), c("registro","Registro"), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
     c("n_lote","N° Lote"), c("fornecedor","Fornecedor"),
     c("recobrimento_aq019","RECOB. TAMPO (AQ019)"), c("lote_fornecedor","Lote Fornecedor"),
