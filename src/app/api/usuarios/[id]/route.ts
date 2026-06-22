@@ -18,9 +18,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const denied = await requireAdmin();
   if (denied) return denied;
 
-  const { id: rawId } = await params;
-  const id = Number(rawId);
-  if (!id) return NextResponse.json({ error: "ID inválido." }, { status: 400 });
+  const { id } = await params;
+  if (!id || id === "undefined" || id === "null" || id === "NaN") {
+    return NextResponse.json({ error: `ID inválido: '${id}'` }, { status: 400 });
+  }
 
   const body = await req.json().catch(() => null);
   const { nome, email, senha, perfil, paginas } = body ?? {};
@@ -53,9 +54,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const denied = await requireAdmin();
   if (denied) return denied;
 
-  const { id: rawId } = await params;
-  const id = Number(rawId);
-  if (!id) return NextResponse.json({ error: "ID inválido." }, { status: 400 });
+  const { id } = await params;
+  if (!id || id === "undefined" || id === "null" || id === "NaN") {
+    return NextResponse.json({ error: `ID inválido: '${id}'` }, { status: 400 });
+  }
 
   const { error } = await supabaseAdmin.from("usuarios").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

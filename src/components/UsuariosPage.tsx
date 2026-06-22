@@ -63,7 +63,7 @@ const PAGE_GROUPS = [
 const ALL_PAGES = PAGE_GROUPS.flatMap(g => g.pages);
 
 interface Usuario {
-  id: number;
+  id: string | number;
   nome: string;
   email: string;
   perfil?: string;
@@ -108,8 +108,8 @@ function UsuariosWebTab({ isAdmin }: { isAdmin: boolean }) {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteId, setDeleteId] = useState<string | number | null>(null);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(EMPTY_USUARIO);
 
