@@ -142,7 +142,7 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
   "seccionadora 1": [
     // Material Recebido
     c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
-    c("tipo_chapa","Tipo de Chapa"), c("tipo_material","Material de Entrada"),
+    c("tipo_material","Material de Entrada"),
     c("qtd_chapas","Qtd. Chapas",{numeric:true}),
     // Material Produzido
     c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
@@ -165,7 +165,7 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
   "seccionadora": [
     // Material Recebido
     c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
-    c("tipo_chapa","Tipo de Chapa"), c("tipo_material","Material de Entrada"),
+    c("tipo_material","Material de Entrada"),
     c("qtd_chapas","Qtd. Chapas",{numeric:true}),
     // Material Produzido 1
     c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
