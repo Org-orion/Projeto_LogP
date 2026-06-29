@@ -61,6 +61,7 @@ interface ColunaDef {
   label: string;
   numeric?: boolean;
   date?: boolean;
+  wide?: boolean;
 }
 
 const c = (key: string, label: string, opts: Partial<Omit<ColunaDef,"key"|"label">> = {}): ColunaDef => ({ key, label, ...opts });
@@ -142,7 +143,7 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
   "seccionadora 1": [
     // Material Recebido
     c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
-    c("tipo_material","Material de Entrada"),
+    c("tipo_material","Material de Entrada",{wide:true}),
     c("qtd_chapas","Qtd. Chapas",{numeric:true}),
     // Material Produzido
     c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
@@ -165,7 +166,7 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
   "seccionadora": [
     // Material Recebido
     c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
-    c("tipo_material","Material de Entrada"),
+    c("tipo_material","Material de Entrada",{wide:true}),
     c("qtd_chapas","Qtd. Chapas",{numeric:true}),
     // Material Produzido 1
     c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
@@ -991,7 +992,7 @@ function HistoricoSheet({ maquina, open, onClose, canEdit }: {
                     <thead>
                       <tr className="border-b bg-muted/50">
                         {colunas.map((col) => (
-                          <th key={col.key} className={`px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap${col.numeric ? " text-right" : " text-left"}`}>
+                          <th key={col.key} style={col.wide ? {minWidth: 280} : undefined} className={`px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap${col.numeric ? " text-right" : " text-left"}`}>
                             {col.label}
                           </th>
                         ))}
