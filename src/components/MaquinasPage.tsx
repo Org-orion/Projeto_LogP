@@ -825,7 +825,7 @@ function HistoricoSheet({ maquina, open, onClose, canEdit }: {
   return (
     <>
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-5xl w-full h-[85vh] flex flex-col gap-0 p-0 overflow-hidden mt-[72px]">
+      <DialogContent className="max-w-[90vw] w-full h-[85vh] flex flex-col gap-0 p-0 overflow-hidden mt-[72px]">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             Produção — {(maquina?.nome as string) ?? ""}
@@ -1003,7 +1003,7 @@ function HistoricoSheet({ maquina, open, onClose, canEdit }: {
                       {registros.map((r, i) => (
                         <tr key={r.id} className={`border-b hover:bg-muted/30 transition-colors${i % 2 === 0 ? "" : " bg-muted/10"}`}>
                           {colunas.map((col) => (
-                            <td key={col.key} className={`px-3 py-2 text-xs whitespace-nowrap${col.numeric ? " text-right tabular-nums" : ""}`}>
+                            <td key={col.key} style={col.wide ? {minWidth: 280} : undefined} className={`px-3 py-2 text-xs whitespace-nowrap${col.numeric ? " text-right tabular-nums" : ""}`}>
                               {fmtCelula((r as Record<string,unknown>)[col.key], col)}
                             </td>
                           ))}
