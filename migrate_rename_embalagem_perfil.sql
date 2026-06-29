@@ -1,0 +1,3 @@
+UPDATE maquinas
+SET nome = 'EMBALAGEM DE PERFIL'
+WHERE codigo = 'EMBALAGEM_PERFIL';

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(vercel env ls *)",
+      "Bash(flutter analyze *)",
+      "Bash(Get-ChildItem *)"
+    ]
+  }
+}

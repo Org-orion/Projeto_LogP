@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Cog, Loader2, AlertCircle, RefreshCw, Plus, History, Pencil, FileText, Search, FileSpreadsheet, ChevronDown, ChevronRight } from "lucide-react";
 import { SpinnerCustom } from "@/components/ui/spinner";
+import EmbalagemPerfilForm from "@/components/EmbalagemPerfilForm";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -123,6 +124,7 @@ const KW_GUARNICAO_DASH = [
   "moldureira de aliza",
   "moldureira de batente",
   "recobridora de perfil",
+  "embalagem de perfil",
   "unesa",
   "gaidzinski",
 ];
@@ -430,6 +432,18 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
     c("tipo_defeito_4","Defeito 4"), c("qtd_nao_conforme_4","Qtd. NC 4",{numeric:true}),
     c("observacao","Observação"), c("embalagem_portas_aq024","EMBALAGEM PORTAS (AQ024)"), c("colagem_borda_aq020","COL. BORDA (AQ020)"),
   ],
+  "embalagem de perfil": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("produto","Produto"), c("modelo_batente","Modelo do Batente"), c("unidade","Unid."),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"), c("padrao","Padrão"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("dim_cabeceira_alizar_cm","Dim. Cab. Alizar (cm)",{numeric:true}),
+    c("largura_rebaixo_bat_mm","Larg. Rebaixo Bat. (mm)",{numeric:true}),
+    c("prof_rebaixo_bat_mm","Prof. Rebaixo Bat. (mm)",{numeric:true}),
+    c("qualidade_visual_final","Qual. Visual Final"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Tipo de Defeito"), c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}),
+  ],
   "linha de pintura de portas": [
     c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
     c("cliente","Cliente"), c("linha_pintura_portas_aq018","L. PINTURA PORTAS (AQ018)"),
@@ -545,7 +559,7 @@ function HistoricoSheet({ maquina, open, onClose, canEdit }: {
       let query = supabase
         .from("registros_producao")
         .select("*")
-        .ilike("maquina", `%${nomeMaquina}%`)
+        .eq("maquina", nomeMaquina)
         .order("data", { ascending: false })
         .order("hora_inicial", { ascending: true, nullsFirst: false })
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
@@ -1068,6 +1082,7 @@ function MaquinaCard({
   totalMes,
   onClick,
   onEdit,
+  onLancar,
   canEdit,
 }: {
   maquina: Maquina;
@@ -1075,6 +1090,7 @@ function MaquinaCard({
   totalMes: number;
   onClick: () => void;
   onEdit: (m: Maquina) => void;
+  onLancar?: () => void;
   canEdit: boolean;
 }) {
   const nome = (maquina.nome as string) || `Máquina ${maquina.id}`;
@@ -1162,6 +1178,18 @@ function MaquinaCard({
           <History className="h-3 w-3" />
           Ver histórico completo
         </div>
+
+        {onLancar && (
+          <Button
+            size="sm"
+            variant="default"
+            className="w-full text-xs mt-1"
+            onClick={(e) => { e.stopPropagation(); onLancar(); }}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Lançar Produção
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
@@ -1184,6 +1212,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editMaquina, setEditMaquina] = useState<Maquina | null>(null);
   const [editNome, setEditNome] = useState("");
+  const [lancamentoOpen, setLancamentoOpen] = useState(false);
   const [busca, setBusca] = useState("");
 
   // ── Dashboard states ──
@@ -2166,6 +2195,13 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
         canEdit={canEdit}
       />
 
+      {/* Form: Lançamento manual — Embalagem de Perfil */}
+      <EmbalagemPerfilForm
+        open={lancamentoOpen}
+        onClose={() => setLancamentoOpen(false)}
+        onSaved={() => fetchDados(setSyncing)}
+      />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {maquinas.filter((m) => norm(m.nome ?? "").includes(norm(busca))).map((m) => {
           const chave = norm(m.nome ?? "");
@@ -2176,6 +2212,8 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
           }));
           const totalMes = producaoPorSemana.reduce((acc, s) => acc + s.producao, 0);
 
+          const isEmbalagemPerfil = norm(m.nome ?? "") === norm("EMBALAGEM DE PERFIL");
+
           return (
             <MaquinaCard
               key={m.id}
@@ -2184,6 +2222,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
               totalMes={totalMes}
               onClick={() => setMaquinaSelecionada(m)}
               onEdit={abrirEdicao}
+              onLancar={isEmbalagemPerfil ? () => setLancamentoOpen(true) : undefined}
               canEdit={canEdit}
             />
           );

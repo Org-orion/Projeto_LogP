@@ -1,3 +1,4 @@
+
 -- ============================================================
 -- MATERIAL CERTIFICADO FSC — Supabase Setup
 -- Execute este script no SQL Editor do Supabase

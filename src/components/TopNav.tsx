@@ -16,6 +16,7 @@ const PRODUCAO_SUBS = [
   { id: "consumo",         name: "Uso e Consumo" },
   { id: "pedidos",         name: "Pedidos" },
   { id: "metas",           name: "Metas" },
+  { id: "leituras",        name: "Monitoramento" },
 ];
 
 const QUALIDADE_SUBS = [
