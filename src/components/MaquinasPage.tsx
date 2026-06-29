@@ -1174,22 +1174,23 @@ function MaquinaCard({
           </div>
         )}
 
-        <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground/60 mt-auto pt-1">
-          <History className="h-3 w-3" />
-          Ver histórico completo
+        <div className="flex flex-col gap-2 mt-auto pt-1">
+          {onLancar && (
+            <Button
+              size="sm"
+              variant="default"
+              className="w-full text-xs"
+              onClick={(e) => { e.stopPropagation(); onLancar(); }}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Lançar Produção
+            </Button>
+          )}
+          <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground/60">
+            <History className="h-3 w-3" />
+            Ver histórico completo
+          </div>
         </div>
-
-        {onLancar && (
-          <Button
-            size="sm"
-            variant="default"
-            className="w-full text-xs mt-1"
-            onClick={(e) => { e.stopPropagation(); onLancar(); }}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Lançar Produção
-          </Button>
-        )}
       </CardContent>
     </Card>
   );
