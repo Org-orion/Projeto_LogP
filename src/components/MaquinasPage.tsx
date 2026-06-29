@@ -142,13 +142,13 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
   "seccionadora 1": [
     // Material Recebido
     c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
-    c("tipo_chapa","Tipo de Chapa"), c("tipo_material","Tipo Material"),
+    c("tipo_chapa","Tipo de Chapa"), c("tipo_material","Material de Entrada"),
     c("qtd_chapas","Qtd. Chapas",{numeric:true}),
     c("esp_recebido_mm","Esp. Recebida (mm)",{numeric:true}), c("larg_recebido_cm","Larg. Recebida (cm)",{numeric:true}), c("comp_recebido_cm","Comp. Recebido (cm)",{numeric:true}),
     // Material Produzido
     c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
     c("material_certificado_fsc","Mat. Certif. (FSC)"), c("qualidade","Qualidade"),
-    c("produto","Produto"),
+    c("produto","Produto Fabricado"),
     c("espessura_mm","Esp. Produzida (mm)",{numeric:true}), c("largura_cm","Larg. Produzida (cm)",{numeric:true}), c("comprimento_cm","Comp. Produzido (cm)",{numeric:true}),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
     // Sobra
@@ -166,13 +166,13 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
   "seccionadora": [
     // Material Recebido
     c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
-    c("tipo_chapa","Tipo de Chapa"), c("tipo_material","Tipo Material"),
+    c("tipo_chapa","Tipo de Chapa"), c("tipo_material","Material de Entrada"),
     c("qtd_chapas","Qtd. Chapas",{numeric:true}),
     c("esp_recebido_mm","Esp. Recebida (mm)",{numeric:true}), c("larg_recebido_cm","Larg. Recebida (cm)",{numeric:true}), c("comp_recebido_cm","Comp. Recebido (cm)",{numeric:true}),
     // Material Produzido 1
     c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
     c("material_certificado_fsc","Mat. Certif. (FSC)"), c("qualidade","Qualidade"),
-    c("produto","Produto"),
+    c("produto","Produto Fabricado"),
     c("espessura_mm","Esp. Produzida (mm)",{numeric:true}), c("largura_cm","Larg. Produzida (cm)",{numeric:true}), c("comprimento_cm","Comp. Produzido (cm)",{numeric:true}),
     c("qtd_producao_1","Qtd. Prod. 1",{numeric:true}),
     // Material Produzido 2
