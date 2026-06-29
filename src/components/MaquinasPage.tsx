@@ -1090,10 +1090,11 @@ function MaquinaCard({
   totalMes: number;
   onClick: () => void;
   onEdit: (m: Maquina) => void;
-  onLancar?: () => void;
+  onLancar?: (() => void) | null;
   canEdit: boolean;
 }) {
   const nome = (maquina.nome as string) || `Máquina ${maquina.id}`;
+  const isEmbPerfil = nome.trim().toUpperCase() === "EMBALAGEM DE PERFIL";
   const status = (maquina.status as string) || null;
   const isAtiva =
     !status ||
@@ -1175,12 +1176,12 @@ function MaquinaCard({
         )}
 
         <div className="flex flex-col gap-2 mt-auto pt-1">
-          {onLancar && (
+          {isEmbPerfil && (
             <Button
               size="sm"
               variant="default"
               className="w-full text-xs"
-              onClick={(e) => { e.stopPropagation(); onLancar(); }}
+              onClick={(e) => { e.stopPropagation(); onLancar?.(); }}
             >
               <Plus className="h-3.5 w-3.5 mr-1" />
               Lançar Produção
