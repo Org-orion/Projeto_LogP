@@ -143,12 +143,12 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
   "seccionadora 1": [
     // Material Recebido
     c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
-    c("tipo_material","Material de Entrada",{wide:true}),
+    c("produto","Material de Entrada",{wide:true}),
     c("qtd_chapas","Qtd. Chapas",{numeric:true}),
     // Material Produzido
     c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
     c("material_certificado_fsc","Mat. Certif. (FSC)"), c("qualidade","Qualidade"),
-    c("produto","Produto Fabricado"),
+    c("tipo_material","Produto Produzido"),
     c("espessura_mm","Esp. Produzida (mm)",{numeric:true}), c("largura_cm","Larg. Produzida (cm)",{numeric:true}), c("comprimento_cm","Comp. Produzido (cm)",{numeric:true}),
     c("qtd_conforme","Qtd. Conforme",{numeric:true}),
     // Sobra
@@ -166,12 +166,12 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
   "seccionadora": [
     // Material Recebido
     c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
-    c("tipo_material","Material de Entrada",{wide:true}),
+    c("produto","Material de Entrada",{wide:true}),
     c("qtd_chapas","Qtd. Chapas",{numeric:true}),
     // Material Produzido 1
     c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
     c("material_certificado_fsc","Mat. Certif. (FSC)"), c("qualidade","Qualidade"),
-    c("produto","Produto Fabricado"),
+    c("tipo_material","Produto Produzido"),
     c("espessura_mm","Esp. Produzida (mm)",{numeric:true}), c("largura_cm","Larg. Produzida (cm)",{numeric:true}), c("comprimento_cm","Comp. Produzido (cm)",{numeric:true}),
     c("qtd_producao_1","Qtd. Prod. 1",{numeric:true}),
     // Material Produzido 2
