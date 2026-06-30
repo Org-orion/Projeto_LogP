@@ -16,6 +16,7 @@ import EmbalagemPerfilForm from "@/components/EmbalagemPerfilForm";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { LOGO_CONCREM_B64 } from "@/lib/logoBase64";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import {
@@ -62,6 +63,7 @@ interface ColunaDef {
   numeric?: boolean;
   date?: boolean;
   wide?: boolean;
+  uppercase?: boolean;
 }
 
 const c = (key: string, label: string, opts: Partial<Omit<ColunaDef,"key"|"label">> = {}): ColunaDef => ({ key, label, ...opts });
@@ -69,6 +71,7 @@ const c = (key: string, label: string, opts: Partial<Omit<ColunaDef,"key"|"label
 // ─── Dashboard de Produção ────────────────────────────────────────────────────
 
 const COR_VERDE  = "hsl(var(--primary))";
+const LINHAS_PRINCIPAIS = new Set(["Essenziale", "Innovazione", "Sofisticato"]);
 const COR_BARRA  = "#16a34a";
 
 const MESES_DASH = [
@@ -80,6 +83,7 @@ interface RowDash {
   maquina:      string | null;
   data:         string;
   linha:        string | null;
+  produto:      string | null;
   padrao:       string | null;
   largura_cm:   number | null;
   qtd_conforme: number | null;
@@ -142,8 +146,8 @@ function getSetorDash(maquina: string): "portas" | "guarnicao" | null {
 const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
   "seccionadora 1": [
     // Material Recebido
-    c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
-    c("tipo_material","Material de Entrada",{wide:true}),
+    c("data","Data",{date:true}), c("fornecedor","Fornecedor",{uppercase:true}), c("lote_fornecedor","Lote Fornecedor"),
+    c("tipo_material","Material de Entrada",{wide:true}), c("tipo_chapa","Cód. Chapa"),
     c("qtd_chapas","Qtd. Chapas",{numeric:true}),
     // Material Produzido
     c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
@@ -162,8 +166,8 @@ const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
   ],
   "seccionadora": [
     // Material Recebido
-    c("data","Data",{date:true}), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
-    c("tipo_material","Material de Entrada",{wide:true}),
+    c("data","Data",{date:true}), c("fornecedor","Fornecedor",{uppercase:true}), c("lote_fornecedor","Lote Fornecedor"),
+    c("tipo_material","Material de Entrada",{wide:true}), c("tipo_chapa","Cód. Chapa"),
     c("qtd_chapas","Qtd. Chapas",{numeric:true}),
     // Material Produzido 1
     c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
@@ -424,7 +428,8 @@ function fmtCelula(val: unknown, col: ColunaDef): string {
   if (val == null || val === "") return "—";
   if (col.date) { try { return format(parseISO(String(val)), "dd/MM/yyyy"); } catch { return String(val); } }
   if (col.numeric) { const n = Number(val); return isNaN(n) ? String(val) : n.toLocaleString("pt-BR"); }
-  return String(val);
+  const s = String(val);
+  return col.uppercase ? s.toUpperCase() : s;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -649,63 +654,138 @@ function HistoricoSheet({ maquina, open, onClose, canEdit }: {
   }
 
   function gerarPDF() {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: "landscape" });
     const nomeMaquina = (maquina?.nome as string) ?? "Máquina";
-
     const periodoLabel = todosMD
       ? (anoFiltro === "todos" ? "Todos os períodos" : anoFiltro)
       : anoFiltro;
 
-    // Cabeçalho
-    doc.setFontSize(16);
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const green: [number, number, number] = [26, 91, 46];
+
+    // ─── CABEÇALHO ──────────────────────────────────────────────────
+    // Logo (proporção original: 3134×695 → 68×15mm)
+    doc.addImage(LOGO_CONCREM_B64, "PNG", margin, 7, 68, 15);
+
+    // Título e dados à direita
     doc.setFont("helvetica", "bold");
-    doc.text("Relatório de Produção", 14, 20);
+    doc.setFontSize(14);
+    doc.setTextColor(30, 30, 30);
+    doc.text("RELATÓRIO DE PRODUÇÃO", pageW - margin, 13, { align: "right" });
 
-    doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
-    doc.text(`Máquina: ${nomeMaquina}`, 14, 30);
-    doc.text(`Período: ${periodoLabel}`, 14, 37);
-    doc.text(`Total de registros: ${registros.length}`, 14, 44);
-    doc.text(`Total produzido: ${total.toLocaleString("pt-BR")} pç`, 14, 51);
-    doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`, 14, 58);
+    doc.setFontSize(8.5);
+    doc.setTextColor(90, 90, 90);
+    doc.text(`Máquina: ${nomeMaquina}`, pageW - margin, 19, { align: "right" });
+    doc.text(`Período: ${periodoLabel}`, pageW - margin, 24, { align: "right" });
+    doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`, pageW - margin, 29, { align: "right" });
 
-    // Tabela de resumo (gráfico agrupado)
-    const temDadosGrafico = dadosGrafico.some((d) => d.producao > 0);
-    let yPos = 68;
+    // Linha separadora verde
+    doc.setFillColor(...green);
+    doc.rect(margin, 32, pageW - margin * 2, 0.7, "F");
 
-    if (temDadosGrafico) {
-      doc.setFontSize(11);
+    // ─── BOXES DE KPI ───────────────────────────────────────────────
+    const kpis = [
+      { label: "TOTAL DE REGISTROS", value: registros.length.toString() },
+      { label: "TOTAL PRODUZIDO", value: `${total.toLocaleString("pt-BR")} pç` },
+      { label: "PERÍODO", value: periodoLabel },
+      { label: "GERADO EM", value: format(new Date(), "dd/MM/yyyy HH:mm") },
+    ];
+    const boxCount = kpis.length;
+    const boxGap = 3;
+    const boxW = (pageW - margin * 2 - boxGap * (boxCount - 1)) / boxCount;
+    const boxH = 19;
+    const boxY = 36;
+
+    kpis.forEach((kpi, i) => {
+      const boxX = margin + i * (boxW + boxGap);
+      doc.setFillColor(242, 247, 242);
+      doc.setDrawColor(210, 225, 212);
+      doc.roundedRect(boxX, boxY, boxW, boxH, 2, 2, "FD");
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(100, 100, 100);
+      doc.text(kpi.label, boxX + boxW / 2, boxY + 6.5, { align: "center" });
+
       doc.setFont("helvetica", "bold");
-      doc.text("Resumo por período", 14, yPos);
+      doc.setFontSize(10.5);
+      doc.setTextColor(26, 26, 26);
+      doc.text(kpi.value, boxX + boxW / 2, boxY + 14, { align: "center" });
+    });
+
+    let yPos = boxY + boxH + 8;
+
+    // ─── RESUMO POR PERÍODO ─────────────────────────────────────────
+    const temDadosGrafico = dadosGrafico.some((d) => d.producao > 0);
+    if (temDadosGrafico) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(40, 40, 40);
+      doc.text("Resumo por Período", margin, yPos);
 
       autoTable(doc, {
-        startY: yPos + 4,
+        startY: yPos + 3,
         head: [["Período", "Produção (pç)"]],
-        body: dadosGrafico.map((d) => [
-          d.label,
-          d.producao.toLocaleString("pt-BR"),
-        ]),
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [59, 130, 246] },
+        body: dadosGrafico.map((d) => [d.label, d.producao.toLocaleString("pt-BR")]),
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: green, textColor: [255, 255, 255], fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [242, 247, 242] },
         columnStyles: { 1: { halign: "right" } },
+        tableWidth: 85,
       });
 
-      yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+      yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
     }
 
-    // Tabela de registros detalhados
-    doc.setFontSize(11);
+    // ─── REGISTROS DETALHADOS ───────────────────────────────────────
     doc.setFont("helvetica", "bold");
-    doc.text("Registros detalhados", 14, yPos);
+    doc.setFontSize(9);
+    doc.setTextColor(40, 40, 40);
+    doc.text("Registros Detalhados", margin, yPos);
 
     const colunasPDF = getColunasParaMaquina(nomeMaquina);
+    const muitasColunas = colunasPDF.length > 12;
     autoTable(doc, {
-      startY: yPos + 4,
+      startY: yPos + 3,
       head: [colunasPDF.map((col) => col.label)],
-      body: registros.map((r) => colunasPDF.map((col) => fmtCelula((r as Record<string,unknown>)[col.key], col))),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [59, 130, 246] },
+      body: registros.map((r) =>
+        colunasPDF.map((col) => fmtCelula((r as Record<string, unknown>)[col.key], col))
+      ),
+      styles: {
+        fontSize: muitasColunas ? 6 : 7.5,
+        cellPadding: muitasColunas ? 1.2 : 2,
+        overflow: "ellipsize",
+        minCellHeight: 5,
+      },
+      headStyles: {
+        fillColor: green,
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+        overflow: "ellipsize",
+        minCellHeight: 6,
+        halign: "center",
+      },
+      alternateRowStyles: { fillColor: [242, 247, 242] },
+      margin: { left: margin, right: margin },
     });
+
+    // ─── RODAPÉ COM NÚMERO DE PÁGINA ────────────────────────────────
+    const totalPages = doc.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(160, 160, 160);
+      doc.text(
+        `Página ${p} de ${totalPages}  —  Concrem Portas Premium`,
+        pageW / 2,
+        pageH - 5,
+        { align: "center" }
+      );
+    }
 
     const nomeArquivo = `relatorio-${norm(nomeMaquina).replace(/\s+/g, "-")}-${periodoLabel.replace(/[\s/]+/g, "-")}.pdf`;
     doc.save(nomeArquivo);
@@ -943,18 +1023,18 @@ function HistoricoSheet({ maquina, open, onClose, canEdit }: {
                     <tbody>
                       {registros.map((r, i) => (
                         <tr key={r.id} className={`border-b hover:bg-muted/30 transition-colors${i % 2 === 0 ? "" : " bg-muted/10"}`}>
-                          {colunas.map((col) => (
+                          {colunas.map((col, ci) => (
                             <td key={col.key} style={col.wide ? {minWidth: 280} : undefined} className={`px-3 py-2 text-xs whitespace-nowrap${col.numeric ? " text-right tabular-nums" : ""}`}>
-                              {fmtCelula((r as Record<string,unknown>)[col.key], col)}
+                              {ci === 0 && canEdit ? (
+                                <span className="inline-flex items-center gap-1">
+                                  <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => openEdit(r)}>
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  {fmtCelula((r as Record<string,unknown>)[col.key], col)}
+                                </span>
+                              ) : fmtCelula((r as Record<string,unknown>)[col.key], col)}
                             </td>
                           ))}
-                          {canEdit && (
-                            <td className="px-3 py-2 text-right">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                            </td>
-                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -1168,22 +1248,32 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   const [dashErro,   setDashErro]   = useState<string | null>(null);
   // drill-down selections
   const [selMaq,     setSelMaq]     = useState<string | null>(null);
-  const [selLinha,        setSelLinha]        = useState<string | null>(null);
+  const [selLinhas,       setSelLinhas]       = useState<Set<string>>(new Set());
   const [selPadrao,       setSelPadrao]       = useState<string | null>(null);
   const [showAllPadrao,   setShowAllPadrao]   = useState(false);
   const [showAllLargura,  setShowAllLargura]  = useState(false);
   const [showAllMaq,      setShowAllMaq]      = useState(false);
+  const [showAllLinha,    setShowAllLinha]    = useState(false);
 
   const canEdit = ["administrador", "supervisor"].includes((user.perfil ?? "").toLowerCase());
 
-  const clearDrill = () => { setSelMaq(null); setSelLinha(null); setSelPadrao(null); };
+  const clearDrill = () => { setSelMaq(null); setSelLinhas(new Set()); setSelPadrao(null); };
   const handleSetorD = (s: SetorDash) => { setSetorD(s); setMaqsSel(new Set()); clearDrill(); };
   const handleAnoD   = (v: string)    => { setAnoD(v);   setDiasSel(new Set()); clearDrill(); };
   const handleMesD   = (v: string)    => { setMesD(v);   setDiasSel(new Set()); clearDrill(); };
 
   // Seleções independentes — cada uma filtra as demais dimensões
   const clickMaq    = (orig: string) => setSelMaq(p    => p    === orig ? null : orig);
-  const clickLinha  = (l: string)    => setSelLinha(p  => p    === l    ? null : l);
+  const clickLinha  = (l: string, multi = false) => setSelLinhas(prev => {
+    const next = new Set(prev);
+    if (multi) {
+      if (next.has(l)) next.delete(l); else next.add(l);
+    } else {
+      if (next.size === 1 && next.has(l)) next.clear();
+      else { next.clear(); next.add(l); }
+    }
+    return next;
+  });
   const clickPadrao = (pad: string)  => setSelPadrao(p => p    === pad  ? null : pad);
 
   const semanas = getSemanasMes();
@@ -1204,7 +1294,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
     while (true) {
       const { data, error } = await supabase
         .from("registros_producao")
-        .select("maquina,data,linha,padrao,largura_cm,qtd_conforme")
+        .select("maquina,data,linha,produto,padrao,largura_cm,qtd_conforme")
         .gte("data", inicio)
         .lte("data", fim)
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
@@ -1364,7 +1454,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
 
   // Helpers de filtro por dimensão
   const byMaq    = (r: RowDash) => !selMaq    || (r.maquina ?? "")    === selMaq;
-  const byLinha  = (r: RowDash) => !selLinha  || (r.linha   || "—")   === selLinha;
+  const byLinha  = (r: RowDash) => selLinhas.size === 0 || selLinhas.has(r.linha || r.produto || "—");
   const byPadrao = (r: RowDash) => !selPadrao || (r.padrao  || "—")   === selPadrao;
 
   // KPIs — aplica todos os filtros de clique (máquina, linha, padrão)
@@ -1422,12 +1512,13 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   const total1 = ctxLinha.reduce((s, r) => s + (r.qtd_conforme ?? 0), 0);
   const dashLinhaMap: Record<string, number> = {};
   for (const r of ctxLinha) {
-    const l = r.linha || "—";
+    const l = r.linha || r.produto || "—";
     dashLinhaMap[l] = (dashLinhaMap[l] ?? 0) + (r.qtd_conforme ?? 0);
   }
   const dashPorLinha = Object.entries(dashLinhaMap)
     .map(([linha, total]) => ({ linha, total, pct: total1 > 0 ? (total / total1) * 100 : 0 }))
-    .filter(x => x.total > 0).sort((a, b) => b.total - a.total);
+    .filter(x => x.total > 0 && x.linha !== "—")
+    .sort((a, b) => b.total - a.total);
 
   // Tabela Padrão: filtrada por máquina + linha (não pelo próprio padrão)
   const ctxPadrao = dashFiltrados.filter(r => byMaq(r) && byLinha(r));
@@ -1456,7 +1547,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   // máquinas disponíveis para filtro do dashboard
   const maqsDash = Array.from(new Set(dashPorSetor.map(r => r.maquina ?? ""))).filter(Boolean).sort();
 
-  const temSelecao = !!(selMaq || selLinha || selPadrao);
+  const temSelecao = !!(selMaq || selLinhas.size > 0 || selPadrao);
 
   return (
     <div className="w-full space-y-5">
@@ -1662,13 +1753,13 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
                 {selMaq && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium text-white" style={{ background: COR_VERDE }}>
                     {selMaq.toUpperCase()}
-                    <button onClick={() => { setSelMaq(null); setSelLinha(null); setSelPadrao(null); }} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
+                    <button onClick={() => { setSelMaq(null); setSelLinhas(new Set()); setSelPadrao(null); }} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
                   </span>
                 )}
-                {selLinha && (
+                {selLinhas.size > 0 && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium text-white" style={{ background: "#166534" }}>
-                    Linha: {selLinha}
-                    <button onClick={() => { setSelLinha(null); setSelPadrao(null); }} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
+                    {selLinhas.size === 1 ? `Linha: ${[...selLinhas][0]}` : `Linhas (${selLinhas.size}): ${[...selLinhas].join(", ")}`}
+                    <button onClick={() => { setSelLinhas(new Set()); setSelPadrao(null); }} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
                   </span>
                 )}
                 {selPadrao && (
@@ -1843,14 +1934,14 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
             {/* Tabelas por Linha / Padrão / Largura — drill-down em cascata */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Por Linha */}
-              <Card className={selLinha ? "ring-2 ring-green-400" : ""}>
+              <Card className={selLinhas.size > 0 ? "ring-2 ring-green-400" : ""}>
                 <CardContent className="px-0 pb-0 pt-0">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr style={{ background: COR_VERDE }}>
                           <th className="px-3 py-2 text-left text-xs font-semibold text-white">
-                            Linha <span className="font-normal opacity-60">(clique)</span>
+                            Linha <span className="font-normal opacity-60">(clique · Ctrl+clique)</span>
                           </th>
                           <th className="px-3 py-2 text-right text-xs font-semibold text-white">Qtd.</th>
                           <th className="px-3 py-2 text-left text-xs font-semibold text-white">%</th>
@@ -1861,26 +1952,49 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
                           <tr><td colSpan={3} className="px-3 py-5 text-center text-xs text-muted-foreground">Sem dados.</td></tr>
                         ) : (
                           <>
-                            {dashPorLinha.map((row) => {
-                              const ativo = selLinha === row.linha;
+                            {(() => {
+                              const extras = dashPorLinha.filter(r => !LINHAS_PRINCIPAIS.has(r.linha));
+                              const visiveis = showAllLinha
+                                ? dashPorLinha
+                                : dashPorLinha.filter(r => LINHAS_PRINCIPAIS.has(r.linha) || selLinhas.has(r.linha));
                               return (
-                                <tr
-                                  key={row.linha}
-                                  onClick={() => clickLinha(row.linha)}
-                                  style={{
-                                    background: ativo ? "#dcfce7" : undefined,
-                                    borderBottom: "1px solid #f3f4f6",
-                                    cursor: "pointer",
-                                    fontWeight: ativo ? 700 : undefined,
-                                  }}
-                                  className="hover:bg-green-50 transition-colors"
-                                >
-                                  <td className="px-3 py-1.5 text-xs">{row.linha}</td>
-                                  <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{row.total.toLocaleString("pt-BR")}</td>
-                                  <td className="px-3 py-1.5">{pctBarD(row.pct)}</td>
-                                </tr>
+                                <>
+                                  {visiveis.map((row) => {
+                                    const ativo = selLinhas.has(row.linha);
+                                    return (
+                                      <tr
+                                        key={row.linha}
+                                        onClick={(e) => clickLinha(row.linha, e.ctrlKey || e.metaKey)}
+                                        style={{
+                                          background: ativo ? "#dcfce7" : undefined,
+                                          borderBottom: "1px solid #f3f4f6",
+                                          cursor: "pointer",
+                                          fontWeight: ativo ? 700 : undefined,
+                                        }}
+                                        className="hover:bg-green-50 transition-colors"
+                                      >
+                                        <td className="px-3 py-1.5 text-xs">{row.linha}</td>
+                                        <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{row.total.toLocaleString("pt-BR")}</td>
+                                        <td className="px-3 py-1.5">{pctBarD(row.pct)}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                  {extras.length > 0 && (
+                                    <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
+                                      <td colSpan={3} className="px-3 py-1.5 text-center">
+                                        <button
+                                          onClick={() => setShowAllLinha(v => !v)}
+                                          className="text-xs font-medium hover:underline"
+                                          style={{ color: COR_VERDE }}
+                                        >
+                                          {showAllLinha ? "Ver menos ↑" : `Ver mais (${extras.length}) ↓`}
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </>
                               );
-                            })}
+                            })()}
                             <tr style={{ background: "#f0fdf4", borderTop: "2px solid #bbf7d0" }}>
                               <td className="px-3 py-1.5 text-xs font-bold">Total</td>
                               <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{total1.toLocaleString("pt-BR")}</td>
