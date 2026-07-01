@@ -21,11 +21,21 @@ interface Props {
   onSaved?: () => void;
 }
 
+const PRODUTO_OPCOES: Record<string, string[]> = {
+  "Batente":   ["5,5","6,5","7,5","8,5","10","12","14","15","18","21"],
+  "Alizar":    ["5x2","5x5","5x7","5x9","5x10","7x2","7x5","7x7","7x9","7x10","10x2","10x5","10x7","10x9","10x10"],
+  "S. Correr": ["5x4,5"],
+  "Régua":     ["10","5"],
+  "Rodapé":    ["10,2","7,2","5,2"],
+  "Alongador": ["2,5","2"],
+};
+
 interface FormState {
   data: string;
   hora_inicial: string;
   hora_final: string;
-  produto: string;
+  produto_tipo: string;
+  produto_largura: string;
   modelo_batente: string;
   unidade: string;
   material_certificado_fsc: string;
@@ -46,10 +56,11 @@ const EMPTY: FormState = {
   data: format(new Date(), "yyyy-MM-dd"),
   hora_inicial: "",
   hora_final: "",
-  produto: "",
+  produto_tipo: "",
+  produto_largura: "",
   modelo_batente: "",
   unidade: "pç",
-  material_certificado_fsc: "",
+  material_certificado_fsc: "Sim",
   padrao: "",
   comprimento_cm: "",
   largura_cm: "",
@@ -57,7 +68,7 @@ const EMPTY: FormState = {
   dim_cabeceira_alizar_cm: "",
   largura_rebaixo_bat_mm: "",
   prof_rebaixo_bat_mm: "",
-  qualidade_visual_final: "",
+  qualidade_visual_final: "Aprovado",
   qtd_conforme: "",
   qtd_nao_conforme_1: "",
   tipo_defeito_1: "",
@@ -91,7 +102,8 @@ export default function EmbalagemPerfilForm({ open, onClose, onSaved }: Props) {
       data:                     form.data,
       hora_inicial:             form.hora_inicial || null,
       hora_final:               form.hora_final || null,
-      produto:                  form.produto || null,
+      produto:                  form.produto_tipo || null,
+      largura_perfil:           form.produto_largura || null,
       modelo_batente:           form.modelo_batente || null,
       unidade:                  form.unidade || null,
       material_certificado_fsc: form.material_certificado_fsc || null,
@@ -147,13 +159,38 @@ export default function EmbalagemPerfilForm({ open, onClose, onSaved }: Props) {
             </div>
           </div>
 
-          {/* Linha 2: Produto + Modelo do batente + Unid. */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5 col-span-1">
+          {/* Linha 2: Tipo produto + Largura + Modelo batente + Unid. */}
+          <div className="grid grid-cols-4 gap-3">
+            <div className="space-y-1.5">
               <Label className="text-xs">Produto</Label>
-              <Input value={form.produto} onChange={(e) => set("produto", e.target.value)} placeholder="Ex: Alizar 7cm" className="text-sm" />
+              <Select
+                value={form.produto_tipo}
+                onValueChange={(v) => setForm((f) => ({ ...f, produto_tipo: v, produto_largura: "" }))}
+              >
+                <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                <SelectContent>
+                  {Object.keys(PRODUTO_OPCOES).map((tipo) => (
+                    <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="space-y-1.5 col-span-1">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Largura</Label>
+              <Select
+                value={form.produto_largura}
+                onValueChange={(v) => set("produto_largura", v)}
+                disabled={!form.produto_tipo}
+              >
+                <SelectTrigger className="text-sm"><SelectValue placeholder={form.produto_tipo ? "Selecione…" : "—"} /></SelectTrigger>
+                <SelectContent>
+                  {(PRODUTO_OPCOES[form.produto_tipo] ?? []).map((op) => (
+                    <SelectItem key={op} value={op}>{op}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
               <Label className="text-xs">Modelo do Batente</Label>
               <Input value={form.modelo_batente} onChange={(e) => set("modelo_batente", e.target.value)} placeholder="Ex: 7cm Rebaixado" className="text-sm" />
             </div>
@@ -186,23 +223,42 @@ export default function EmbalagemPerfilForm({ open, onClose, onSaved }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Padrão</Label>
-              <Input value={form.padrao} onChange={(e) => set("padrao", e.target.value)} placeholder="Ex: Branco TX" className="text-sm" />
+              <Select value={form.padrao} onValueChange={(v) => set("padrao", v)}>
+                <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Curupixá">Curupixá</SelectItem>
+                  <SelectItem value="Elo Curupixá">Elo Curupixá</SelectItem>
+                  <SelectItem value="Elo Branco">Elo Branco</SelectItem>
+                  <SelectItem value="Marfim">Marfim</SelectItem>
+                  <SelectItem value="Velar">Velar</SelectItem>
+                  <SelectItem value="Fendi">Fendi</SelectItem>
+                  <SelectItem value="Grafite">Grafite</SelectItem>
+                  <SelectItem value="Blue">Blue</SelectItem>
+                  <SelectItem value="Nero">Nero</SelectItem>
+                  <SelectItem value="Capuccino">Capuccino</SelectItem>
+                  <SelectItem value="Urban">Urban</SelectItem>
+                  <SelectItem value="Mocaccino">Mocaccino</SelectItem>
+                  <SelectItem value="Carvalho">Carvalho</SelectItem>
+                  <SelectItem value="MTX PROTECT+">MTX PROTECT+</SelectItem>
+                  <SelectItem value="MTX">MTX</SelectItem>
+                  <SelectItem value="Lacca PET">Lacca PET</SelectItem>
+                  <SelectItem value="Imbuia">Imbuia</SelectItem>
+                  <SelectItem value="Freijó Natural">Freijó Natural</SelectItem>
+                  <SelectItem value="Green">Green</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {/* Linha 4: Dimensões do produto */}
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dimensões do Produto</Label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Comprimento (cm)</Label>
                 <Input value={form.comprimento_cm} onChange={(e) => set("comprimento_cm", e.target.value)} placeholder="0,00" inputMode="decimal" className="text-sm" />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Largura (cm)</Label>
-                <Input value={form.largura_cm} onChange={(e) => set("largura_cm", e.target.value)} placeholder="0,00" inputMode="decimal" className="text-sm" />
-              </div>
-              <div className="space-y-1.5">
+<div className="space-y-1.5">
                 <Label className="text-xs">Espessura (mm)</Label>
                 <Input value={form.espessura_mm} onChange={(e) => set("espessura_mm", e.target.value)} placeholder="0,0" inputMode="decimal" className="text-sm" />
               </div>
