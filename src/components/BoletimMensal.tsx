@@ -6,7 +6,8 @@ import { SpinnerCustom } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, FileText, RefreshCw } from "lucide-react";
+import { CalendarIcon, FileText, FileSpreadsheet, RefreshCw } from "lucide-react";
+import * as XLSX from "xlsx";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -426,6 +427,75 @@ function gerarPDF(dados: BoletimData, range: DateRange) {
   doc.save(`boletim-mensal-${slug}.pdf`);
 }
 
+function gerarExcel(dados: BoletimData, range: DateRange) {
+  const periodoLabel = range.from
+    ? range.to
+      ? `${format(range.from, "dd/MM/yyyy")} – ${format(range.to, "dd/MM/yyyy")}`
+      : format(range.from, "dd/MM/yyyy")
+    : "";
+
+  const wb = XLSX.utils.book_new();
+
+  const buildSheet = (
+    title: string,
+    sections: { label: string; rows: { dim: string; qtd: number }[]; totalLabel?: string }[]
+  ) => {
+    const data: (string | number)[][] = [];
+    data.push([title]);
+    data.push([`Período: ${periodoLabel}`]);
+    data.push([]);
+
+    for (const sec of sections) {
+      data.push([sec.label]);
+      data.push(["Dimensão", "Qtd."]);
+      for (const r of sec.rows) data.push([r.dim, r.qtd]);
+      const total = sec.rows.reduce((s, r) => s + r.qtd, 0);
+      data.push([sec.totalLabel ?? "TOTAL", total]);
+      data.push([]);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws["!cols"] = [{ wch: 28 }, { wch: 14 }];
+    return ws;
+  };
+
+  // Aba 1 — Portas
+  XLSX.utils.book_append_sheet(wb, buildSheet("PORTAS (PRENSAS)", [
+    { label: "Por Largura (cm)", rows: dados.portas.porDim },
+    { label: "Por Núcleo",       rows: dados.portas.porNucleo },
+  ]), "Portas");
+
+  // Aba 2 — Guarnição (Batentes + Alizares + Rodapés)
+  XLSX.utils.book_append_sheet(wb, buildSheet("GUARNIÇÃO", [
+    { label: "Batentes — Por Largura (cm)", rows: dados.batentes.porDim },
+    { label: "Alizares — Por Dimensão",     rows: dados.alizares.porDim },
+    { label: "Rodapés — Por Largura (cm)",  rows: dados.rodapes.porDim  },
+  ]), "Guarnição");
+
+  // Aba 3 — Colagem de Bordas
+  XLSX.utils.book_append_sheet(wb, buildSheet("COLAGEM DE BORDAS", [
+    { label: "Por Largura (cm)", rows: dados.colagem.porDim   },
+    { label: "Por Núcleo",       rows: dados.colagem.porNucleo },
+  ]), "Colagem de Bordas");
+
+  // Aba 4 — Recobrimento
+  const recsecs = [
+    { label: "GAIDZINSKI — Batente C/Borracha", rows: dados.gaidzinski.batente        },
+    { label: "GAIDZINSKI — Bat. Pivotante",      rows: dados.gaidzinski.batentePivotante },
+    ...(dados.gaidzinski.alizar.length  > 0 ? [{ label: "GAIDZINSKI — Alizar",  rows: dados.gaidzinski.alizar  }] : []),
+    ...(dados.gaidzinski.baguete.length > 0 ? [{ label: "GAIDZINSKI — Baguete", rows: dados.gaidzinski.baguete }] : []),
+    ...(dados.gaidzinski.rodape.length  > 0 ? [{ label: "GAIDZINSKI — Rodapé",  rows: dados.gaidzinski.rodape  }] : []),
+    { label: "UNESA — Alizar",         rows: dados.unesa.alizar         },
+    { label: "UNESA — Régua",          rows: dados.unesa.regua          },
+    { label: "UNESA — Bat. Pivotante", rows: dados.unesa.batentePivotante },
+    ...(dados.unesa.baguete.length > 0 ? [{ label: "UNESA — Baguete", rows: dados.unesa.baguete }] : []),
+  ];
+  XLSX.utils.book_append_sheet(wb, buildSheet("RECOBRIMENTO DE PERFIL", recsecs), "Recobrimento");
+
+  const slug = range.from ? format(range.from, "yyyy-MM") : "boletim";
+  XLSX.writeFile(wb, `boletim-mensal-${slug}.xlsx`);
+}
+
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 export default function BoletimMensal() {
@@ -528,10 +598,16 @@ export default function BoletimMensal() {
         </Button>
 
         {dados && range && (
-          <Button size="sm" onClick={() => gerarPDF(dados, range)} className="h-8 gap-1.5 ml-auto">
-            <FileText className="h-3.5 w-3.5" />
-            Exportar PDF
-          </Button>
+          <div className="flex gap-2 ml-auto">
+            <Button size="sm" variant="outline" onClick={() => gerarExcel(dados, range)} className="h-8 gap-1.5">
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Excel
+            </Button>
+            <Button size="sm" onClick={() => gerarPDF(dados, range)} className="h-8 gap-1.5">
+              <FileText className="h-3.5 w-3.5" />
+              PDF
+            </Button>
+          </div>
         )}
       </div>
 
