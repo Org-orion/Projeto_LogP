@@ -4,8 +4,12 @@ import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, RefreshCw } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, FileText, RefreshCw } from "lucide-react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { LOGO_CONCREM_B64 } from "@/lib/logoBase64";
@@ -66,8 +70,6 @@ const LINE  = "hsl(var(--border))";
 const MUTED = "hsl(var(--muted-foreground))";
 const INK   = "hsl(var(--foreground))";
 
-const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-const ANOS  = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i));
 
 function fmtNum(n: number) { return n.toLocaleString("pt-BR"); }
 
@@ -318,12 +320,16 @@ function SecaoSimples({ title, rows, subtitle }: { title: string; rows: Dim[]; s
 
 // ─── PDF Export ───────────────────────────────────────────────────────────────
 
-function gerarPDF(dados: BoletimData, mes: string, ano: string) {
+function gerarPDF(dados: BoletimData, range: DateRange) {
   const doc = new jsPDF({ orientation: "landscape" });
   const green: [number, number, number] = [26, 91, 46];
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 12;
-  const mesLabel = MESES[Number(mes) - 1];
+  const periodoLabel = range.from
+    ? range.to
+      ? `${format(range.from, "dd/MM/yyyy")} – ${format(range.to, "dd/MM/yyyy")}`
+      : format(range.from, "dd/MM/yyyy")
+    : "";
 
   // Cabeçalho
   doc.addImage(LOGO_CONCREM_B64, "PNG", margin, 6, 60, 13);
@@ -334,7 +340,7 @@ function gerarPDF(dados: BoletimData, mes: string, ano: string) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(90, 90, 90);
-  doc.text(`${mesLabel} / ${ano}`, pageW / 2, 18, { align: "center" });
+  doc.text(periodoLabel, pageW / 2, 18, { align: "center" });
   doc.setFillColor(...green);
   doc.rect(margin, 22, pageW - margin * 2, 0.6, "F");
 
@@ -416,24 +422,28 @@ function gerarPDF(dados: BoletimData, mes: string, ano: string) {
     doc.text(`Página ${p} de ${total}  —  Concrem Portas Premium`, pageW / 2, doc.internal.pageSize.getHeight() - 5, { align: "center" });
   }
 
-  doc.save(`boletim-mensal-${mesLabel.toLowerCase()}-${ano}.pdf`);
+  const slug = range.from ? format(range.from, "yyyy-MM") : "boletim";
+  doc.save(`boletim-mensal-${slug}.pdf`);
 }
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 export default function BoletimMensal() {
   const hoje = new Date();
-  const [ano, setAno]       = useState(String(hoje.getFullYear()));
-  const [mes, setMes]       = useState(String(hoje.getMonth() + 1));
+  const [range, setRange]     = useState<DateRange | undefined>({
+    from: startOfMonth(hoje),
+    to:   endOfMonth(hoje),
+  });
+  const [popOpen, setPopOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [dados, setDados]   = useState<BoletimData | null>(null);
+  const [dados, setDados]     = useState<BoletimData | null>(null);
 
-  const buscar = useCallback(async () => {
+  const buscar = useCallback(async (r?: DateRange) => {
+    const sel = r ?? range;
+    if (!sel?.from) return;
     setLoading(true);
-    const mm      = String(Number(mes)).padStart(2, "0");
-    const inicio  = `${ano}-${mm}-01`;
-    const ultimoDia = new Date(Number(ano), Number(mes), 0).getDate();
-    const fim     = `${ano}-${mm}-${String(ultimoDia).padStart(2, "0")}`;
+    const inicio = format(sel.from, "yyyy-MM-dd");
+    const fim    = format(sel.to ?? sel.from, "yyyy-MM-dd");
 
     const TAM = 1000;
     let pagina = 0;
@@ -453,52 +463,76 @@ export default function BoletimMensal() {
 
     setDados(processData(todos));
     setLoading(false);
-  }, [ano, mes]);
+  }, [range]);
 
-  useEffect(() => { void buscar(); }, [buscar]);
+  useEffect(() => { void buscar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const mesLabel = MESES[Number(mes) - 1];
+  const labelPeriodo = range?.from
+    ? range.to
+      ? `${format(range.from, "dd/MM/yyyy", { locale: ptBR })} – ${format(range.to, "dd/MM/yyyy", { locale: ptBR })}`
+      : format(range.from, "dd/MM/yyyy", { locale: ptBR })
+    : "Selecionar período";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
       {/* ── Controles ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <Select value={mes} onValueChange={setMes}>
-          <SelectTrigger className="h-8 w-32 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MESES.map((m, i) => (
-              <SelectItem key={i+1} value={String(i+1)}>{m}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
 
-        <Select value={ano} onValueChange={setAno}>
-          <SelectTrigger className="h-8 w-24 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ANOS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {/* Date range picker */}
+        <Popover open={popOpen} onOpenChange={setPopOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-2 text-xs font-normal min-w-[220px] justify-start"
+            >
+              <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>{labelPeriodo}</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={range?.from}
+              selected={range}
+              onSelect={setRange}
+              numberOfMonths={2}
+              locale={ptBR}
+            />
+            <div className="flex justify-end gap-2 p-3 border-t">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={() => setPopOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                disabled={!range?.from}
+                onClick={() => { setPopOpen(false); void buscar(range); }}
+              >
+                Aplicar
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
 
-        <Button size="sm" variant="outline" onClick={buscar} disabled={loading} className="h-8 gap-1.5">
+        <Button size="sm" variant="outline" onClick={() => void buscar()} disabled={loading} className="h-8 gap-1.5">
           {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           Atualizar
         </Button>
 
-        {dados && (
-          <Button size="sm" onClick={() => gerarPDF(dados, mes, ano)} className="h-8 gap-1.5 ml-auto">
+        {dados && range && (
+          <Button size="sm" onClick={() => gerarPDF(dados, range)} className="h-8 gap-1.5 ml-auto">
             <FileText className="h-3.5 w-3.5" />
             Exportar PDF
           </Button>
         )}
-
-        <span style={{ fontSize: 11, color: MUTED, marginLeft: dados ? 0 : "auto" }}>
-          {mesLabel} / {ano}
-        </span>
       </div>
 
       {loading ? (
