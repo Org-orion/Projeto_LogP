@@ -961,7 +961,7 @@ export default function AuditoriasPage({ isAdmin = false }: { isAdmin?: boolean 
           .select("id, nome")
           .order("nome"),
       ]);
-      if (audResult.error) setError("Erro ao carregar auditorias.");
+      if (audResult.error) { console.error("supabaseAudit error:", audResult.error); setError("Erro ao carregar auditorias."); }
       else setAuditorias(audResult.data as AuditoriaDB[]);
       if (!usrResult.error) setUsuarios((usrResult.data as UsuarioSimples[]) ?? []);
       setLoading(false);
@@ -970,7 +970,7 @@ export default function AuditoriasPage({ isAdmin = false }: { isAdmin?: boolean 
   }, []);
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ maxWidth: "100%" }}>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 10, letterSpacing: "0.26em", color: VERDE, textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>
           Certificações · Controle de Documentação

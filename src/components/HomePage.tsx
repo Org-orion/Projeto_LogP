@@ -20,6 +20,18 @@ const INK     = "hsl(var(--foreground))";
 const INK_S   = "hsl(var(--muted-foreground))";
 const MUTED   = "hsl(var(--muted-foreground))";
 
+type Tone = "success" | "danger" | "neutral";
+const TONE: Record<Tone, { border: string; bg: string; text: string }> = {
+  success: { border: "hsl(var(--success))",     bg: "hsl(var(--success) / 0.12)",     text: "hsl(var(--success))"     },
+  danger:  { border: "hsl(var(--destructive))", bg: "hsl(var(--destructive) / 0.12)", text: "hsl(var(--destructive))" },
+  neutral: { border: LINE,                       bg: "hsl(var(--muted) / 0.5)",         text: MUTED                     },
+};
+
+function toneFromDelta(delta: number | null | undefined, invert = false): Tone {
+  if (delta === null || delta === undefined || delta === 0) return "neutral";
+  return (delta > 0) !== invert ? "success" : "danger";
+}
+
 function formatDate() {
   return new Date()
     .toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
@@ -42,14 +54,25 @@ function MaquinaTick({ x, y, payload }: { x?: number; y?: number; payload?: { va
   );
 }
 
-function DeltaBadge({ delta }: { delta: number | null }) {
-  if (delta === null) return <span style={{ fontSize: 11, color: MUTED }}>sem histórico</span>;
-  const up    = delta > 0;
-  const same  = delta === 0;
-  const color = up ? "#16a34a" : same ? MUTED : "#dc2626";
-  const Icon  = up ? TrendingUp : same ? Minus : TrendingDown;
+function DeltaBadge({ delta, invert = false }: { delta: number | null; invert?: boolean }) {
+  if (delta === null) return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: MUTED }}>
+      <Minus size={12} />
+      sem histórico ainda
+    </span>
+  );
+  const tone = toneFromDelta(delta, invert);
+  const c    = TONE[tone];
+  const up   = delta > 0;
+  const same = delta === 0;
+  const Icon = up ? TrendingUp : same ? Minus : TrendingDown;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color }}>
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 3,
+      fontSize: 11, fontWeight: 600,
+      color: c.text, background: c.bg,
+      padding: "2px 8px", borderRadius: 999,
+    }}>
       <Icon size={12} />
       {up ? "+" : ""}{delta}%
     </span>
@@ -70,7 +93,7 @@ function Skel({ w, h = 12 }: { w: number; h?: number }) {
 }
 
 function InsightCard({
-  icon, label, main, sub, delta, loading,
+  icon, label, main, sub, delta, loading, invert = false, tone: toneProp,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -78,11 +101,19 @@ function InsightCard({
   sub?: string;
   delta?: number | null;
   loading: boolean;
+  invert?: boolean;
+  tone?: Tone;
 }) {
+  const tone = toneProp ?? toneFromDelta(delta ?? null, invert);
+  const c    = TONE[tone];
+  const noData = tone === "neutral" && (delta === undefined || delta === null);
   return (
     <div style={{
-      background: "hsl(var(--card))", border: `1px solid ${LINE}`,
-      borderRadius: 10, padding: "16px 18px",
+      background: "hsl(var(--card))",
+      border: `1px solid ${LINE}`,
+      borderLeft: `3px ${noData ? "dashed" : "solid"} ${c.border}`,
+      borderRadius: 10,
+      padding: "16px 18px 16px 15px",
       display: "flex", flexDirection: "column", gap: 6,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -103,7 +134,7 @@ function InsightCard({
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {sub && <span style={{ fontSize: 11, color: MUTED }}>{sub}</span>}
-            {delta !== undefined && <DeltaBadge delta={delta} />}
+            {delta !== undefined && <DeltaBadge delta={delta} invert={invert} />}
           </div>
         </>
       )}
@@ -112,8 +143,13 @@ function InsightCard({
 }
 
 function KpiCard({ label, value, loading }: { label: string; value: number | null; loading: boolean }) {
+  const zero = !loading && value === 0;
   return (
-    <div style={{ background: "hsl(var(--card))", border: `1px solid ${LINE}`, borderRadius: 10, padding: "18px 20px" }}>
+    <div style={{
+      background: "hsl(var(--card))",
+      border: `1px solid ${zero ? "hsl(var(--border) / 0.45)" : LINE}`,
+      borderRadius: 10, padding: "18px 20px",
+    }}>
       <div style={{ fontSize: 10, color: MUTED, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>
         {label}
       </div>
@@ -124,11 +160,13 @@ function KpiCard({ label, value, loading }: { label: string; value: number | nul
         </div>
       ) : (
         <>
-          <div style={{ fontSize: 32, fontWeight: 300, color: INK, lineHeight: 1, letterSpacing: "-0.035em" }}>
+          <div style={{ fontSize: 32, fontWeight: 300, color: zero ? MUTED : INK, lineHeight: 1, letterSpacing: "-0.035em" }}>
             {value === null ? "—" : value.toLocaleString("pt-BR")}
-            <span style={{ fontSize: 12, color: MUTED, marginLeft: 4, fontWeight: 500 }}>un</span>
+            <span style={{ fontSize: 12, color: MUTED, marginLeft: 4, fontWeight: 500, opacity: zero ? 0.5 : 1 }}>un</span>
           </div>
-          <div style={{ fontSize: 11, marginTop: 10, color: MUTED, fontWeight: 400 }}>Acumulado hoje</div>
+          <div style={{ fontSize: 11, marginTop: 10, color: MUTED, fontWeight: 400 }}>
+            {zero ? "Sem produção ainda hoje" : "Acumulado hoje"}
+          </div>
         </>
       )}
     </div>
@@ -191,10 +229,11 @@ export default function HomePage({ userName = "" }: { userName?: string }) {
 
         <InsightCard
           loading={insights.loading}
-          icon={<XCircle size={13} style={{ color: "#dc2626" }} />}
+          icon={<XCircle size={13} style={{ color: insights.topMaquinaNcHoje ? "hsl(var(--destructive))" : MUTED }} />}
           label="Mais NCs hoje"
           main={insights.topMaquinaNcHoje ? truncateMachine(insights.topMaquinaNcHoje) : "Nenhuma NC hoje"}
           sub={insights.topMaquinaNcHoje ? `${insights.topMaquinaNcHojeTotal.toLocaleString("pt-BR")} itens NC` : undefined}
+          tone={insights.topMaquinaNcHoje ? "danger" : "neutral"}
         />
 
         <InsightCard
