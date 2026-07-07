@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Cog, Loader2, AlertCircle, RefreshCw, Plus, History, Pencil, FileText, Search, FileSpreadsheet, ChevronDown, ChevronRight } from "lucide-react";
+import { Cog, Loader2, AlertCircle, RefreshCw, Plus, History, Pencil, FileText, Search, FileSpreadsheet, ChevronDown, ChevronRight, BarChart2 } from "lucide-react";
+import BoletimMensal from "@/components/BoletimMensal";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import EmbalagemPerfilForm from "@/components/EmbalagemPerfilForm";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -104,12 +105,13 @@ function pctBarD(pct: number) {
 
 const ANOS_DASH = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i));
 
-type SetorDash = "todos" | "portas" | "guarnicao";
+type SetorDash = "todos" | "portas" | "guarnicao" | "boletim";
 
 const SETOR_DASH_LABELS: Record<SetorDash, string> = {
   todos:     "Todos",
   portas:    "Portas",
   guarnicao: "Guarnição",
+  boletim:   "Boletim",
 };
 
 const KW_PORTAS_DASH = [
@@ -1454,7 +1456,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   }).length;
 
   // ── Cálculos do Dashboard — filtro facetado ──
-  const dashPorSetor = setorD === "todos"
+  const dashPorSetor = (setorD === "todos" || setorD === "boletim")
     ? dashRows
     : dashRows.filter(r => getSetorDash(r.maquina ?? "") === setorD);
 
@@ -1584,10 +1586,25 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
               {SETOR_DASH_LABELS[s]}
             </button>
           ))}
+          <button
+            onClick={() => handleSetorD("boletim")}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold transition-all"
+            style={
+              setorD === "boletim"
+                ? { background: COR_VERDE, color: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }
+                : { background: "transparent", color: "#6b7280" }
+            }
+          >
+            <BarChart2 className="h-3 w-3" />
+            {SETOR_DASH_LABELS.boletim}
+          </button>
         </div>
 
+        {/* Boletim Mensal */}
+        {setorD === "boletim" && <BoletimMensal />}
+
         {/* Filtros + KPIs */}
-        <div className="flex flex-wrap items-end gap-4">
+        {setorD !== "boletim" && <div className="flex flex-wrap items-end gap-4">
           {/* KPIs */}
           <Card className="border-green-200 bg-green-50 shrink-0">
             <CardContent className="p-4">
@@ -1748,15 +1765,15 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
               {loadingD ? "Carregando..." : "Sincronizar"}
             </Button>
           </div>
-        </div>
+        </div>}
 
-        {dashErro && (
+        {setorD !== "boletim" && dashErro && (
           <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 font-mono">
             {dashErro}
           </div>
         )}
 
-        {loadingD ? (
+        {setorD !== "boletim" && (loadingD ? (
           <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
         ) : (
           <>
@@ -2139,7 +2156,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
               </Card>
             </div>
           </>
-        )}
+        ))}
       </div>
 
       {/* ══ DIVISOR ══ */}
