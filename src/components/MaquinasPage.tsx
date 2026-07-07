@@ -496,6 +496,10 @@ function HistoricoSheet({ maquina, open, onClose, canEdit }: {
     setLoadingHist(true);
 
     const nomeMaquina = (maquina.nome as string).trim();
+    const nomeAlternativo = /alizar/i.test(nomeMaquina)
+      ? nomeMaquina.replace(/alizar/gi, "ALIZA")
+      : null;
+    const nomesQuery = nomeAlternativo ? [nomeMaquina, nomeAlternativo] : [nomeMaquina];
     const TAM = 1000;
     let pagina = 0;
     const todos: RegistroProducao[] = [];
@@ -504,7 +508,7 @@ function HistoricoSheet({ maquina, open, onClose, canEdit }: {
       let query = supabase
         .from("registros_producao")
         .select("*")
-        .eq("maquina", nomeMaquina)
+        .in("maquina", nomesQuery)
         .order("data", { ascending: false })
         .order("hora_inicial", { ascending: true, nullsFirst: false })
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
@@ -1009,7 +1013,7 @@ function HistoricoSheet({ maquina, open, onClose, canEdit }: {
             ) : (() => {
                 const colunas = getColunasParaMaquina(maquina?.nome ?? "");
                 return (
-                  <table className="w-max text-sm border-collapse">
+                  <table className="w-full min-w-max text-sm border-collapse">
                     <thead>
                       <tr className="border-b bg-muted/50">
                         {colunas.map((col) => (
@@ -1326,6 +1330,15 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
     if (err1) { setErro(err1.message); setSpin(false); return; }
     setMaquinas(maquinasData ?? []);
 
+    // Alias: "MOLDUREIRA DE ALIZA X" → "MOLDUREIRA DE ALIZAR X"
+    const aliasMap: Record<string, string> = {};
+    for (const m of maquinasData ?? []) {
+      const n = norm(String((m as Maquina).nome ?? ""));
+      if (n.includes("alizar")) {
+        aliasMap[n.replace(/alizar/g, "aliza")] = n;
+      }
+    }
+
     type Registro = { maquina: string | null; data: string | null; qtd_conforme: number | null };
     const registros: Registro[] = [];
     const TAM_PAG = 1000;
@@ -1347,7 +1360,8 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
     const mapa: Record<string, Record<string, number>> = {};
     for (const r of registros ?? []) {
       if (!r.maquina || !r.data) continue;
-      const chave = norm(r.maquina);
+      const raw = norm(r.maquina);
+      const chave = aliasMap[raw] ?? raw;
       const qtd = Number(r.qtd_conforme) || 0;
       const semana = semanas.find((s) => r.data >= s.inicio && r.data <= s.fim);
       if (!semana) continue;
@@ -2261,7 +2275,8 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {maquinas.filter((m) => norm(m.nome ?? "").includes(norm(busca))).map((m) => {
           const chave = norm(m.nome ?? "");
-          const dadosMaquina = producao[chave] ?? {};
+          const chaveAlias = chave.replace(/alizar/g, "aliza");
+          const dadosMaquina = producao[chave] ?? producao[chaveAlias] ?? {};
           const producaoPorSemana = semanas.map((s) => ({
             label: s.label,
             producao: dadosMaquina[s.label] ?? 0,
