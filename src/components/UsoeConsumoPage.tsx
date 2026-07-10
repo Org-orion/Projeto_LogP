@@ -180,22 +180,24 @@ export default function UsoeConsumoPage() {
       const pdim: Record<string, { larg_cm: number; comp_cm: number; esp_mm: number }> = {}; // codigo → dimensões
       let prodPag = 0;
       while (true) {
-        const { data: prodData } = await supabase
+        const { data: prodData, error: prodErr } = await supabase
           .from("produtos")
           .select("codigo, descricao, preco_unitario, valor, dim_largura, dim_comprimento, dim_espessura")
-          .order("id", { ascending: true })
+          .order("codigo", { ascending: true })
           .range(prodPag * 1000, (prodPag + 1) * 1000 - 1);
+        if (prodErr) { console.error("[UsoeConsumo] produtos:", prodErr); break; }
         if (!prodData || prodData.length === 0) break;
         for (const p of prodData as PrecoProduto[]) {
+          const cod = String(p.codigo).trim();
           const preco = (p.valor && p.valor > 0) ? p.valor : (p.preco_unitario ?? 0);
-          pm[p.codigo] = preco;
+          pm[cod] = preco;
           if (p.descricao) {
             pdm[p.descricao.trim().toLowerCase()] = preco;
-            pcd[p.codigo] = p.descricao.trim();
+            pcd[cod] = p.descricao.trim();
           }
           // dim_largura e dim_comprimento em metros → converter para cm
           if (p.dim_largura && p.dim_comprimento && p.dim_espessura) {
-            pdim[p.codigo] = {
+            pdim[cod] = {
               larg_cm: p.dim_largura * 100,
               comp_cm: p.dim_comprimento * 100,
               esp_mm:  p.dim_espessura,
@@ -205,12 +207,11 @@ export default function UsoeConsumoPage() {
         if (prodData.length < 1000) break;
         prodPag++;
       }
-
       // Fetch material recebido pela Seccionadora (para aba Custo)
       const matRows: RowMatEntrada[] = [];
       let matPag = 0;
       while (true) {
-        const { data: matData } = await supabase
+        const { data: matData, error: matErr } = await supabase
           .from("registros_producao")
           .select("maquina, tipo_material, tipo_chapa, qtd_chapas, larg_recebido_cm, comp_recebido_cm, esp_recebido_mm, produto, produto_sobra, qtd_producao_1, qtd_producao_2, qtd_sobra, larg_sobra_cm, comp_sobra_cm, esp_sobra_mm")
           .ilike("maquina", "%seccionadora%")
@@ -219,12 +220,12 @@ export default function UsoeConsumoPage() {
           .not("tipo_material", "is", null)
           .order("data", { ascending: true })
           .range(matPag * 1000, (matPag + 1) * 1000 - 1);
+        if (matErr) { console.error("[UsoeConsumo] matData:", matErr); break; }
         if (!matData || matData.length === 0) break;
         matRows.push(...(matData as RowMatEntrada[]));
         if (matData.length < 1000) break;
         matPag++;
       }
-
       setDadosSecc((rSecc.data ?? []) as ResumoRPC[]);
       setDadosLix((rLix.data   ?? []) as ResumoRPC[]);
       setDadosRec((rRec.data   ?? []) as ResumoRPC[]);
@@ -468,13 +469,14 @@ function AbaCusto({ dadosMatEntrada, precoMap, codigoDescMap, dimMap }: {
       if (!mat) continue;
       const qtd = r.qtd_chapas ?? 0;
       if (qtd <= 0) continue;
-      const prodDim = r.tipo_chapa ? dimMap[r.tipo_chapa] : undefined;
+      const chapa = r.tipo_chapa != null ? String(r.tipo_chapa).trim() : null;
+      const prodDim = chapa ? dimMap[chapa] : undefined;
       const larg = r.larg_recebido_cm ?? prodDim?.larg_cm ?? 0;
       const comp = r.comp_recebido_cm ?? prodDim?.comp_cm ?? 0;
       const esp  = r.esp_recebido_mm  ?? prodDim?.esp_mm  ?? 0;
       if (larg <= 0 || comp <= 0 || esp <= 0) continue;
       const key = `${r.maquina}||${mat}`;
-      if (!map[key]) map[key] = { maquina: r.maquina, tipo_material: mat, tipo_chapa: r.tipo_chapa ?? "", consumo_m3: 0, produtos: new Map() };
+      if (!map[key]) map[key] = { maquina: r.maquina, tipo_material: mat, tipo_chapa: chapa ?? "", consumo_m3: 0, produtos: new Map() };
 
       const row_m3 = (qtd * larg * comp * esp) / 10000000;
       map[key].consumo_m3 += row_m3;
@@ -551,7 +553,11 @@ function AbaCusto({ dadosMatEntrada, precoMap, codigoDescMap, dimMap }: {
       )}
 
       {linhas.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-12">Nenhum material recebido com dimensões registradas no período.</p>
+        <p className="text-sm text-muted-foreground text-center py-12">
+          {dadosMatEntrada.length > 0
+            ? `${dadosMatEntrada.length} registro(s) de entrada encontrado(s), mas sem dimensões de produto disponíveis. Verifique o cadastro de produtos (dim_largura / dim_comprimento / dim_espessura).`
+            : "Nenhum material recebido pela Seccionadora no período."}
+        </p>
       ) : (
         <Card>
           <CardContent className="p-0">
