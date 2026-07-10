@@ -10,6 +10,8 @@ export interface SessionPayload {
   email: string;
   perfil?: string;
   paginas?: string[];
+  iat?: number; // issued at (unix seconds)
+  exp?: number; // expiration (unix seconds)
 }
 
 function sign(data: string): string {
@@ -17,7 +19,13 @@ function sign(data: string): string {
 }
 
 export function encodeSession(payload: SessionPayload): string {
-  const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const now = Math.floor(Date.now() / 1000);
+  const withTimestamps: SessionPayload = {
+    ...payload,
+    iat: now,
+    exp: now + 60 * 60 * 8, // 8 horas
+  };
+  const data = Buffer.from(JSON.stringify(withTimestamps)).toString("base64url");
   const sig = sign(data);
   return `${data}.${sig}`;
 }
@@ -34,7 +42,9 @@ export function decodeSession(token: string): SessionPayload | null {
     return null;
   }
   try {
-    return JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
+    const payload: SessionPayload = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
+    if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) return null;
+    return payload;
   } catch {
     return null;
   }

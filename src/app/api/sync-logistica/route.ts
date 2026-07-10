@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 // Banco de origem (logística externa)
-const ORIGEM_URL = "https://ctntlgvoefdbjxvfkahp.supabase.co";
-const ORIGEM_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0bnRsZ3ZvZWZkYmp4dmZrYWhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNTk0MzEsImV4cCI6MjA4OTgzNTQzMX0.e9iq0VH2Z2HEN4vw7QASSOTEcpB_x7Ovqeo6R7CDfdA";
-
-const origem = createClient(ORIGEM_URL, ORIGEM_KEY);
+const origem = createClient(
+  process.env.LOGISTICA_SUPABASE_URL!,
+  process.env.LOGISTICA_SUPABASE_KEY!
+);
 
 const destino = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -63,13 +62,13 @@ async function syncEntregas(): Promise<number> {
 }
 
 export async function GET(request: Request) {
-  // Vercel Cron envia automaticamente CRON_SECRET no header authorization
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
+  if (!secret) {
+    return NextResponse.json({ error: "CRON_SECRET não configurado" }, { status: 500 });
+  }
+  const auth = request.headers.get("authorization");
+  if (auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   try {
