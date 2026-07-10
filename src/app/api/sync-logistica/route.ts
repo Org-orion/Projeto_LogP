@@ -1,20 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// Banco de origem (logística externa)
-const origem = createClient(
-  process.env.LOGISTICA_SUPABASE_URL!,
-  process.env.LOGISTICA_SUPABASE_KEY!
-);
-
-const destino = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 const PAGE = 1000;
 
-async function fetchTudo(tabela: string, select = "*") {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchTudo(origem: any, tabela: string, select = "*") {
   const rows: Record<string, unknown>[] = [];
   let pagina = 0;
   while (true) {
@@ -31,36 +21,6 @@ async function fetchTudo(tabela: string, select = "*") {
   return rows;
 }
 
-async function syncProgramacoes(): Promise<number> {
-  const rows = await fetchTudo("concrem_programacoes_embarque");
-  if (rows.length === 0) return 0;
-
-  const now = new Date().toISOString();
-  const payload = rows.map((r) => ({ ...r, synced_at: now }));
-
-  const { error } = await destino
-    .from("ext_programacoes_embarque")
-    .upsert(payload, { onConflict: "id" });
-
-  if (error) throw new Error(`programacoes upsert: ${error.message}`);
-  return rows.length;
-}
-
-async function syncEntregas(): Promise<number> {
-  const rows = await fetchTudo("concrem_entregas");
-  if (rows.length === 0) return 0;
-
-  const now = new Date().toISOString();
-  const payload = rows.map((r) => ({ ...r, synced_at: now }));
-
-  const { error } = await destino
-    .from("ext_entregas")
-    .upsert(payload, { onConflict: "id" });
-
-  if (error) throw new Error(`entregas upsert: ${error.message}`);
-  return rows.length;
-}
-
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -71,25 +31,54 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
+  // Inicializa clientes dentro do handler — variáveis só existem em runtime
+  const origem = createClient(
+    process.env.LOGISTICA_SUPABASE_URL!,
+    process.env.LOGISTICA_SUPABASE_KEY!
+  );
+  const destino = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
   try {
-    const [totalProg, totalEntr] = await Promise.all([
-      syncProgramacoes(),
-      syncEntregas(),
+    const [rowsProg, rowsEntr] = await Promise.all([
+      fetchTudo(origem, "concrem_programacoes_embarque"),
+      fetchTudo(origem, "concrem_entregas"),
     ]);
 
     const now = new Date().toISOString();
+
+    const erros: string[] = [];
+
+    if (rowsProg.length > 0) {
+      const { error } = await destino
+        .from("ext_programacoes_embarque")
+        .upsert(rowsProg.map((r) => ({ ...r, synced_at: now })), { onConflict: "id" });
+      if (error) erros.push(`programacoes: ${error.message}`);
+    }
+
+    if (rowsEntr.length > 0) {
+      const { error } = await destino
+        .from("ext_entregas")
+        .upsert(rowsEntr.map((r) => ({ ...r, synced_at: now })), { onConflict: "id" });
+      if (error) erros.push(`entregas: ${error.message}`);
+    }
+
+    if (erros.length > 0) throw new Error(erros.join("; "));
+
     await destino.from("ext_sync_state").upsert(
       [
-        { tabela: "programacoes_embarque", ultimo_sync: now, total_registros: totalProg, atualizado_em: now },
-        { tabela: "entregas",              ultimo_sync: now, total_registros: totalEntr, atualizado_em: now },
+        { tabela: "programacoes_embarque", ultimo_sync: now, total_registros: rowsProg.length, atualizado_em: now },
+        { tabela: "entregas",              ultimo_sync: now, total_registros: rowsEntr.length, atualizado_em: now },
       ],
       { onConflict: "tabela" }
     );
 
     return NextResponse.json({
       ok: true,
-      programacoes: totalProg,
-      entregas: totalEntr,
+      programacoes: rowsProg.length,
+      entregas: rowsEntr.length,
       synced_at: now,
     });
   } catch (err) {
