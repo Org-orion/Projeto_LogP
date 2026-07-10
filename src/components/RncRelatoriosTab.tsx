@@ -287,7 +287,8 @@ export default function RncRelatoriosTab() {
     const { data } = await supabase
       .from("rnc_relatorios")
       .select("*")
-      .order("data_abertura", { ascending: false });
+      .order("data_abertura", { ascending: false })
+      .limit(5000);
     setRelatorios((data as RncRelatorio[]) ?? []);
     setLoading(false);
   }, []);

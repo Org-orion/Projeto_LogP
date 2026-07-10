@@ -74,24 +74,28 @@ export function useEstatisticasProducao(): EstatisticasProducao {
       // Busca 37 dias para cobrir: hoje + 30 dias histórico + 7 dias semana anterior
       const inicio = dateStr(subDays(hoje, 36));
 
-      const { data, error } = await supabase
-        .from("registros_producao")
-        .select("data,maquina,qtd_conforme,qtd_nao_conforme_1,qtd_nao_conforme_2,qtd_nao_conforme_3,qtd_nao_conforme_4")
-        .gte("data", inicio)
-        .lte("data", hojeStr)
-        .order("data", { ascending: false })
-        .limit(5000);
+      const TAM = 1000;
+      let pagina = 0;
+      const data: { data: string; maquina: string; qtd_conforme: number | null; qtd_nao_conforme_1: number | null; qtd_nao_conforme_2: number | null; qtd_nao_conforme_3: number | null; qtd_nao_conforme_4: number | null }[] = [];
+      let fetchError = false;
+      while (true) {
+        const { data: lote, error } = await supabase
+          .from("registros_producao")
+          .select("data,maquina,qtd_conforme,qtd_nao_conforme_1,qtd_nao_conforme_2,qtd_nao_conforme_3,qtd_nao_conforme_4")
+          .gte("data", inicio)
+          .lte("data", hojeStr)
+          .order("data", { ascending: true })
+          .range(pagina * TAM, (pagina + 1) * TAM - 1);
+        if (error) { fetchError = true; break; }
+        if (!lote || lote.length === 0) break;
+        data.push(...lote);
+        if (lote.length < TAM) break;
+        pagina++;
+      }
 
       if (cancelled) return;
 
-      console.log("[useEstatisticasProducao]", {
-        hojeStr, inicio,
-        rows: data?.length ?? 0,
-        error,
-        sample: data?.[0],
-      });
-
-      if (error || !data) {
+      if (fetchError) {
         setState(s => ({ ...s, loading: false }));
         return;
       }

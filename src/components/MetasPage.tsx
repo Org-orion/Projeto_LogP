@@ -174,6 +174,7 @@ export default function MetasPage() {
         const { data } = await supabase
           .from("registros_producao")
           .select("maquina")
+          .order("id", { ascending: true })
           .range(pagina * TAM, (pagina + 1) * TAM - 1);
         if (!data || data.length === 0) break;
         data.forEach(r => nomes.add(r.maquina));
@@ -240,6 +241,7 @@ export default function MetasPage() {
         .gte("data", indMes)
         .lt("data", mesFim)
         .in("maquina", todasMaquinas)
+        .order("data", { ascending: true })
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
       if (error) { setSincronizando(false); return; }
       if (!data || data.length === 0) break;

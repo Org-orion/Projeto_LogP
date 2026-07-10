@@ -269,7 +269,8 @@ export default function MaterialCertificadoPage() {
     const { data, error } = await supabase
       .from("material_certificado_fsc")
       .select("*")
-      .order("data_recebimento", { ascending: false });
+      .order("data_recebimento", { ascending: false })
+      .limit(5000);
     if (error) {
       toast.error("Erro ao carregar registros: " + error.message);
     } else {
@@ -288,7 +289,7 @@ export default function MaterialCertificadoPage() {
       .select("*")
       .ilike("maquina", "recebimento de chapa%")
       .order("data", { ascending: false })
-      .limit(500);
+      .limit(2000);
 
     if (error) {
       toast.error("Erro ao carregar registros de MDF: " + error.message);
@@ -334,7 +335,7 @@ export default function MaterialCertificadoPage() {
       .select("*")
       .ilike("maquina", "recebimento de materiais%")
       .order("data", { ascending: false })
-      .limit(500);
+      .limit(2000);
     if (error) {
       toast.error("Erro ao carregar registros: " + error.message);
       setOutrosCarregando(false);

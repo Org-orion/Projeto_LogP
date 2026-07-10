@@ -14,13 +14,24 @@ async function fetchNcAlerts(): Promise<NcAlert[]> {
   const dataInicio = format(subDays(hoje, 6), "yyyy-MM-dd");
   const dataFim = format(hoje, "yyyy-MM-dd");
 
-  const { data, error } = await supabase
-    .from("registros_producao")
-    .select("maquina,data,qtd_nao_conforme_1,qtd_nao_conforme_2,qtd_nao_conforme_3,qtd_nao_conforme_4")
-    .gte("data", dataInicio)
-    .lte("data", dataFim);
+  const TAM = 1000;
+  let pagina = 0;
+  const data: { maquina: string; data: string; qtd_nao_conforme_1: number | null; qtd_nao_conforme_2: number | null; qtd_nao_conforme_3: number | null; qtd_nao_conforme_4: number | null }[] = [];
+  while (true) {
+    const { data: lote, error } = await supabase
+      .from("registros_producao")
+      .select("maquina,data,qtd_nao_conforme_1,qtd_nao_conforme_2,qtd_nao_conforme_3,qtd_nao_conforme_4")
+      .gte("data", dataInicio)
+      .lte("data", dataFim)
+      .order("data", { ascending: true })
+      .range(pagina * TAM, (pagina + 1) * TAM - 1);
+    if (error || !lote || lote.length === 0) break;
+    data.push(...lote);
+    if (lote.length < TAM) break;
+    pagina++;
+  }
 
-  if (error || !data) return [];
+  if (!data.length) return [];
 
   const map: Record<string, NcAlert> = {};
   for (const row of data) {

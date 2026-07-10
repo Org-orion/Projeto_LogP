@@ -1303,6 +1303,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
         .select("maquina,data,linha,produto,padrao,largura_cm,qtd_conforme")
         .gte("data", inicio)
         .lte("data", fim)
+        .order("data", { ascending: true })
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
       if (myReq !== dashReqRef.current) return;
       if (error) {
@@ -1351,6 +1352,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
         .select("maquina, data, qtd_conforme")
         .gte("data", dataInicio)
         .lte("data", dataFim)
+        .order("data", { ascending: true })
         .range(pagina * TAM_PAG, (pagina + 1) * TAM_PAG - 1);
       if (err2) { setErro(err2.message); setSpin(false); return; }
       if (!lote || lote.length === 0) break;

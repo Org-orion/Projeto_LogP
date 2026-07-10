@@ -129,6 +129,7 @@ export default function NaoConformidadesTab() {
         .select(COLS)
         .gte("data", dataInicio)
         .lte("data", dataFim)
+        .order("data", { ascending: true })
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
 
       if (myReq !== ncReqRef.current) return;

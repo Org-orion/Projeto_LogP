@@ -322,105 +322,145 @@ function SecaoSimples({ title, rows, subtitle }: { title: string; rows: Dim[]; s
 // ─── PDF Export ───────────────────────────────────────────────────────────────
 
 function gerarPDF(dados: BoletimData, range: DateRange) {
-  const doc = new jsPDF({ orientation: "landscape" });
-  const green: [number, number, number] = [26, 91, 46];
-  const pageW = doc.internal.pageSize.getWidth();
-  const margin = 12;
+  type RGB = [number, number, number];
+  const doc  = new jsPDF({ orientation: "landscape" });
+  const G: RGB = [26, 91, 46];
+  const PW = doc.internal.pageSize.getWidth();   // 297 mm
+  const PH = doc.internal.pageSize.getHeight();  // 210 mm
+  const ML = 10, MR = 10, MT = 8, MB = 14;
+  const GAP = 3;                                  // gap between stacked tables
+  const C2  = (PW - ML - MR - GAP) / 2;          // ~137 mm per column
+  const LX  = ML;
+  const RX  = ML + C2 + GAP;
+
   const periodoLabel = range.from
     ? range.to
       ? `${format(range.from, "dd/MM/yyyy")} – ${format(range.to, "dd/MM/yyyy")}`
       : format(range.from, "dd/MM/yyyy")
     : "";
 
-  // Cabeçalho
-  doc.addImage(LOGO_CONCREM_B64, "PNG", margin, 6, 60, 13);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(30, 30, 30);
-  doc.text("RELATÓRIO GERAL MENSAL", pageW / 2, 12, { align: "center" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(90, 90, 90);
-  doc.text(periodoLabel, pageW / 2, 18, { align: "center" });
-  doc.setFillColor(...green);
-  doc.rect(margin, 22, pageW - margin * 2, 0.6, "F");
+  // ── helpers ────────────────────────────────────────────────────
+  const getY = () =>
+    (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
 
-  const buildBody = (rows: Dim[]) => rows.map(r => [r.dim, r.qtd.toLocaleString("pt-BR")]);
-  const hStyle = { fillColor: green, textColor: [255,255,255] as [number,number,number], fontStyle: "bold" as const };
-  const altStyle = { fillColor: [242,247,242] as [number,number,number] };
-  const opts = { styles: { fontSize: 7.5, cellPadding: 1.8 }, headStyles: hStyle, alternateRowStyles: altStyle };
+  // Generous height estimate: 7mm header + 4.5mm per data row + 1 total row
+  const estH = (n: number) => 8 + (n + 1) * 4.5;
 
-  let y = 26;
-  const col = (pageW - margin * 2) / 4 - 2;
+  const BASE = {
+    styles:              { fontSize: 7, cellPadding: 1.4 },
+    headStyles:          { fillColor: G, textColor: [255,255,255] as RGB, fontStyle: "bold" as const },
+    alternateRowStyles:  { fillColor: [242,247,242] as RGB },
+    columnStyles:        { 1: { halign: "right" as const, cellWidth: 20 } },
+  };
 
-  // Row 1: Portas + Batentes + Alizares + Rodapés
-  autoTable(doc, { ...opts, startY: y, tableWidth: col * 1.5, margin: { left: margin },
-    head: [["PORTAS (PRENSAS) — Por Largura", "Qtd"]], body: [
-      ...buildBody(dados.portas.porDim),
-      ["TOTAL", dados.portas.total.toLocaleString("pt-BR")],
-    ] });
-  autoTable(doc, { ...opts, startY: y, tableWidth: col * 1.5, margin: { left: margin + col * 1.5 + 2 },
-    head: [["PORTAS — Por Núcleo", "Qtd"]], body: buildBody(dados.portas.porNucleo) });
+  function drawT(title: string, rows: Dim[], x: number, y: number, w: number): number {
+    const body = rows.map(r => [r.dim, r.qtd.toLocaleString("pt-BR")]);
+    body.push(["TOTAL", rows.reduce((s, r) => s + r.qtd, 0).toLocaleString("pt-BR")]);
+    autoTable(doc, {
+      ...BASE,
+      startY:    y,
+      margin:    { left: x, right: PW - x - w },
+      tableWidth: w,
+      head: [[title, "Qtd"]],
+      body,
+    });
+    return getY();
+  }
 
-  const y2 = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4;
+  function drawHeader(): number {
+    try { doc.addImage(LOGO_CONCREM_B64, "PNG", ML, MT, 52, 10); } catch {}
+    doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(30,30,30);
+    doc.text("RELATÓRIO GERAL MENSAL", PW/2, MT+5, { align: "center" });
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(90,90,90);
+    doc.text(periodoLabel, PW/2, MT+11, { align: "center" });
+    doc.setFillColor(...G);
+    doc.rect(ML, MT+14, PW-ML-MR, 0.5, "F");
+    return MT + 18;
+  }
 
-  autoTable(doc, { ...opts, startY: y2, tableWidth: col, margin: { left: margin },
-    head: [["BATENTES (Moldureira)", "Qtd"]], body: [
-      ...buildBody(dados.batentes.porDim),
-      ["TOTAL", dados.batentes.total.toLocaleString("pt-BR")],
-    ] });
-  autoTable(doc, { ...opts, startY: y2, tableWidth: col, margin: { left: margin + col + 2 },
-    head: [["ALIZARES (Coladeira)", "Qtd"]], body: [
-      ...buildBody(dados.alizares.porDim),
-      ["TOTAL", dados.alizares.total.toLocaleString("pt-BR")],
-    ] });
-  autoTable(doc, { ...opts, startY: y2, tableWidth: col, margin: { left: margin + col * 2 + 4 },
-    head: [["RODAPÉS (Moldureira)", "Qtd"]], body: [
-      ...buildBody(dados.rodapes.porDim),
-      ["TOTAL", dados.rodapes.total.toLocaleString("pt-BR")],
-    ] });
-  autoTable(doc, { ...opts, startY: y2, tableWidth: col, margin: { left: margin + col * 3 + 6 },
-    head: [["COLAGEM DE BORDAS", "Qtd"]], body: [
-      ...buildBody(dados.colagem.porDim),
-      ["TOTAL", dados.colagem.total.toLocaleString("pt-BR")],
-    ] });
+  type Sec = { title: string; rows: Dim[] };
 
-  // Página 2 — Recobrimento
-  doc.addPage();
-  doc.setFillColor(...green);
-  doc.rect(margin, 8, pageW - margin * 2, 0.6, "F");
-  let y3 = 12;
+  // Draws two columns of stacked tables at the SAME startY.
+  // Both columns MUST fit on the current page (caller must ensure this).
+  function drawPair(left: Sec[], right: Sec[], startY: number): number {
+    let lY = startY;
+    for (const s of left) {
+      if (!s.rows.length) continue;
+      lY = drawT(s.title, s.rows, LX, lY, C2) + GAP;
+    }
 
-  autoTable(doc, { ...opts, startY: y3, tableWidth: col, margin: { left: margin },
-    head: [["GAIDZINSKI — Batente C/Borracha", "Qtd"]], body: [
-      ...buildBody(dados.gaidzinski.batente),
-      ["TOTAL", dados.gaidzinski.totalBatente.toLocaleString("pt-BR")],
-    ] });
-  autoTable(doc, { ...opts, startY: y3, tableWidth: col, margin: { left: margin + col + 2 },
-    head: [["GAIDZINSKI — Bat. Pivotante", "Qtd"]], body: buildBody(dados.gaidzinski.batentePivotante) });
-  autoTable(doc, { ...opts, startY: y3, tableWidth: col * 1.5, margin: { left: margin + col * 2 + 4 },
-    head: [["UNESA — Alizar", "Qtd"]], body: [
-      ...buildBody(dados.unesa.alizar),
-      ["TOTAL", dados.unesa.totalAlizar.toLocaleString("pt-BR")],
-    ] });
-  autoTable(doc, { ...opts, startY: y3, tableWidth: col, margin: { left: margin + col * 3.5 + 6 },
-    head: [["UNESA — Régua", "Qtd"]], body: [
-      ...buildBody(dados.unesa.regua),
-      ["TOTAL", dados.unesa.totalRegua.toLocaleString("pt-BR")],
-    ] });
+    let rY = startY;
+    for (const s of right) {
+      if (!s.rows.length) continue;
+      rY = drawT(s.title, s.rows, RX, rY, C2) + GAP;
+    }
 
-  const y4 = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4;
-  autoTable(doc, { ...opts, startY: y4, tableWidth: col, margin: { left: margin },
-    head: [["UNESA — Bat. Pivotante", "Qtd"]], body: buildBody(dados.unesa.batentePivotante) });
-  autoTable(doc, { ...opts, startY: y4, tableWidth: col, margin: { left: margin + col + 2 },
-    head: [["UNESA — Baguete", "Qtd"]], body: buildBody(dados.unesa.baguete) });
+    return Math.max(lY, rY) - GAP;
+  }
 
-  // Rodapé com páginas
-  const total = doc.getNumberOfPages();
-  for (let p = 1; p <= total; p++) {
+  // If the tallest side of this pair doesn't fit, add a page first.
+  function ensureFits(curY: number, left: Sec[], right: Sec[]): number {
+    const lH = left .filter(s => s.rows.length).reduce((a, s) => a + estH(s.rows.length) + GAP, 0);
+    const rH = right.filter(s => s.rows.length).reduce((a, s) => a + estH(s.rows.length) + GAP, 0);
+    if (curY + Math.max(lH, rH) > PH - MB) {
+      doc.addPage();
+      return drawHeader();
+    }
+    return curY;
+  }
+
+  // ── PÁGINA 1 ──────────────────────────────────────────────────
+  let y = drawHeader();
+
+  // ── Portas (esq) + Batentes / Alizares / Rodapés (dir) ───────
+  const sec1L: Sec[] = [
+    { title: "PORTAS — Por Largura (cm)",   rows: dados.portas.porDim    },
+    { title: "PORTAS — Por Linha / Núcleo", rows: dados.portas.porNucleo },
+  ];
+  const sec1R: Sec[] = [
+    { title: "BATENTES (Moldureira) — Largura (cm)",    rows: dados.batentes.porDim },
+    { title: "ALIZARES (Coladeira) — Dimensão",         rows: dados.alizares.porDim },
+    { title: "RODAPÉS (Moldureira) — Largura (cm)",     rows: dados.rodapes.porDim  },
+  ];
+  y = ensureFits(y, sec1L, sec1R);
+  y = drawPair(sec1L, sec1R, y) + GAP * 2;
+
+  // ── Colagem (esq) + Gaidzinski (dir) ─────────────────────────
+  const sec2L: Sec[] = [
+    { title: "COLAGEM DE BORDAS — Por Largura (cm)",   rows: dados.colagem.porDim    },
+    { title: "COLAGEM DE BORDAS — Por Linha / Núcleo", rows: dados.colagem.porNucleo },
+  ];
+  const sec2R: Sec[] = [
+    { title: "GAIDZINSKI — Batente C/Borracha", rows: dados.gaidzinski.batente           },
+    { title: "GAIDZINSKI — Bat. Pivotante",     rows: dados.gaidzinski.batentePivotante  },
+    { title: "GAIDZINSKI — Alizar",             rows: dados.gaidzinski.alizar            },
+    { title: "GAIDZINSKI — Baguete",            rows: dados.gaidzinski.baguete           },
+    { title: "GAIDZINSKI — Rodapé",             rows: dados.gaidzinski.rodape            },
+  ];
+  y = ensureFits(y, sec2L, sec2R);
+  y = drawPair(sec2L, sec2R, y) + GAP * 2;
+
+  // ── UNESA ─────────────────────────────────────────────────────
+  const sec3L: Sec[] = [
+    { title: "UNESA — Alizar",  rows: dados.unesa.alizar },
+    { title: "UNESA — Régua",   rows: dados.unesa.regua  },
+  ];
+  const sec3R: Sec[] = [
+    { title: "UNESA — Bat. Pivotante", rows: dados.unesa.batentePivotante },
+    { title: "UNESA — Baguete",        rows: dados.unesa.baguete          },
+  ];
+  const hasUnesa = [...sec3L, ...sec3R].some(s => s.rows.length > 0);
+  if (hasUnesa) {
+    y = ensureFits(y, sec3L, sec3R);
+    drawPair(sec3L, sec3R, y);
+  }
+
+  // ── Rodapé em todas as páginas ────────────────────────────────
+  const totalPgs = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPgs; p++) {
     doc.setPage(p);
     doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(160,160,160);
-    doc.text(`Página ${p} de ${total}  —  Concrem Portas Premium`, pageW / 2, doc.internal.pageSize.getHeight() - 5, { align: "center" });
+    doc.text(`Página ${p} de ${totalPgs}  —  Concrem Portas Premium`, PW/2, PH-5, { align: "center" });
   }
 
   const slug = range.from ? format(range.from, "yyyy-MM") : "boletim";
@@ -524,6 +564,7 @@ export default function BoletimMensal() {
         .select("maquina,largura_cm,comprimento_cm,espessura_mm,nucleo,linha,padrao,esp_regua_cm,esp_aba_cm,largura_perfil,produto,qtd_conforme")
         .gte("data", inicio)
         .lte("data", fim)
+        .order("data", { ascending: true })
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
       if (error || !data || data.length === 0) break;
       todos.push(...(data as Registro[]));

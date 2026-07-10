@@ -231,7 +231,8 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       .select("*")
       .eq("tipo", "gramatura")
       .order("data", { ascending: false })
-      .order("id",   { ascending: false });
+      .order("id",   { ascending: false })
+      .limit(2000);
     if (error) toast.error("Erro ao carregar medições: " + error.message);
     else setGramaturas(data ?? []);
     setLoadingGram(false);
@@ -248,7 +249,8 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       .select("*")
       .eq("tipo", "rq40")
       .order("data", { ascending: false })
-      .order("id",   { ascending: false });
+      .order("id",   { ascending: false })
+      .limit(2000);
     if (error) toast.error("Erro ao carregar RQ40: " + error.message);
     else setRq40s(data ?? []);
     setLoadingRQ40(false);
@@ -267,7 +269,8 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       .select("*")
       .eq("tipo", "rq41")
       .order("data", { ascending: false })
-      .order("id",   { ascending: false });
+      .order("id",   { ascending: false })
+      .limit(2000);
     if (error) toast.error("Erro ao carregar RQ41: " + error.message);
     else setRq41s(data ?? []);
     setLoadingRQ41(false);
@@ -285,7 +288,8 @@ export default function QualidadePage({ subSection = "gramatura" }: QualidadePag
       .from("controle_qualidade")
       .select("id, tipo, data, produto, fornecedor, nota_fiscal, quantidade, resultado")
       .in("tipo", ["rq40", "rq41"])
-      .order("data", { ascending: false });
+      .order("data", { ascending: false })
+      .limit(5000);
     if (!error) setAllRecebimentos(data ?? []);
     setLoadingReceb(false);
   }, []);

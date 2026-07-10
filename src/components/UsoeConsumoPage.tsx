@@ -183,6 +183,7 @@ export default function UsoeConsumoPage() {
         const { data: prodData } = await supabase
           .from("produtos")
           .select("codigo, descricao, preco_unitario, valor, dim_largura, dim_comprimento, dim_espessura")
+          .order("id", { ascending: true })
           .range(prodPag * 1000, (prodPag + 1) * 1000 - 1);
         if (!prodData || prodData.length === 0) break;
         for (const p of prodData as PrecoProduto[]) {
@@ -216,6 +217,7 @@ export default function UsoeConsumoPage() {
           .gte("data", mes)
           .lte("data", fim)
           .not("tipo_material", "is", null)
+          .order("data", { ascending: true })
           .range(matPag * 1000, (matPag + 1) * 1000 - 1);
         if (!matData || matData.length === 0) break;
         matRows.push(...(matData as RowMatEntrada[]));
