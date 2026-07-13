@@ -852,7 +852,7 @@ function HistoricoSheet({ maquina, open, onClose, canEdit }: {
   return (
     <>
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-[90vw] w-full h-[85vh] flex flex-col gap-0 p-0 overflow-hidden mt-[72px]">
+      <DialogContent className="max-w-[90vw] w-full h-[calc(100vh-140px)] flex flex-col gap-0 p-0 overflow-hidden mt-[50px]">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             Produção — {(maquina?.nome as string) ?? ""}
@@ -1005,7 +1005,7 @@ function HistoricoSheet({ maquina, open, onClose, canEdit }: {
         {/* Tabela — container com posição absoluta garante que as barras de rolagem
             apareçam dentro dos limites visíveis do dialog */}
         <div className="flex-1 min-h-0 relative border-t">
-          <div className="absolute inset-0 overflow-auto">
+          <div className="absolute inset-0 overflow-x-scroll overflow-y-auto">
             {loadingHist ? (
               <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
             ) : registros.length === 0 ? (
