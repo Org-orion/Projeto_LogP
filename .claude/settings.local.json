@@ -43,7 +43,30 @@
       "Bash(npx shadcn@latest add chart)",
       "Bash(npx shadcn@latest add chart --pm npm)",
       "PowerShell(vercel ls --scope team_1KtVt0mCBMA0Ii6Lyc1qkRiF 2>&1)",
-      "PowerShell(vercel deploy --prod --scope team_1KtVt0mCBMA0Ii6Lyc1qkRiF 2>&1)"
+      "PowerShell(vercel deploy --prod --scope team_1KtVt0mCBMA0Ii6Lyc1qkRiF 2>&1)",
+      "Bash(curl -s http://localhost:3000/ -o /dev/null -w \"http_code=%{http_code}\\\\n\")",
+      "Bash(tail -n 10 /tmp/devlog2.txt)",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(grep -o \"status-success\" /tmp/layout.css | head -3; grep -o \"\\\\.bg-status-[a-z]*\" /tmp/layout.css | sort -u)",
+      "Bash(grep -n \"#[0-9a-fA-F]\\\\{3,8\\\\}\" c:/dev/concrem-layout/src/views/Login.tsx)",
+      "Bash(curl -s \"http://localhost:3000/_next/static/css/app/layout.css\" -o /tmp/layout2.css)",
+      "Bash(tasklist)",
+      "Bash(curl -s -o /tmp/home3.html -w \"http_code=%{http_code} size=%{size_download}\\\\n\" http://localhost:3000/)",
+      "Bash(git -C c:/dev/concrem-layout remote -v)",
+      "Bash(git -C c:/dev/concrem-layout ls-files)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 3000 -State Listen)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"ProcessId=20492\")",
+      "Bash(curl -s -o /dev/null -w \"http_code=%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"bg_image=%{http_code}\\\\n\" http://localhost:3000/login-bg-forest.png)",
+      "Bash(curl -s -o /dev/null -w \"server=%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"bg=%{http_code}\\\\n\" http://localhost:3000/login-bg-forest.jpg)",
+      "Bash(curl -s \"http://localhost:3000/_next/static/css/app/layout.css\" -o /tmp/layout_check.css)",
+      "Bash(curl -s -o /dev/null -w \"logo_white=%{http_code}\\\\n\" http://localhost:3000/logo-concrem-white.png)",
+      "Bash(tail -n 30 /tmp/devlog2.txt 2>/dev/null)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000 --max-time 5)",
+      "Bash(curl -s -o /dev/null -w \" isotipo:%{http_code}\\\\n\" http://localhost:3000/isotipo-branco.png --max-time 5)",
+      "Bash(curl -s -o /dev/null -w \"app:%{http_code}\\\\n\" http://localhost:3000 --max-time 5)",
+      "Bash(curl -s -o /dev/null -w \"logo:%{http_code}\\\\n\" http://localhost:3000/Logo-Branco.png --max-time 5)"
     ]
   }
 }

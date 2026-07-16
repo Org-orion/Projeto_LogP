@@ -90,27 +90,25 @@ export function NotificationPanel({ onNavigateNC, onNavigateNF }: NotificationPa
 
   return (
     <div ref={panelRef} style={{ position: "relative" }}>
-      {/* Bell button */}
+      {/* Bell button — vive na barra de abas (cor do sidebar), por isso as cores são sempre "on-sidebar" */}
       <button
         onClick={() => setOpen(v => !v)}
-        className="topnav-btn"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-white/10"
         style={{
-          width: 36, height: 36, borderRadius: 8,
-          display: "grid", placeItems: "center",
-          color: open ? "#fff" : "rgba(255,255,255,0.75)",
-          position: "relative", border: "none",
-          background: open ? "rgba(255,255,255,0.1)" : "none",
+          position: "relative",
+          color: open ? "hsl(var(--sidebar-foreground))" : "hsl(var(--sidebar-foreground) / 0.75)",
+          background: open ? "hsl(0 0% 100% / 0.18)" : "transparent",
           cursor: "pointer",
         }}
         title="Notificações"
       >
-        <Bell size={16} />
+        <Bell size={15} />
         {unreadCount > 0 && (
           <span style={{
             position: "absolute", top: 5, right: 5,
             minWidth: 16, height: 16, borderRadius: 8,
             background: "#ef4444",
-            border: "2px solid #08301c",
+            border: "2px solid hsl(var(--background))",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 9, fontWeight: 700, color: "#fff",
             lineHeight: 1, padding: "0 3px",

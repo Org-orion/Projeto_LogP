@@ -1,0 +1,296 @@
+// Mapa de colunas de `registros_producao` relevantes por tipo de máquina —
+// extraído de HistoricoSheet.tsx (histórico/edição) pra ser reaproveitado
+// também por LancarProducaoForm.tsx (criação). Fonte única: evita duas listas
+// de campos por máquina divergindo com o tempo.
+
+export interface ColunaDef {
+  key: string;
+  label: string;
+  numeric?: boolean;
+  date?: boolean;
+  wide?: boolean;
+  uppercase?: boolean;
+}
+
+const c = (key: string, label: string, opts: Partial<Omit<ColunaDef,"key"|"label">> = {}): ColunaDef => ({ key, label, ...opts });
+
+export const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
+  "seccionadora 1": [
+    // Material Recebido
+    c("data","Data",{date:true}), c("fornecedor","Fornecedor",{uppercase:true}), c("lote_fornecedor","Lote Fornecedor"),
+    c("tipo_material","Material de Entrada",{wide:true}), c("tipo_chapa","Cód. Chapa"),
+    c("qtd_chapas","Qtd. Chapas",{numeric:true}),
+    // Material Produzido
+    c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"), c("qualidade","Qualidade"),
+    c("produto","Produto Produzido"),
+    c("espessura_mm","Esp. Produzida (mm)",{numeric:true}), c("largura_cm","Larg. Produzida (cm)",{numeric:true}), c("comprimento_cm","Comp. Produzido (cm)",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    // Sobra
+    c("esp_sobra_mm","Esp. Sobra (mm)",{numeric:true}), c("larg_sobra_cm","Larg. Sobra (cm)",{numeric:true}), c("comp_sobra_cm","Comp. Sobra (cm)",{numeric:true}),
+    c("qtd_sobra","Qtd. Sobra",{numeric:true}), c("produto_sobra","Produto Sobra"),
+    // Complementar
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("seccionadora_aq009","SECC. (AQ009)"),
+    c("recebimento_chapa_aq01","Receb. Chapa (AQ001)"), c("recebimento_materiais_aq002","Receb. Materiais (AQ002)"),
+    c("observacao","Observação"),
+  ],
+  "seccionadora": [
+    // Material Recebido
+    c("data","Data",{date:true}), c("fornecedor","Fornecedor",{uppercase:true}), c("lote_fornecedor","Lote Fornecedor"),
+    c("tipo_material","Material de Entrada",{wide:true}), c("tipo_chapa","Cód. Chapa"),
+    c("qtd_chapas","Qtd. Chapas",{numeric:true}),
+    // Material Produzido 1
+    c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"), c("qualidade","Qualidade"),
+    c("produto","Produto Produzido"),
+    c("espessura_mm","Esp. Produzida (mm)",{numeric:true}), c("largura_cm","Larg. Produzida (cm)",{numeric:true}), c("comprimento_cm","Comp. Produzido (cm)",{numeric:true}),
+    c("qtd_producao_1","Qtd. Prod. 1",{numeric:true}),
+    // Material Produzido 2
+    c("esp_produzido_2_mm","Esp. 2 (mm)",{numeric:true}), c("larg_produzido_2_cm","Larg. 2 (cm)",{numeric:true}), c("comp_produzido_2_cm","Comp. 2 (cm)",{numeric:true}),
+    c("qtd_producao_2","Qtd. Prod. 2",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    // Sobra
+    c("esp_sobra_mm","Esp. Sobra (mm)",{numeric:true}), c("larg_sobra_cm","Larg. Sobra (cm)",{numeric:true}), c("comp_sobra_cm","Comp. Sobra (cm)",{numeric:true}),
+    c("qtd_sobra","Qtd. Sobra",{numeric:true}), c("produto_sobra","Produto Sobra"),
+    // Complementar
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("seccionadora_aq009","SECC. (AQ009)"),
+    c("recebimento_chapa_aq01","Receb. Chapa (AQ001)"), c("recebimento_materiais_aq002","Receb. Materiais (AQ002)"),
+    c("observacao","Observação"),
+  ],
+  "multi serra perfil": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("multi_serra_perfil_aq010","M.S.P. (AQ010)"), c("produto","Produto"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("largura_cm","Larg. (cm)",{numeric:true}), c("comprimento_cm","Comp. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("dimensao_produto","Dim. Produto"), c("dimensao_sobra","Dim. Sobra"), c("qtd_sobra","Qtd. Sobra",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("observacao","Observação"),
+    c("lixamento_aq041","LIXAMENTO (AQ041)"), c("seccionadora_aq009","SECC. (AQ009)"), c("prensa_fria_aq017","PRENSA FRIA (AQ017)"),
+  ],
+  "moldureira de batente": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("plaina_moldureira_batente_aq011","P.M.B. (AQ011)"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. Batente (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("profundidade_rasgo_regulagem","Prof. Rasgo Regulagem",{numeric:true}), c("profundidade_rasgo_borracha","Prof. Rasgo Borracha",{numeric:true}),
+    c("categoria","Categoria"),
+    c("espessura_rasgo_regulagem","Esp. Rasgo Regulagem",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("observacao","Observação"), c("multi_serra_perfil_aq010","M.S.P. (AQ010)"),
+  ],
+  "coladeira de alizar": [
+    c("data","Data",{date:true}), c("maquina","Máquina"), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("coladeira_alizar_aq0012","COL. ALIZAR (AQ012)"), c("produto","Produto"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("esp_regua_cm","Esp. Régua (cm)",{numeric:true}),
+    c("esp_aba_cm","Esp. Aba (cm)",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("multi_serra_aba_aq010","M.S.P. Aba (AQ010)"), c("multi_serra_regua_aq010","M.S.P. Régua (AQ010)"),
+  ],
+  "esquadrejadeira": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("linha","Linha"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("nucleo","Núcleo"), c("acabamento","Acabamento"), c("padrao","Padrão"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("desvio_esquadro_mm","Desvio Esquadro (mm)",{numeric:true}), c("paralelismo","Paralelismo"),
+    c("acabamento_lateral","Acab. Lateral"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("observacao","Observação"), c("fornecedor","Fornecedor"),
+    c("esquadrejadeira_aq040","ESQUAD. (AQ040)"), c("prensa_fria_aq017","PRENSA FRIA (AQ017)"),
+  ],
+  "lixadeira": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
+    c("lixamento_aq041","LIXAMENTO (AQ041)"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("produto","Produto"), c("nucleo","Núcleo"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}),
+    c("retilineidade","Retilineidade"), c("textura","Textura"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("observacao","Observação"),
+    c("destopadeira_sarrafo_aq015","DESTOP. SARRAFO (AQ015)"), c("seccionadora_aq009","SECC. (AQ009)"),
+  ],
+  "recobridora de tampo": [
+    c("data","Data",{date:true}), c("registro","Registro"), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("n_lote","N° Lote"), c("fornecedor","Fornecedor"),
+    c("recobrimento_aq019","RECOB. TAMPO (AQ019)"), c("lote_fornecedor","Lote Fornecedor"),
+    c("produto","Produto"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("nucleo","Núcleo"), c("padrao","Padrão"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. Porta/Tampo (mm)",{numeric:true}),
+    c("qualidade_recobrimento","Qual. Recobrimento"), c("tempo_cura","Tempo de Cura"),
+    c("temperatura_c","Temperatura (°C)",{numeric:true}), c("tipo_cola","Tipo de Cola"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("observacao","Observação"), c("local","Local"), c("maquina","Máquina"), c("setor","Setor"),
+    c("seccionadora_aq009","SECC. (AQ009)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
+    c("recebimento_materiais_aq002","REC. MATERIAIS (AQ002)"), c("lixamento_aq041","LIXAMENTO (AQ041)"),
+  ],
+  "colagem de borda": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("colagem_borda_aq020","COL. BORDA (AQ020)"),
+    c("cliente","Cliente"), c("nome_cliente","Nome Cliente"), c("linha","Linha"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("nucleo","Núcleo"), c("padrao","Padrão"), c("tipo_cola","Tipo de Cola"),
+    c("largura_cm","Larg. (cm)",{numeric:true}), c("comprimento_cm","Comp. Porta (cm)",{numeric:true}), c("espessura_mm","Esp. Porta (mm)",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("observacao","Observação"), c("esquadrejadeira_aq040","ESQUAD. (AQ040)"),
+  ],
+  "linha de pintura de tampo": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("linha_pintura_aq021","L. PINTURA TAMPO (AQ021)"), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
+    c("produto","Produto"), c("padrao","Padrão"), c("qtd_demao","Qtd. Demão",{numeric:true}),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (cm)",{numeric:true}),
+    c("qualidade","Qualidade"), c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("observacao","Observação"), c("seccionadora_aq009","SECC. (AQ009)"), c("lixamento_aq041","LIXAMENTO (AQ041)"),
+  ],
+  "furação e corte": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("usinagem_portas_aq023","USINAGEM PORTAS (AQ023)"), c("cliente","Cliente"), c("linha","Linha"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("nucleo","Núcleo"), c("acabamento","Acabamento"), c("padrao","Padrão"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("qualidade_usinagem","Qual. Usinagem"),
+    c("altura_dobradica_inferior","Alt. Dobrad. Inf."), c("altura_dobradica_superior","Alt. Dobrad. Sup."),
+    c("sentido_abertura_dir","Sentido Dir."), c("sentido_abertura_esq","Sentido Esq."),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("observacao","Observação"),
+    c("colagem_borda_aq020","COL. BORDA (AQ020)"), c("usinagem_friso_aq022","USIN. FRISO (AQ022)"),
+    c("recebimento_ferragens_aq005","REC. FERRAGENS (AQ005)"),
+  ],
+  "recobrimento de perfil": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("maquina","Máquina"), c("recobrimento_perfil_aq025","RECOB. PERFIL (AQ025)"),
+    c("produto","Produto"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("rasgo_borracha","Rasgo Borracha"), c("qualidade","Qualidade"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_perfil","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("largura_papel_cm","Larg. Papel (cm)",{numeric:true}), c("tipo_cola","Tipo de Cola"),
+    c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}), c("padrao","Padrão"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("observacao","Observação"), c("setor","Setor"), c("local","Local"),
+    c("recebimento_materiais_aq002","REC. MATERIAIS (AQ002)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
+    c("multi_serra_perfil_aq010","M.S.P. (AQ010)"), c("coladeira_alizar_aq0012","COL. ALIZAR (AQ012)"),
+    c("plaina_moldureira_rodape_aq043","P.M. RODAPÉ (AQ043)"), c("plaina_moldureira_batente_aq011","P.M. BATENTE (AQ011)"),
+  ],
+  "recobridora de perfil": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("maquina","Máquina"), c("recobrimento_perfil_aq025","RECOB. PERFIL (AQ025)"),
+    c("produto","Produto"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("rasgo_borracha","Rasgo Borracha"), c("qualidade","Qualidade"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_perfil","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("largura_papel_cm","Larg. Papel (cm)",{numeric:true}), c("tipo_cola","Tipo de Cola"),
+    c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}), c("padrao","Padrão"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+    c("observacao","Observação"), c("setor","Setor"), c("local","Local"),
+    c("recebimento_materiais_aq002","REC. MATERIAIS (AQ002)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
+    c("multi_serra_perfil_aq010","M.S.P. (AQ010)"), c("coladeira_alizar_aq0012","COL. ALIZAR (AQ012)"),
+    c("plaina_moldureira_rodape_aq043","P.M. RODAPÉ (AQ043)"), c("plaina_moldureira_batente_aq011","P.M. BATENTE (AQ011)"),
+  ],
+  "montadora de grade": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("nucleo","Núcleo"),
+    c("largura_cm","Larg. (cm)",{numeric:true}), c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+  ],
+  "montagem do kit": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("maquina","Máquina"), c("linha","Linha"),
+    c("nucleo","Núcleo"), c("padrao","Padrão"), c("acabamento","Acabamento"),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("largura_kit_cm","Larg. Kit (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}),
+    c("altura_kit_cm","Alt. Kit (cm)",{numeric:true}), c("espessura_mm","Esp. Porta (mm)",{numeric:true}),
+    c("entre_folha_rebaixo","Folha/Rebaixo",{numeric:true}),
+    c("entre_folha_travessa","Folha/Travessa",{numeric:true}),
+    c("entre_folha_marco","Folha/Marco",{numeric:true}),
+    c("sistema_trava","Sistema de Trava"),
+    c("qualidade_visual_final","Qual. Visual"), c("etiqueta_identificacao","Etiqueta"),
+    c("sentido_abertura_dir","Sentido Dir."), c("sentido_abertura_esq","Sentido Esq."),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+  ],
+  "prensa fria": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("fornecedor","Fornecedor"), c("linha","Linha"),
+    c("prensa_fria_aq017","PRENSA FRIA (AQ017)"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("nucleo","Núcleo"), c("padrao","Padrão"),
+    c("pressao_kgf_cm2","Pressão (kgF/cm²)",{numeric:true}),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. Porta (mm)",{numeric:true}),
+    c("numero_maquina","N° Máquina"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("observacao","Observação"),
+    c("seccionadora_aq009","SECC. (AQ009)"), c("linha_pintura_aq021","L. PINTURA TAMPO (AQ021)"),
+    c("recobrimento_aq019","RECOBRIMENTO (AQ019)"), c("montadora_grade_aq039","MONT. GRADE (AQ039)"),
+    c("mesa_montagem_aq016","MESA MONT. (AQ016)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
+  ],
+  "embalagem de kit": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("cliente","Cliente"), c("nome_cliente","Nome Cliente"),
+    c("largura_kit_cm","Larg. Kit (cm)",{numeric:true}),
+    c("largura_batente_cm","Larg. Batente (cm)",{numeric:true}),
+    c("linha","Linha"), c("nucleo","Núcleo"), c("padrao","Padrão"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("observacao","Observação"), c("montagem_kit_aq029","MONT. KIT (AQ029)"),
+  ],
+  "embalagem de portas": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("cliente","Cliente"), c("nome_cliente","Nome Cliente"),
+    c("linha","Linha"), c("nucleo","Núcleo"), c("padrao","Padrão"),
+    c("largura_cm","Larg. (cm)",{numeric:true}), c("comprimento_cm","Comp. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("observacao","Observação"), c("embalagem_portas_aq024","EMBALAGEM PORTAS (AQ024)"), c("colagem_borda_aq020","COL. BORDA (AQ020)"),
+  ],
+  "embalagem de perfil": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("produto","Produto"), c("modelo_batente","Modelo do Batente"), c("unidade","Unid."),
+    c("material_certificado_fsc","Mat. Certif. (FSC)"), c("padrao","Padrão"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("dim_cabeceira_alizar_cm","Dim. Cab. Alizar (cm)",{numeric:true}),
+    c("largura_rebaixo_bat_mm","Larg. Rebaixo Bat. (mm)",{numeric:true}),
+    c("prof_rebaixo_bat_mm","Prof. Rebaixo Bat. (mm)",{numeric:true}),
+    c("qualidade_visual_final","Qual. Visual Final"),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Tipo de Defeito"), c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}),
+  ],
+  "linha de pintura de portas": [
+    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
+    c("cliente","Cliente"), c("linha_pintura_portas_aq018","L. PINTURA PORTAS (AQ018)"),
+    c("linha","Linha"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
+    c("nucleo","Núcleo"), c("padrao","Padrão"),
+    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
+    c("qualidade","Qualidade"), c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}),
+    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
+    c("observacao","Observação"),
+    c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"), c("colagem_borda_aq020","COL. BORDA (AQ020)"),
+    c("usinagem_portas_aq023","FURAÇÃO/CORTE (AQ023)"), c("usinagem_friso_aq022","USIN. FRISO (AQ022)"),
+  ],
+};
+
+export const COLUNAS_DEFAULT: ColunaDef[] = [
+  c("data","Data",{date:true}), c("hora_final","H. Final"), c("produto","Produto"),
+  c("linha","Linha"), c("nucleo","Núcleo"), c("padrao","Cor/Padrão"),
+  c("largura_cm","Larg. (cm)",{numeric:true}), c("qtd_conforme","Qtd. Conforme",{numeric:true}),
+  c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
+];
+
+export function getColunasParaMaquina(nomeMaquina: string): ColunaDef[] {
+  const chave = nomeMaquina.trim().toLowerCase();
+  for (const [k, cols] of Object.entries(COLUNAS_MAQUINA)) {
+    if (chave.includes(k)) return cols;
+  }
+  return COLUNAS_DEFAULT;
+}

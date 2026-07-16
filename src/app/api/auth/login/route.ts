@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { encodeSession, sessionCookieOptions, SESSION_COOKIE } from "@/lib/session";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { registrarAuditoria, extrairUserAgent } from "@/lib/audit";
 
 // Rate limiting simples: máx 10 tentativas por IP a cada 15 minutos
 const attempts = new Map<string, { count: number; resetAt: number }>();
@@ -17,6 +17,19 @@ function isRateLimited(ip: string): boolean {
   return entry.count > 10;
 }
 
+async function verificarTurnstile(token: string, ip: string): Promise<boolean> {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) return true; // sem chave configurada, não bloqueia o login
+
+  const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ secret, response: token, remoteip: ip }),
+  });
+  const json = await res.json().catch(() => null);
+  return json?.success === true;
+}
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (isRateLimited(ip)) {
@@ -26,40 +39,67 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const email: string = body?.email?.trim()?.toLowerCase() ?? "";
   const password: string = body?.password ?? "";
+  const turnstileToken: string = body?.turnstileToken ?? "";
+  const userAgent = extrairUserAgent(req);
 
   if (!email || !password) {
     return NextResponse.json({ error: "Preencha email e senha." }, { status: 400 });
   }
 
-  const { data, error } = await supabaseAdmin
+  if (!turnstileToken || !(await verificarTurnstile(turnstileToken, ip))) {
+    return NextResponse.json({ error: "Verificação de segurança falhou. Recarregue a página e tente novamente." }, { status: 400 });
+  }
+
+  // Autentica via Supabase Auth — o cliente abaixo já grava o cookie de
+  // sessão na resposta via next/headers (ver src/lib/supabase-server.ts).
+  const supabase = await createSupabaseServerClient();
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (authError || !authData.user) {
+    await registrarAuditoria({
+      usuarioId: null, usuarioNome: email, acao: "login", modulo: "autenticacao",
+      descricao: `Login falhou para ${email}: ${authError?.message ?? "credenciais inválidas"}.`,
+      ip, userAgent, resultado: "falha",
+    });
+    return NextResponse.json({ error: "Email ou senha incorretos." }, { status: 401 });
+  }
+
+  const { data: usuario } = await supabaseAdmin
     .from("usuarios")
-    .select("id, nome, email, senha, perfil, paginas")
-    .eq("email", email)
-    .single();
+    .select("id, nome, email, perfil, paginas, status, deve_trocar_senha")
+    .eq("auth_user_id", authData.user.id)
+    .maybeSingle();
 
-  if (error || !data) {
-    return NextResponse.json({ error: "Email ou senha incorretos." }, { status: 401 });
+  if (!usuario) {
+    await supabase.auth.signOut();
+    await registrarAuditoria({
+      usuarioId: null, usuarioNome: email, acao: "login", modulo: "autenticacao",
+      descricao: `Login autenticado no Supabase Auth, mas sem perfil correspondente em "usuarios" (${email}).`,
+      ip, userAgent, resultado: "falha",
+    });
+    return NextResponse.json({ error: "Usuário sem perfil cadastrado. Fale com um administrador." }, { status: 403 });
   }
 
-  // Suporta senhas em texto puro (antigas) e bcrypt — migra automaticamente no login
-  let senhaValida = false;
-  if (data.senha?.startsWith("$2")) {
-    senhaValida = await bcrypt.compare(password, data.senha);
-  } else {
-    senhaValida = data.senha === password;
-    if (senhaValida) {
-      const hash = await bcrypt.hash(password, 12);
-      await supabaseAdmin.from("usuarios").update({ senha: hash }).eq("id", data.id);
-    }
+  if (usuario.status === "bloqueado" || usuario.status === "inativo") {
+    await supabase.auth.signOut();
+    await registrarAuditoria({
+      usuarioId: usuario.id, usuarioNome: usuario.nome, acao: "login", modulo: "autenticacao",
+      descricao: `Login negado — usuário com status "${usuario.status}".`,
+      ip, userAgent, resultado: "falha",
+    });
+    return NextResponse.json({ error: "Sua conta está bloqueada. Fale com um administrador." }, { status: 403 });
   }
 
-  if (!senhaValida) {
-    return NextResponse.json({ error: "Email ou senha incorretos." }, { status: 401 });
-  }
+  await supabaseAdmin.from("usuarios").update({
+    ultimo_login: new Date().toISOString(), ultimo_ip: ip, ultimo_user_agent: userAgent,
+  }).eq("id", usuario.id);
 
-  const { senha: _removed, ...user } = data;
-  const token = encodeSession(user);
-  const res = NextResponse.json({ user });
-  res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
-  return res;
+  await registrarAuditoria({
+    usuarioId: usuario.id, usuarioNome: usuario.nome, acao: "login", modulo: "autenticacao",
+    descricao: `${usuario.nome} entrou no sistema.`,
+    ip, userAgent, resultado: "sucesso",
+  });
+
+  const { status: _status, ...user } = usuario;
+  return NextResponse.json({ user });
 }

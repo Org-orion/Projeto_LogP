@@ -26,6 +26,7 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { RASCUNHO_RNC_KEY, type RascunhoRnc } from "@/lib/qualidade-integracao";
 
 const COR_VERDE = "hsl(var(--primary))";
 
@@ -63,7 +64,20 @@ interface RncRelatorio {
   data_responsavel: string | null;
   status: "aberto" | "fechado";
   created_at: string;
+  criticidade: "baixa" | "media" | "alta" | "critica" | null;
+  plano_acao_id: number | null;
 }
+
+const CRITICIDADE_LABELS: Record<string, string> = {
+  baixa: "Baixa", media: "Média", alta: "Alta", critica: "Crítica",
+};
+
+const CRITICIDADE_CLASSES: Record<string, string> = {
+  baixa:   "bg-slate-100 text-slate-600 border-slate-200",
+  media:   "bg-amber-50 text-amber-600 border-amber-200",
+  alta:    "bg-orange-50 text-orange-600 border-orange-200",
+  critica: "bg-red-50 text-red-700 border-red-200",
+};
 
 const FORM_VAZIO: Omit<RncRelatorio, "id" | "created_at" | "numero_rnc"> = {
   processo_cliente: "",
@@ -87,6 +101,8 @@ const FORM_VAZIO: Omit<RncRelatorio, "id" | "created_at" | "numero_rnc"> = {
   visto: "",
   data_responsavel: format(new Date(), "yyyy-MM-dd"),
   status: "aberto",
+  criticidade: null,
+  plano_acao_id: null,
 };
 
 // ─── Geração do HTML para impressão ──────────────────────────────────────────
@@ -335,9 +351,38 @@ export default function RncRelatoriosTab() {
       visto:               r.visto ?? "",
       data_responsavel:    r.data_responsavel ?? "",
       status:              r.status,
+      criticidade:         r.criticidade,
+      plano_acao_id:       r.plano_acao_id,
     });
     setDialogAberto(true);
   };
+
+  // ── Pré-preenchimento vindo de outra página (ex.: Gramatura fora da faixa,
+  // Inspeção reprovada) — ver src/lib/qualidade-integracao.ts
+  useEffect(() => {
+    const raw = sessionStorage.getItem(RASCUNHO_RNC_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(RASCUNHO_RNC_KEY);
+    try {
+      const rascunho = JSON.parse(raw) as RascunhoRnc;
+      (async () => {
+        setGerandoNum(true);
+        const num = await gerarNumeroRnc();
+        setGerandoNum(false);
+        setEditando(null);
+        setForm({
+          ...FORM_VAZIO,
+          ...rascunho,
+          numero_rnc: num,
+          data_abertura: format(new Date(), "yyyy-MM-dd"),
+          data_responsavel: format(new Date(), "yyyy-MM-dd"),
+        });
+        setDialogAberto(true);
+      })();
+    } catch {
+      // rascunho inválido — ignora silenciosamente
+    }
+  }, []);
 
   // ── Salvar ─────────────────────────────────────────────────────────────────
 
@@ -371,6 +416,8 @@ export default function RncRelatoriosTab() {
       visto:               form.visto || null,
       data_responsavel:    form.data_responsavel || null,
       status:              form.status,
+      criticidade:         form.criticidade,
+      plano_acao_id:       form.plano_acao_id,
       updated_at:          new Date().toISOString(),
     };
 
@@ -457,7 +504,7 @@ export default function RncRelatoriosTab() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: COR_VERDE }}>
-                    {["RNC/AC Nº", "Cliente / Processo", "Data Abertura", "Família NC", "Status", ""].map(h => (
+                    {["RNC/AC Nº", "Cliente / Processo", "Data Abertura", "Família NC", "Criticidade", "Status", ""].map(h => (
                       <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-white whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -487,6 +534,15 @@ export default function RncRelatoriosTab() {
                           </span>
                         ) : (
                           <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {r.criticidade ? (
+                          <Badge variant="outline" className={`text-xs ${CRITICIDADE_CLASSES[r.criticidade]}`}>
+                            {CRITICIDADE_LABELS[r.criticidade]}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
                         )}
                       </td>
                       <td className="px-4 py-2.5">
@@ -566,6 +622,24 @@ export default function RncRelatoriosTab() {
                       <SelectItem value="fechado">Fechado</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Criticidade</Label>
+                  <Select value={form.criticidade ?? ""} onValueChange={v => set("criticidade", v || null)}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="baixa">Baixa</SelectItem>
+                      <SelectItem value="media">Média</SelectItem>
+                      <SelectItem value="alta">Alta</SelectItem>
+                      <SelectItem value="critica">Crítica</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Plano de Ação vinculado (nº, opcional)</Label>
+                  <Input type="number" value={form.plano_acao_id ?? ""}
+                    onChange={e => set("plano_acao_id", e.target.value ? Number(e.target.value) : null)}
+                    placeholder="Ex.: 12" className="text-xs" />
                 </div>
                 <div className="space-y-1.5 col-span-2">
                   <Label className="text-xs">Processo / Cliente *</Label>

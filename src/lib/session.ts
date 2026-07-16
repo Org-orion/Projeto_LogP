@@ -1,8 +1,11 @@
-import { createHmac, randomBytes, timingSafeEqual } from "crypto";
-import { cookies } from "next/headers";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
-const SECRET = process.env.SESSION_SECRET!;
-const COOKIE = "auth_token";
+// Autenticação via Supabase Auth (auth.users) — a sessão em si (token,
+// refresh, expiração) é gerida pela Supabase; aqui só resolvemos o usuário
+// autenticado da requisição atual pro perfil de negócio em `usuarios`.
+// `usuarios.id` continua sendo o mesmo de sempre (RBAC e auditoria não
+// mudam) — o vínculo com auth.users é feito por `usuarios.auth_user_id`.
 
 export interface SessionPayload {
   id: number;
@@ -10,51 +13,26 @@ export interface SessionPayload {
   email: string;
   perfil?: string;
   paginas?: string[];
-}
-
-function sign(data: string): string {
-  return createHmac("sha256", SECRET).update(data).digest("hex");
-}
-
-export function encodeSession(payload: SessionPayload): string {
-  const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const sig = sign(data);
-  return `${data}.${sig}`;
-}
-
-export function decodeSession(token: string): SessionPayload | null {
-  const dot = token.lastIndexOf(".");
-  if (dot === -1) return null;
-  const data = token.slice(0, dot);
-  const sig = token.slice(dot + 1);
-  const expected = sign(data);
-  try {
-    if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
-  } catch {
-    return null;
-  }
-  try {
-    return JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
-  } catch {
-    return null;
-  }
+  deve_trocar_senha?: boolean;
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
-  const store = await cookies();
-  const token = store.get(COOKIE)?.value;
-  if (!token) return null;
-  return decodeSession(token);
-}
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error || !user) return null;
 
-export function sessionCookieOptions() {
-  return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    maxAge: 60 * 60 * 8, // 8 horas
-    path: "/",
-  };
-}
+  const { data: usuario } = await supabaseAdmin
+    .from("usuarios")
+    .select("id, nome, email, perfil, paginas, status, deve_trocar_senha")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
 
-export { COOKIE as SESSION_COOKIE };
+  if (!usuario) return null;
+  if (usuario.status === "bloqueado" || usuario.status === "inativo") return null;
+
+  const { status: _status, ...payload } = usuario;
+  return payload as SessionPayload;
+}

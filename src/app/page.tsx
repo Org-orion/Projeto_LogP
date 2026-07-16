@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Login from "@/views/Login";
 import Dashboard from "@/views/Dashboard";
+import { TrocarSenhaObrigatoria } from "@/components/TrocarSenhaObrigatoria";
 
 interface UsuarioLogado {
   id: number;
@@ -10,6 +11,7 @@ interface UsuarioLogado {
   email: string;
   perfil?: string;
   paginas?: string[];
+  deve_trocar_senha?: boolean;
 }
 
 export default function Home() {
@@ -53,11 +55,16 @@ export default function Home() {
   const handleLogout = () => {
     localStorage.removeItem("logp_user");
     localStorage.removeItem("logp_section");
+    localStorage.removeItem("logp_workspace_tabs_v1");
     setUser(null);
   };
 
   if (!user) {
     return <Login onLogin={handleLogin} />;
+  }
+
+  if (user.deve_trocar_senha) {
+    return <TrocarSenhaObrigatoria onTrocada={handleLogout} />;
   }
 
   return <Dashboard user={user} onLogout={handleLogout} />;

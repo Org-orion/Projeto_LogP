@@ -1,7 +1,9 @@
 "use client";
 
-import { Factory, TrendingUp, TrendingDown, Minus, XCircle, Award, CalendarDays } from "lucide-react";
+import { useState } from "react";
+import { Factory, TrendingUp, TrendingDown, Minus, XCircle, Award, CalendarDays, DoorClosed, PackageCheck, PanelsTopLeft, RectangleHorizontal } from "lucide-react";
 import { SpinnerCustom } from "@/components/ui/spinner";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { MachineTimeline } from "./MachineTimeline";
 import { ChartAreaComparativa } from "./ChartAreaComparativa";
 import { useKpisDia } from "@/hooks/useKpisDia";
@@ -142,37 +144,6 @@ function InsightCard({
   );
 }
 
-function KpiCard({ label, value, loading }: { label: string; value: number | null; loading: boolean }) {
-  const zero = !loading && value === 0;
-  return (
-    <div style={{
-      background: "hsl(var(--card))",
-      border: `1px solid ${zero ? "hsl(var(--border) / 0.45)" : LINE}`,
-      borderRadius: 10, padding: "18px 20px",
-    }}>
-      <div style={{ fontSize: 10, color: MUTED, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>
-        {label}
-      </div>
-      {loading ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <Skel w={96} h={36} />
-          <Skel w={72} />
-        </div>
-      ) : (
-        <>
-          <div style={{ fontSize: 32, fontWeight: 300, color: zero ? MUTED : INK, lineHeight: 1, letterSpacing: "-0.035em" }}>
-            {value === null ? "—" : value.toLocaleString("pt-BR")}
-            <span style={{ fontSize: 12, color: MUTED, marginLeft: 4, fontWeight: 500, opacity: zero ? 0.5 : 1 }}>un</span>
-          </div>
-          <div style={{ fontSize: 11, marginTop: 10, color: MUTED, fontWeight: 400 }}>
-            {zero ? "Sem produção ainda hoje" : "Acumulado hoje"}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 export default function HomePage({ userName = "" }: { userName?: string }) {
   const name     = firstWord(userName);
   const today    = formatDate();
@@ -180,6 +151,7 @@ export default function HomePage({ userName = "" }: { userName?: string }) {
   const producao   = useProducaoDiaria();
   const graficos   = useProducaoGraficos();
   const insights   = useEstatisticasProducao();
+  const [showAllProducaoDiaria, setShowAllProducaoDiaria] = useState(false);
 
   return (
     <div className="home-wrap" style={{ padding: "40px 48px 60px" }}>
@@ -200,10 +172,50 @@ export default function HomePage({ userName = "" }: { userName?: string }) {
 
       {/* ═══ KPIs ═══ */}
       <div className="home-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
-        <KpiCard label="Portas Prensadas hoje"   value={kpis.portasPrensadas}   loading={kpis.loading} />
-        <KpiCard label="Kits Embalados hoje"      value={kpis.kitsEmbalados}      loading={kpis.loading} />
-        <KpiCard label="Batentes Revestidos hoje" value={kpis.batentesRevestidos} loading={kpis.loading} />
-        <KpiCard label="Alizares Revestidos hoje" value={kpis.alizaresRecobertos} loading={kpis.loading} />
+        <KpiCard
+          icon={DoorClosed}
+          title="Portas Prensadas hoje"
+          value={kpis.portasPrensadas.value}
+          delta={kpis.portasPrensadas.delta}
+          comparisonLabel="vs média 7 dias"
+          avgLabel={kpis.portasPrensadas.avg != null ? `Média 7 dias: ${kpis.portasPrensadas.avg.toLocaleString("pt-BR")} un` : undefined}
+          spark={kpis.portasPrensadas.spark}
+          weekdayLabels={kpis.weekdayLabels}
+          loading={kpis.loading}
+        />
+        <KpiCard
+          icon={PackageCheck}
+          title="Kits Embalados hoje"
+          value={kpis.kitsEmbalados.value}
+          delta={kpis.kitsEmbalados.delta}
+          comparisonLabel="vs média 7 dias"
+          avgLabel={kpis.kitsEmbalados.avg != null ? `Média 7 dias: ${kpis.kitsEmbalados.avg.toLocaleString("pt-BR")} un` : undefined}
+          spark={kpis.kitsEmbalados.spark}
+          weekdayLabels={kpis.weekdayLabels}
+          loading={kpis.loading}
+        />
+        <KpiCard
+          icon={PanelsTopLeft}
+          title="Batentes Revestidos hoje"
+          value={kpis.batentesRevestidos.value}
+          delta={kpis.batentesRevestidos.delta}
+          comparisonLabel="vs média 7 dias"
+          avgLabel={kpis.batentesRevestidos.avg != null ? `Média 7 dias: ${kpis.batentesRevestidos.avg.toLocaleString("pt-BR")} un` : undefined}
+          spark={kpis.batentesRevestidos.spark}
+          weekdayLabels={kpis.weekdayLabels}
+          loading={kpis.loading}
+        />
+        <KpiCard
+          icon={RectangleHorizontal}
+          title="Alizares Revestidos hoje"
+          value={kpis.alizaresRecobertos.value}
+          delta={kpis.alizaresRecobertos.delta}
+          comparisonLabel="vs média 7 dias"
+          avgLabel={kpis.alizaresRecobertos.avg != null ? `Média 7 dias: ${kpis.alizaresRecobertos.avg.toLocaleString("pt-BR")} un` : undefined}
+          spark={kpis.alizaresRecobertos.spark}
+          weekdayLabels={kpis.weekdayLabels}
+          loading={kpis.loading}
+        />
       </div>
 
       {/* ═══ INSIGHTS ═══ */}
@@ -325,31 +337,44 @@ export default function HomePage({ userName = "" }: { userName?: string }) {
           ) : producao.data.length === 0 ? (
             <div style={{ padding: "24px 0", textAlign: "center", color: MUTED, fontSize: 12 }}>Sem registros hoje.</div>
           ) : (
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-              {producao.data.map(m => {
-                const max = producao.data[0].total || 1;
-                const pct = Math.round((m.total / max) * 100);
-                return (
-                  <li key={m.maquina}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: INK, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {m.maquina}
-                      </span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: VERDE, flexShrink: 0 }}>
-                        {m.total.toLocaleString("pt-BR")} un
-                      </span>
-                    </div>
-                    <div style={{ height: 4, background: LINE, borderRadius: 99, overflow: "hidden" }}>
-                      <div style={{
-                        height: "100%", width: `${pct}%`,
-                        background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--sidebar-accent)))",
-                        borderRadius: 99, transition: "width .4s",
-                      }} />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            <>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+                {(showAllProducaoDiaria ? producao.data : producao.data.slice(0, 5)).map(m => {
+                  const max = producao.data[0].total || 1;
+                  const pct = Math.round((m.total / max) * 100);
+                  return (
+                    <li key={m.maquina}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: INK, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {m.maquina}
+                        </span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: VERDE, flexShrink: 0 }}>
+                          {m.total.toLocaleString("pt-BR")} un
+                        </span>
+                      </div>
+                      <div style={{ height: 4, background: LINE, borderRadius: 99, overflow: "hidden" }}>
+                        <div style={{
+                          height: "100%", width: `${pct}%`,
+                          background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--sidebar-accent)))",
+                          borderRadius: 99, transition: "width .4s",
+                        }} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              {producao.data.length > 5 && (
+                <button
+                  onClick={() => setShowAllProducaoDiaria(v => !v)}
+                  style={{
+                    display: "block", margin: "14px auto 0", background: "none", border: "none",
+                    fontSize: 11.5, fontWeight: 600, color: VERDE, cursor: "pointer", padding: 0,
+                  }}
+                >
+                  {showAllProducaoDiaria ? "Ver menos ↑" : `Ver mais (${producao.data.length - 5}) ↓`}
+                </button>
+              )}
+            </>
           )}
         </div>
 
