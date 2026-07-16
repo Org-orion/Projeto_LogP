@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // Banco de origem (logística externa)
 const ORIGEM_URL = "https://ctntlgvoefdbjxvfkahp.supabase.co";
@@ -8,10 +8,23 @@ const ORIGEM_KEY =
 
 const origem = createClient(ORIGEM_URL, ORIGEM_KEY);
 
-const destino = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Preguiçoso — mesma razão do src/lib/supabase-admin.ts: criar o client na
+// avaliação do módulo derruba o build inteiro na Vercel se SUPABASE_SERVICE_ROLE_KEY
+// não estiver disponível nesse ambiente/fase, mesmo essa rota nunca sendo chamada.
+let _destino: SupabaseClient | null = null;
+function getDestino(): SupabaseClient {
+  if (_destino) return _destino;
+  _destino = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+  return _destino;
+}
+const destino = new Proxy({} as SupabaseClient, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getDestino(), prop, receiver);
+  },
+});
 
 const PAGE = 1000;
 
