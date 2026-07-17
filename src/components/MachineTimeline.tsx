@@ -36,8 +36,12 @@ const BLOCK_COLORS = [
   "#216C3B", "#2d8a4e", "#1a6b5e", "#15803d",
   "#0f766e", "#166534", "#065f46", "#3d6b21",
 ];
-const ROW_H   = 44;
-const BLOCK_H = 22;
+const ROW_H        = 44;
+const BLOCK_H      = 22;
+const LABEL_W      = 200;
+const BASE_PX_MIN  = 2;   // pixels por minuto na escala base
+const ZOOM_STEPS   = [0.5, 0.75, 1, 1.5, 2, 3, 4];
+const DEFAULT_ZOOM = 6;   // índice em ZOOM_STEPS
 
 const LINE  = "hsl(var(--border))";
 const MUTED = "hsl(var(--muted-foreground))";
@@ -138,15 +142,12 @@ function Tooltip({ tt }: { tt: TooltipState }) {
       minWidth: 200,
       boxShadow: "0 16px 40px rgba(0,0,0,0.4)",
     }}>
-      {/* Machine + product */}
       <p style={{ fontSize: 11, fontWeight: 700, color: "#fff", margin: "0 0 2px", letterSpacing: "0.01em" }}>
         {tt.maquina}
       </p>
       <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", margin: "0 0 10px" }}>
         {tt.produto}
       </p>
-
-      {/* Time range — destaque principal */}
       <div style={{
         display: "flex", alignItems: "center", gap: 8,
         background: "rgba(61,160,106,0.1)",
@@ -166,33 +167,19 @@ function Tooltip({ tt }: { tt: TooltipState }) {
         <div style={{ textAlign: "center", flex: 1 }}>
           {tt.running ? (
             <>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#5dc287", lineHeight: 1 }}>
-                ● andamento
-              </div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 3, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                fim
-              </div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#5dc287", lineHeight: 1 }}>● andamento</div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 3, textTransform: "uppercase", letterSpacing: "0.08em" }}>fim</div>
             </>
           ) : (
             <>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>
-                {tt.horaFim}
-              </div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 3, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                fim
-              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{tt.horaFim}</div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 3, textTransform: "uppercase", letterSpacing: "0.08em" }}>fim</div>
             </>
           )}
         </div>
       </div>
-
-      {/* Quantity */}
       {tt.qtd > 0 && (
-        <p style={{
-          fontSize: 11, fontWeight: 600, margin: 0,
-          color: "rgba(93,194,135,0.85)",
-          fontVariantNumeric: "tabular-nums",
-        }}>
+        <p style={{ fontSize: 11, fontWeight: 600, margin: 0, color: "rgba(93,194,135,0.85)", fontVariantNumeric: "tabular-nums" }}>
           {tt.qtd.toLocaleString("pt-BR")} unidades produzidas
         </p>
       )}
@@ -212,7 +199,7 @@ function SkeletonTimeline() {
   ];
   return (
     <div style={{ padding: "0 24px 24px" }}>
-      <div style={{ display: "flex", marginBottom: 8, paddingLeft: 148 }}>
+      <div style={{ display: "flex", marginBottom: 8, paddingLeft: LABEL_W }}>
         {[0, 20, 40, 60, 80, 100].map(pct => (
           <div key={pct} className="animate-pulse" style={{
             position: "relative", left: `${pct}%`,
@@ -223,23 +210,15 @@ function SkeletonTimeline() {
         ))}
       </div>
       {skRows.map((blocks, ri) => (
-        <div key={ri} style={{
-          display: "flex", alignItems: "center",
-          height: ROW_H, borderBottom: `1px solid ${LINE}`,
-        }}>
-          <div className="animate-pulse" style={{
-            width: 128, height: 10, marginRight: 20,
-            background: TRACK, borderRadius: 4, flexShrink: 0,
-          }} />
+        <div key={ri} style={{ display: "flex", alignItems: "center", height: ROW_H, borderBottom: `1px solid ${LINE}` }}>
+          <div className="animate-pulse" style={{ width: LABEL_W, height: 10, marginRight: 20, background: TRACK, borderRadius: 4, flexShrink: 0 }} />
           <div style={{ flex: 1, position: "relative", height: ROW_H }}>
             {blocks.map((b, bi) => (
               <div key={bi} className="animate-pulse" style={{
                 position: "absolute",
                 left: `${b.l}%`, width: `${b.w}%`,
                 top: "50%", transform: "translateY(-50%)",
-                height: BLOCK_H,
-                background: "rgba(33,108,59,0.1)",
-                borderRadius: 4,
+                height: BLOCK_H, background: "rgba(33,108,59,0.1)", borderRadius: 4,
               }} />
             ))}
           </div>
@@ -249,14 +228,43 @@ function SkeletonTimeline() {
   );
 }
 
+// ─── Zoom button ──────────────────────────────────────────────────────────────
+
+function ZoomBtn({ label, onClick, disabled }: { label: string; onClick: () => void; disabled: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        width: 24, height: 24,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "none",
+        border: `1px solid ${LINE}`,
+        borderRadius: 5, cursor: disabled ? "default" : "pointer",
+        fontSize: 14, fontWeight: 700,
+        color: disabled ? TRACK : TITLE,
+        lineHeight: 1, padding: 0,
+        transition: "background 0.15s, border-color 0.15s",
+        flexShrink: 0,
+      }}
+      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = "rgba(26,92,53,0.07)"; }}
+      onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+    >
+      {label}
+    </button>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function MachineTimeline() {
-  const [rows, setRows]       = useState<MachineRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [rows, setRows]         = useState<MachineRow[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [tooltip, setTooltip]   = useState<TooltipState | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [zoomIdx, setZoomIdx]   = useState(DEFAULT_ZOOM);
   const cancelledRef            = useRef(false);
+  const scrollRef               = useRef<HTMLDivElement>(null);
 
   const LIMIT       = 10;
   const hiddenCount = Math.max(0, rows.length - LIMIT);
@@ -279,20 +287,32 @@ export function MachineTimeline() {
     return () => { cancelledRef.current = true; supabase.removeChannel(channel); };
   }, []);
 
-  const now  = nowMins();
+  const now      = nowMins();
+  const pxPerMin = BASE_PX_MIN * ZOOM_STEPS[zoomIdx];
 
   let rangeStart = 7 * 60;
-  let rangeEnd   = Math.max(17 * 60, now + 30);
+  const rangeEnd = Math.ceil((now + 15) / 30) * 30;
 
   if (rows.length > 0) {
     const allStarts = rows.flatMap(r => r.blocks.map(b => b.startMin));
-    const allEnds   = rows.flatMap(r => r.blocks.map(b => b.endMin));
     rangeStart = Math.floor((Math.min(...allStarts) - 15) / 30) * 30;
-    rangeEnd   = Math.ceil((Math.max(...allEnds, now) + 15) / 30) * 30;
   }
 
-  const span   = rangeEnd - rangeStart;
-  const nowPct = Math.min(100, Math.max(0, ((now - rangeStart) / span) * 100));
+  const span       = rangeEnd - rangeStart;
+  const trackWidth = span * pxPerMin;
+  const nowPx      = Math.min(trackWidth, Math.max(0, (now - rangeStart) * pxPerMin));
+
+  // Rola até o horário atual sempre que os dados carregam ou o zoom muda
+  useEffect(() => {
+    if (!loading && scrollRef.current) {
+      const container    = scrollRef.current;
+      const visibleWidth = container.clientWidth;
+      // Posiciona o "agora" a ~65% da largura visível
+      // LABEL_W não é somado pois a coluna de labels está fora do scroll container
+      container.scrollLeft = Math.max(0, nowPx - visibleWidth * 0.65);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, zoomIdx]);
 
   const ticks: number[] = [];
   for (let m = Math.ceil(rangeStart / 60) * 60; m <= rangeEnd; m += 60) ticks.push(m);
@@ -321,23 +341,39 @@ export function MachineTimeline() {
             background: "#16a34a", display: "inline-block",
             boxShadow: "0 0 6px rgba(22,163,74,0.5)",
           }} />
-          <span style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: "0.2em",
-            textTransform: "uppercase", color: TITLE,
-          }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: TITLE }}>
             Hora-Máquina
           </span>
           <span style={{ width: 1, height: 12, background: LINE }} />
-          <span style={{ fontSize: 11, color: MUTED }}>
-            Blocos de produção · hoje
+          <span style={{ fontSize: 11, color: MUTED }}>Blocos de produção · hoje</span>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Legenda */}
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 20, height: 2, background: "rgba(22,163,74,0.35)", borderRadius: 99, display: "inline-block" }} />
+            <span style={{ fontSize: 11, color: TICK }}>agora</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#5dc287", display: "inline-block" }} className="animate-pulse" />
+            <span style={{ fontSize: 11, color: TICK }}>em andamento</span>
+          </div>
+
+          <span style={{ width: 1, height: 16, background: LINE, marginLeft: 4 }} />
+
+          {/* Zoom controls */}
+          <ZoomBtn label="−" onClick={() => setZoomIdx(i => Math.max(0, i - 1))} disabled={zoomIdx === 0} />
+          <span style={{ fontSize: 10, color: MUTED, minWidth: 32, textAlign: "center", fontFamily: "'JetBrains Mono', monospace" }}>
+            {ZOOM_STEPS[zoomIdx]}×
+          </span>
+          <ZoomBtn label="+" onClick={() => setZoomIdx(i => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} />
+
+          <span style={{ width: 1, height: 16, background: LINE, marginLeft: 4 }} />
+
+          <span style={{ fontSize: 10.5, color: TICK, fontFamily: "'JetBrains Mono', monospace" }}>
+            {minsToHHMM(now)}
           </span>
         </div>
-        <span style={{
-          fontSize: 10.5, color: TICK,
-          fontFamily: "'JetBrains Mono', monospace",
-        }}>
-          {minsToHHMM(now)}
-        </span>
       </div>
 
       {loading && <SkeletonTimeline />}
@@ -349,180 +385,164 @@ export function MachineTimeline() {
       )}
 
       {!loading && rows.length > 0 && (
-        <div style={{ padding: "0 24px 18px", position: "relative" }}>
+        <div style={{ padding: "0 0 18px", position: "relative" }}>
 
-          {/* Hour axis */}
-          <div style={{ display: "flex", alignItems: "center", height: 26, marginBottom: 0 }}>
-            <div style={{ width: 148, flexShrink: 0 }} />
-            <div style={{ flex: 1, position: "relative" }}>
-              {ticks.map(t => (
-                <span key={t} style={{
-                  position: "absolute",
-                  left: `${((t - rangeStart) / span) * 100}%`,
-                  transform: "translateX(-50%)",
-                  fontSize: 9.5, color: TICK,
-                  fontFamily: "'JetBrains Mono', monospace",
-                  userSelect: "none", whiteSpace: "nowrap",
-                }}>
-                  {minsToHHMM(t)}
-                </span>
-              ))}
-            </div>
-          </div>
+          <div style={{ display: "flex", paddingLeft: 24 }}>
 
-          {/* Machine rows */}
-          {visibleRows.map((row, ri) => {
-            const color = BLOCK_COLORS[row.colorIdx];
-            return (
-              <div
-                key={row.maquina}
-                style={{
+            {/* Coluna fixa de labels — fora do scroll */}
+            <div style={{ width: LABEL_W, flexShrink: 0 }}>
+              <div style={{ height: 26 }} />
+              {visibleRows.map(row => (
+                <div key={row.maquina} style={{
+                  height: ROW_H,
                   display: "flex", alignItems: "center",
                   borderTop: `1px solid ${LINE}`,
-                }}
-              >
-                {/* Machine label */}
-                <div style={{
-                  width: 148, flexShrink: 0, paddingRight: 16,
+                  paddingRight: 12,
                   fontSize: 11, fontWeight: 500, color: "hsl(var(--foreground))",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}>
                   {row.maquina}
                 </div>
+              ))}
+              <div style={{ height: 1, background: LINE }} />
+            </div>
 
-                {/* Track */}
-                <div style={{ flex: 1, height: ROW_H, position: "relative" }}>
+            {/* Tracks — scrollável */}
+            <div ref={scrollRef} style={{ flex: 1, overflowX: "auto", paddingRight: 24 }}>
+              <div style={{ width: trackWidth, minWidth: "100%", position: "relative" }}>
 
-                  {/* Vertical hour lines */}
+                {/* Eixo de horas */}
+                <div style={{ height: 26, position: "relative" }}>
                   {ticks.map(t => (
-                    <div key={t} aria-hidden style={{
+                    <span key={t} style={{
                       position: "absolute",
-                      left: `${((t - rangeStart) / span) * 100}%`,
-                      top: 0, bottom: 0, width: 1,
-                      background: LINE, pointerEvents: "none",
-                    }} />
+                      left: (t - rangeStart) * pxPerMin,
+                      transform: "translateX(-50%)",
+                      fontSize: 9.5, color: TICK,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      userSelect: "none", whiteSpace: "nowrap",
+                    }}>
+                      {minsToHHMM(t)}
+                    </span>
                   ))}
-
-                  {/* Track baseline */}
-                  <div style={{
-                    position: "absolute", left: 0, right: 0,
-                    top: "50%", transform: "translateY(-50%)",
-                    height: 2, background: TRACK,
-                    borderRadius: 99, pointerEvents: "none",
-                  }} />
-
-                  {/* Now marker */}
-                  <div aria-hidden style={{
-                    position: "absolute",
-                    left: `${nowPct}%`,
-                    top: 4, bottom: 4, width: 1,
-                    background: "rgba(22,163,74,0.35)",
-                    pointerEvents: "none",
-                  }} />
-
-                  {/* Blocks */}
-                  {row.blocks.map(block => {
-                    const leftPct  = ((block.startMin - rangeStart) / span) * 100;
-                    const widthPct = ((block.endMin - block.startMin) / span) * 100;
-                    if (leftPct + widthPct < 0 || leftPct > 100) return null;
-
-                    const clampedLeft  = Math.max(0, leftPct);
-                    const clampedWidth = Math.min(100 - clampedLeft, widthPct);
-
-                    return (
-                      <div
-                        key={block.id}
-                        style={{
-                          position: "absolute",
-                          left: `${clampedLeft}%`, width: `${clampedWidth}%`,
-                          top: "50%", transform: "translateY(-50%)",
-                          height: BLOCK_H,
-                          background: `linear-gradient(90deg, ${color}dd, ${color})`,
-                          borderRadius: 4,
-                          cursor: "default",
-                          boxShadow: `0 1px 6px ${color}40`,
-                          display: "flex", alignItems: "center",
-                          overflow: "hidden",
-                        }}
-                        onMouseEnter={e => setTooltip({
-                          x: e.clientX, y: e.clientY,
-                          maquina: row.maquina,
-                          horaIni: block.horaIni, horaFim: block.horaFim,
-                          qtd: block.qtd, produto: block.produto, running: block.running,
-                        })}
-                        onMouseMove={e => setTooltip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
-                        onMouseLeave={() => setTooltip(null)}
-                      >
-                        {clampedWidth > 6 && block.qtd > 0 && (
-                          <span style={{
-                            paddingLeft: 6, fontSize: 9.5, fontWeight: 600,
-                            color: "rgba(255,255,255,0.9)",
-                            whiteSpace: "nowrap", pointerEvents: "none",
-                            fontVariantNumeric: "tabular-nums", flexShrink: 0,
-                          }}>
-                            {block.qtd.toLocaleString("pt-BR")} un
-                          </span>
-                        )}
-                        {block.running && (
-                          <span style={{
-                            position: "absolute", right: 4,
-                            top: "50%", transform: "translateY(-50%)",
-                            width: 6, height: 6, borderRadius: "50%",
-                            background: "#5dc287",
-                            boxShadow: "0 0 6px rgba(93,194,135,0.9)",
-                          }} className="animate-pulse" />
-                        )}
-                      </div>
-                    );
-                  })}
                 </div>
-              </div>
-            );
-          })}
 
-          {/* Bottom border */}
-          <div style={{ height: 1, background: LINE }} />
+                {/* Linhas de máquina */}
+                {visibleRows.map((row) => {
+                  const color = BLOCK_COLORS[row.colorIdx];
+                  return (
+                    <div key={row.maquina} style={{
+                      height: ROW_H, position: "relative",
+                      borderTop: `1px solid ${LINE}`,
+                    }}>
+                      {/* Linhas verticais de hora */}
+                      {ticks.map(t => (
+                        <div key={t} aria-hidden style={{
+                          position: "absolute",
+                          left: (t - rangeStart) * pxPerMin,
+                          top: 0, bottom: 0, width: 1,
+                          background: LINE, pointerEvents: "none",
+                        }} />
+                      ))}
+
+                      {/* Baseline */}
+                      <div style={{
+                        position: "absolute", left: 0, right: 0,
+                        top: "50%", transform: "translateY(-50%)",
+                        height: 2, background: TRACK, borderRadius: 99, pointerEvents: "none",
+                      }} />
+
+                      {/* Marcador agora */}
+                      <div aria-hidden style={{
+                        position: "absolute", left: nowPx,
+                        top: 4, bottom: 4, width: 1,
+                        background: "rgba(22,163,74,0.35)", pointerEvents: "none",
+                      }} />
+
+                      {/* Blocos */}
+                      {row.blocks.map(block => {
+                        const leftPx  = (block.startMin - rangeStart) * pxPerMin;
+                        const widthPx = Math.max(4, (block.endMin - block.startMin) * pxPerMin);
+                        if (leftPx + widthPx < 0 || leftPx > trackWidth) return null;
+                        return (
+                          <div
+                            key={block.id}
+                            style={{
+                              position: "absolute",
+                              left: leftPx, width: widthPx,
+                              top: "50%", transform: "translateY(-50%)",
+                              height: BLOCK_H,
+                              background: `linear-gradient(90deg, ${color}dd, ${color})`,
+                              borderRadius: 4, cursor: "default",
+                              boxShadow: `0 1px 6px ${color}40`,
+                              display: "flex", alignItems: "center",
+                              overflow: "hidden",
+                            }}
+                            onMouseEnter={e => setTooltip({
+                              x: e.clientX, y: e.clientY,
+                              maquina: row.maquina,
+                              horaIni: block.horaIni, horaFim: block.horaFim,
+                              qtd: block.qtd, produto: block.produto, running: block.running,
+                            })}
+                            onMouseMove={e => setTooltip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
+                            onMouseLeave={() => setTooltip(null)}
+                          >
+                            {widthPx > 28 && block.qtd > 0 && (
+                              <span style={{
+                                paddingLeft: 6, fontSize: 9.5, fontWeight: 600,
+                                color: "rgba(255,255,255,0.9)",
+                                whiteSpace: "nowrap", pointerEvents: "none",
+                                fontVariantNumeric: "tabular-nums", flexShrink: 0,
+                              }}>
+                                {block.qtd.toLocaleString("pt-BR")} un
+                              </span>
+                            )}
+                            {block.running && (
+                              <span style={{
+                                position: "absolute", right: 4,
+                                top: "50%", transform: "translateY(-50%)",
+                                width: 6, height: 6, borderRadius: "50%",
+                                background: "#5dc287",
+                                boxShadow: "0 0 6px rgba(93,194,135,0.9)",
+                              }} className="animate-pulse" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+
+                <div style={{ height: 1, background: LINE }} />
+              </div>
+            </div>
+          </div>
 
           {/* Ver mais / Ver menos */}
-          {hiddenCount > 0 && (
-            <button
-              onClick={() => setExpanded(v => !v)}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                marginTop: 10, padding: "6px 12px",
-                background: "none", border: `1px solid ${LINE}`,
-                borderRadius: 6, cursor: "pointer",
-                fontSize: 11.5, fontWeight: 600, color: TITLE,
-                transition: "background 0.15s, border-color 0.15s",
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = "rgba(26,92,53,0.05)";
-                e.currentTarget.style.borderColor = "rgba(26,92,53,0.3)";
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = "none";
-                e.currentTarget.style.borderColor = LINE;
-              }}
-            >
-              {expanded
-                ? "↑ Ver menos"
-                : `↓ Ver mais (${hiddenCount} máquina${hiddenCount > 1 ? "s" : ""})`}
-            </button>
-          )}
-
-          {/* Legend */}
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "flex-end",
-            gap: 16, paddingTop: hiddenCount > 0 ? 6 : 10,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 20, height: 2, background: "rgba(22,163,74,0.35)", borderRadius: 99, display: "inline-block" }} />
-              <span style={{ fontSize: 9.5, color: TICK }}>agora</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#5dc287", display: "inline-block" }} className="animate-pulse" />
-              <span style={{ fontSize: 9.5, color: TICK }}>em andamento</span>
-            </div>
+          <div style={{ paddingLeft: 24, paddingRight: 24 }}>
+            {hiddenCount > 0 && (
+              <button
+                onClick={() => setExpanded(v => !v)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  marginTop: 10, padding: "6px 12px",
+                  background: "none", border: `1px solid ${LINE}`,
+                  borderRadius: 6, cursor: "pointer",
+                  fontSize: 11.5, fontWeight: 600, color: TITLE,
+                  transition: "background 0.15s, border-color 0.15s",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = "rgba(26,92,53,0.05)";
+                  e.currentTarget.style.borderColor = "rgba(26,92,53,0.3)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = "none";
+                  e.currentTarget.style.borderColor = LINE;
+                }}
+              >
+                {expanded ? "↑ Ver menos" : `↓ Ver mais (${hiddenCount} máquina${hiddenCount > 1 ? "s" : ""})`}
+              </button>
+            )}
           </div>
         </div>
       )}

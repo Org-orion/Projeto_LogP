@@ -10,7 +10,7 @@ const queryClient = new QueryClient();
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} storageKey="logp_theme">
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem storageKey="logp_theme">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />

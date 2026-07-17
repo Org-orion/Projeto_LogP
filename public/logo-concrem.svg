@@ -1,0 +1,33 @@
+<svg viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="goldBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E8C85A"/>
+      <stop offset="50%" stop-color="#C9982A"/>
+      <stop offset="100%" stop-color="#A07018"/>
+    </linearGradient>
+    <linearGradient id="goldC" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E8C85A"/>
+      <stop offset="100%" stop-color="#A07018"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fundo dourado arredondado -->
+  <rect x="0" y="4" width="82" height="82" rx="13" fill="url(#goldBg)"/>
+
+  <!-- Círculo branco -->
+  <circle cx="40" cy="45" r="31" stroke="white" stroke-width="4" fill="none"/>
+
+  <!-- Folha: curva esquerda -->
+  <path d="M 18 67 C 4 43 12 16 62 20" stroke="white" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <!-- Folha: curva direita -->
+  <path d="M 18 67 C 38 77 65 58 62 20" stroke="white" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <!-- Folha: veia principal (diagonal) -->
+  <line x1="18" y1="67" x2="62" y2="20" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <!-- Veia lateral 1 -->
+  <path d="M 30 55 C 39 46 49 37 58 31" stroke="white" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+  <!-- Veia lateral 2 -->
+  <path d="M 23 46 C 33 39 43 31 54 25" stroke="white" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+
+  <!-- Letra C dourada -->
+  <text x="60" y="84" font-size="74" font-weight="900" fill="url(#goldC)" font-family="Georgia, 'Times New Roman', serif" letter-spacing="-2">C</text>
+</svg>

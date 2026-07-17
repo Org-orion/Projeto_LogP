@@ -1,79 +1,58 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { motion } from "framer-motion";
+import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Cog, Loader2, AlertCircle, RefreshCw, Plus, History, Pencil, FileText, Search, FileSpreadsheet, ChevronDown, ChevronRight, BarChart2 } from "lucide-react";
-import BoletimMensal from "@/components/BoletimMensal";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Loader2, AlertCircle, RefreshCw, Plus, ChevronDown,
+  LayoutDashboard, Factory, BarChart3, Workflow, BarChart2,
+  Download, X, BadgeCheck, Ruler, ChevronLeft, ChevronRight, type LucideIcon,
+} from "lucide-react";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import EmbalagemPerfilForm from "@/components/EmbalagemPerfilForm";
+import { LancarProducaoForm } from "@/components/production/LancarProducaoForm";
+import BoletimMensal from "@/components/BoletimMensal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import { LOGO_CONCREM_B64 } from "@/lib/logoBase64";
-import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  BarChart, Bar, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   Cell, LabelList,
 } from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import {
-  format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addWeeks,
-  getDaysInMonth, parseISO,
-} from "date-fns";
+import { format, endOfMonth, startOfWeek, endOfWeek, addWeeks, startOfMonth, getDaysInMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { HistoricoSheet } from "@/components/production/HistoricoSheet";
+import { MaquinaCard } from "@/components/production/MaquinaCard";
+import { MetricCard } from "@/components/production/MetricCard";
+import { EmptyState } from "@/components/production/EmptyState";
+import { SectionHeader } from "@/components/production/SectionHeader";
+import { isMaquinaAtiva } from "@/components/production/StatusBadge";
+import { MachineTable, type MachineSortKey, type SortDir } from "@/components/production/MachineTable";
+import { MachineFilters, type StatusFiltro } from "@/components/production/MachineFilters";
+import { SearchToolbar, type ViewMode } from "@/components/production/SearchToolbar";
+import ConnectionBadge from "@/components/ConnectionBadge";
+import type { Maquina } from "@/components/production/types";
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
+// ── Cores dos KPIs/gráficos (Produção → Visão Geral) ──
+// Sempre os tokens reais do tema (globals.css, :root/.dark) — nenhuma paleta
+// fixa paralela. Como são strings "hsl(var(--x))", o navegador resolve o valor
+// atual a cada repaint, então trocar de tema já atualiza os gráficos sozinho.
+const DASH_GREEN  = "hsl(var(--primary))";
 
-interface Maquina {
-  id: number | string;
-  nome?: string;
-  status?: string;
-  [key: string]: unknown;
-}
+const CHART_GRID           = "hsl(var(--border))";
+const CHART_AXIS           = "hsl(var(--muted-foreground))";
+const CHART_TOOLTIP_BG     = "hsl(var(--popover))";
+const CHART_TOOLTIP_TEXT   = "hsl(var(--popover-foreground))";
+const CHART_TOOLTIP_BORDER = "hsl(var(--border))";
 
-interface RegistroProducao {
-  id: number;
-  data: string;
-  hora_inicial: string | null;
-  hora_final: string | null;
-  maquina: string | null;
-  produto: string | null;
-  linha: string | null;
-  nucleo: string | null;
-  padrao: string | null;
-  largura_cm: number | null;
-  comprimento_cm: number | null;
-  espessura_mm: number | null;
-  qtd_conforme: number | null;
-  qtd_nao_conforme_1: number | null;
-  [key: string]: unknown;
-}
-
-interface ColunaDef {
-  key: string;
-  label: string;
-  numeric?: boolean;
-  date?: boolean;
-  wide?: boolean;
-  uppercase?: boolean;
-}
-
-const c = (key: string, label: string, opts: Partial<Omit<ColunaDef,"key"|"label">> = {}): ColunaDef => ({ key, label, ...opts });
-
-// ─── Dashboard de Produção ────────────────────────────────────────────────────
-
-const COR_VERDE  = "hsl(var(--primary))";
-const LINHAS_PRINCIPAIS = new Set(["Essenziale", "Innovazione", "Sofisticato"]);
-const COR_BARRA  = "#16a34a";
+const KPI_FADE = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
 
 const MESES_DASH = [
   "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
@@ -93,25 +72,91 @@ interface RowDash {
 function pctBarD(pct: number) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <div style={{ width: 70, height: 8, background: "#bbf7d0", borderRadius: 3, overflow: "hidden", flexShrink: 0 }}>
-        <div style={{ width: `${Math.min(pct, 100)}%`, height: "100%", background: COR_BARRA, borderRadius: 3 }} />
+      <div className="w-[70px] h-2 rounded-[3px] overflow-hidden shrink-0 bg-primary/15">
+        <div className="h-full rounded-[3px] bg-primary" style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
-      <span style={{ fontSize: 11, fontWeight: 600, color: COR_VERDE, minWidth: 50, textAlign: "right" }}>
+      <span className="text-[11px] font-semibold text-primary min-w-[50px] text-right">
         {pct.toFixed(2)}%
       </span>
     </div>
   );
 }
 
+interface DistribuicaoLinha {
+  key: string;
+  label: string;
+  total: number;
+  pct: number;
+  ativo?: boolean;
+}
+
+interface DistribuicaoCardProps {
+  icone: LucideIcon;
+  titulo: string;
+  linhas: DistribuicaoLinha[];
+  totalGeral: number;
+  onClickLinha?: (key: string) => void;
+  verMais?: { expandido: boolean; restante: number; onToggle: () => void };
+  vazio: string;
+}
+
+// Card de distribuição (Unidade/Padrão/Largura) do dashboard executivo — usa os
+// tokens normais do tema (bg-card/border-border), então segue claro no Light
+// Mode e escuro no Dark Mode automaticamente, como qualquer outro card do app.
+function DistribuicaoCard({ icone: Icone, titulo, linhas, totalGeral, onClickLinha, verMais, vazio }: DistribuicaoCardProps) {
+  return (
+    <div className="bg-card text-card-foreground border border-border rounded-2xl p-5 shadow-sm">
+      <div className="flex items-center gap-2 mb-3">
+        <Icone size={15} className="text-primary" />
+        <p className="text-sm font-semibold">{titulo}</p>
+      </div>
+      {linhas.length === 0 ? (
+        <EmptyState icon={Icone} title="Sem dados" description={vazio} />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <tbody>
+              {linhas.map(row => (
+                <tr
+                  key={row.key}
+                  onClick={onClickLinha ? () => onClickLinha(row.key) : undefined}
+                  className={cn("transition-colors", onClickLinha ? "cursor-pointer" : "cursor-default", row.ativo && "bg-primary/10")}
+                >
+                  <td className="py-1.5 text-xs" style={{ fontWeight: row.ativo ? 700 : 400 }}>{row.label}</td>
+                  <td className="py-1.5 text-xs text-right font-bold text-primary">{row.total.toLocaleString("pt-BR")}</td>
+                  <td className="py-1.5 pl-4">{pctBarD(row.pct)}</td>
+                </tr>
+              ))}
+              {verMais && (
+                <tr>
+                  <td colSpan={3} className="text-center pt-2">
+                    <button onClick={verMais.onToggle} className="text-xs font-medium text-primary hover:underline">
+                      {verMais.expandido ? "Ver menos ↑" : `Ver mais (${verMais.restante}) ↓`}
+                    </button>
+                  </td>
+                </tr>
+              )}
+              <tr className="border-t-2 border-primary/25">
+                <td className="pt-2 text-xs font-bold">Total</td>
+                <td className="pt-2 text-xs text-right font-bold text-primary">{totalGeral.toLocaleString("pt-BR")}</td>
+                <td className="pt-2 pl-4 text-xs font-bold text-primary">100,00%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const ANOS_DASH = Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i));
 
-type SetorDash = "todos" | "portas" | "guarnicao" | "boletim";
+type SetorDash = "todos" | "portas" | "guarnicao";
 
 const SETOR_DASH_LABELS: Record<SetorDash, string> = {
   todos:     "Todos",
   portas:    "Portas",
   guarnicao: "Guarnição",
-  boletim:   "Boletim",
 };
 
 const KW_PORTAS_DASH = [
@@ -143,306 +188,24 @@ function getSetorDash(maquina: string): "portas" | "guarnicao" | null {
   return null;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
-const COLUNAS_MAQUINA: Record<string, ColunaDef[]> = {
-  "seccionadora 1": [
-    // Material Recebido
-    c("data","Data",{date:true}), c("fornecedor","Fornecedor",{uppercase:true}), c("lote_fornecedor","Lote Fornecedor"),
-    c("tipo_material","Material de Entrada",{wide:true}), c("tipo_chapa","Cód. Chapa"),
-    c("qtd_chapas","Qtd. Chapas",{numeric:true}),
-    // Material Produzido
-    c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("material_certificado_fsc","Mat. Certif. (FSC)"), c("qualidade","Qualidade"),
-    c("produto","Produto Produzido"),
-    c("espessura_mm","Esp. Produzida (mm)",{numeric:true}), c("largura_cm","Larg. Produzida (cm)",{numeric:true}), c("comprimento_cm","Comp. Produzido (cm)",{numeric:true}),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    // Sobra
-    c("esp_sobra_mm","Esp. Sobra (mm)",{numeric:true}), c("larg_sobra_cm","Larg. Sobra (cm)",{numeric:true}), c("comp_sobra_cm","Comp. Sobra (cm)",{numeric:true}),
-    c("qtd_sobra","Qtd. Sobra",{numeric:true}), c("produto_sobra","Produto Sobra"),
-    // Complementar
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-    c("seccionadora_aq009","SECC. (AQ009)"),
-    c("recebimento_chapa_aq01","Receb. Chapa (AQ001)"), c("recebimento_materiais_aq002","Receb. Materiais (AQ002)"),
-    c("observacao","Observação"),
-  ],
-  "seccionadora": [
-    // Material Recebido
-    c("data","Data",{date:true}), c("fornecedor","Fornecedor",{uppercase:true}), c("lote_fornecedor","Lote Fornecedor"),
-    c("tipo_material","Material de Entrada",{wide:true}), c("tipo_chapa","Cód. Chapa"),
-    c("qtd_chapas","Qtd. Chapas",{numeric:true}),
-    // Material Produzido 1
-    c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("material_certificado_fsc","Mat. Certif. (FSC)"), c("qualidade","Qualidade"),
-    c("produto","Produto Produzido"),
-    c("espessura_mm","Esp. Produzida (mm)",{numeric:true}), c("largura_cm","Larg. Produzida (cm)",{numeric:true}), c("comprimento_cm","Comp. Produzido (cm)",{numeric:true}),
-    c("qtd_producao_1","Qtd. Prod. 1",{numeric:true}),
-    // Material Produzido 2
-    c("esp_produzido_2_mm","Esp. 2 (mm)",{numeric:true}), c("larg_produzido_2_cm","Larg. 2 (cm)",{numeric:true}), c("comp_produzido_2_cm","Comp. 2 (cm)",{numeric:true}),
-    c("qtd_producao_2","Qtd. Prod. 2",{numeric:true}),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    // Sobra
-    c("esp_sobra_mm","Esp. Sobra (mm)",{numeric:true}), c("larg_sobra_cm","Larg. Sobra (cm)",{numeric:true}), c("comp_sobra_cm","Comp. Sobra (cm)",{numeric:true}),
-    c("qtd_sobra","Qtd. Sobra",{numeric:true}), c("produto_sobra","Produto Sobra"),
-    // Complementar
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-    c("seccionadora_aq009","SECC. (AQ009)"),
-    c("recebimento_chapa_aq01","Receb. Chapa (AQ001)"), c("recebimento_materiais_aq002","Receb. Materiais (AQ002)"),
-    c("observacao","Observação"),
-  ],
-  "multi serra perfil": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("multi_serra_perfil_aq010","M.S.P. (AQ010)"), c("produto","Produto"),
-    c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("largura_cm","Larg. (cm)",{numeric:true}), c("comprimento_cm","Comp. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
-    c("dimensao_produto","Dim. Produto"), c("dimensao_sobra","Dim. Sobra"), c("qtd_sobra","Qtd. Sobra",{numeric:true}),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
-    c("observacao","Observação"),
-    c("lixamento_aq041","LIXAMENTO (AQ041)"), c("seccionadora_aq009","SECC. (AQ009)"), c("prensa_fria_aq017","PRENSA FRIA (AQ017)"),
-  ],
-  "moldureira de batente": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("plaina_moldureira_batente_aq011","P.M.B. (AQ011)"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. Batente (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
-    c("profundidade_rasgo_regulagem","Prof. Rasgo Regulagem",{numeric:true}), c("profundidade_rasgo_borracha","Prof. Rasgo Borracha",{numeric:true}),
-    c("categoria","Categoria"),
-    c("espessura_rasgo_regulagem","Esp. Rasgo Regulagem",{numeric:true}),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
-    c("observacao","Observação"), c("multi_serra_perfil_aq010","M.S.P. (AQ010)"),
-  ],
-  "coladeira de alizar": [
-    c("data","Data",{date:true}), c("maquina","Máquina"), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("coladeira_alizar_aq0012","COL. ALIZAR (AQ012)"), c("produto","Produto"),
-    c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("esp_regua_cm","Esp. Régua (cm)",{numeric:true}),
-    c("esp_aba_cm","Esp. Aba (cm)",{numeric:true}),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-    c("multi_serra_aba_aq010","M.S.P. Aba (AQ010)"), c("multi_serra_regua_aq010","M.S.P. Régua (AQ010)"),
-  ],
-  "esquadrejadeira": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("linha","Linha"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("nucleo","Núcleo"), c("acabamento","Acabamento"), c("padrao","Padrão"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
-    c("desvio_esquadro_mm","Desvio Esquadro (mm)",{numeric:true}), c("paralelismo","Paralelismo"),
-    c("acabamento_lateral","Acab. Lateral"),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-    c("observacao","Observação"), c("fornecedor","Fornecedor"),
-    c("esquadrejadeira_aq040","ESQUAD. (AQ040)"), c("prensa_fria_aq017","PRENSA FRIA (AQ017)"),
-  ],
-  "lixadeira": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
-    c("lixamento_aq041","LIXAMENTO (AQ041)"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("produto","Produto"), c("nucleo","Núcleo"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}),
-    c("retilineidade","Retilineidade"), c("textura","Textura"),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-    c("observacao","Observação"),
-    c("destopadeira_sarrafo_aq015","DESTOP. SARRAFO (AQ015)"), c("seccionadora_aq009","SECC. (AQ009)"),
-  ],
-  "recobridora de tampo": [
-    c("data","Data",{date:true}), c("registro","Registro"), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("n_lote","N° Lote"), c("fornecedor","Fornecedor"),
-    c("recobrimento_aq019","RECOB. TAMPO (AQ019)"), c("lote_fornecedor","Lote Fornecedor"),
-    c("produto","Produto"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("nucleo","Núcleo"), c("padrao","Padrão"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. Porta/Tampo (mm)",{numeric:true}),
-    c("qualidade_recobrimento","Qual. Recobrimento"), c("tempo_cura","Tempo de Cura"),
-    c("temperatura_c","Temperatura (°C)",{numeric:true}), c("tipo_cola","Tipo de Cola"),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-    c("observacao","Observação"), c("local","Local"), c("maquina","Máquina"), c("setor","Setor"),
-    c("seccionadora_aq009","SECC. (AQ009)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
-    c("recebimento_materiais_aq002","REC. MATERIAIS (AQ002)"), c("lixamento_aq041","LIXAMENTO (AQ041)"),
-  ],
-  "colagem de borda": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("colagem_borda_aq020","COL. BORDA (AQ020)"),
-    c("cliente","Cliente"), c("nome_cliente","Nome Cliente"), c("linha","Linha"),
-    c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("nucleo","Núcleo"), c("padrao","Padrão"), c("tipo_cola","Tipo de Cola"),
-    c("largura_cm","Larg. (cm)",{numeric:true}), c("comprimento_cm","Comp. Porta (cm)",{numeric:true}), c("espessura_mm","Esp. Porta (mm)",{numeric:true}),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-    c("observacao","Observação"), c("esquadrejadeira_aq040","ESQUAD. (AQ040)"),
-  ],
-  "linha de pintura de tampo": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("linha_pintura_aq021","L. PINTURA TAMPO (AQ021)"), c("fornecedor","Fornecedor"), c("lote_fornecedor","Lote Fornecedor"),
-    c("produto","Produto"), c("padrao","Padrão"), c("qtd_demao","Qtd. Demão",{numeric:true}),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (cm)",{numeric:true}),
-    c("qualidade","Qualidade"), c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-    c("observacao","Observação"), c("seccionadora_aq009","SECC. (AQ009)"), c("lixamento_aq041","LIXAMENTO (AQ041)"),
-  ],
-  "furação e corte": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("usinagem_portas_aq023","USINAGEM PORTAS (AQ023)"), c("cliente","Cliente"), c("linha","Linha"),
-    c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("nucleo","Núcleo"), c("acabamento","Acabamento"), c("padrao","Padrão"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
-    c("qualidade_usinagem","Qual. Usinagem"),
-    c("altura_dobradica_inferior","Alt. Dobrad. Inf."), c("altura_dobradica_superior","Alt. Dobrad. Sup."),
-    c("sentido_abertura_dir","Sentido Dir."), c("sentido_abertura_esq","Sentido Esq."),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
-    c("observacao","Observação"),
-    c("colagem_borda_aq020","COL. BORDA (AQ020)"), c("usinagem_friso_aq022","USIN. FRISO (AQ022)"),
-    c("recebimento_ferragens_aq005","REC. FERRAGENS (AQ005)"),
-  ],
-  "recobrimento de perfil": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("maquina","Máquina"), c("recobrimento_perfil_aq025","RECOB. PERFIL (AQ025)"),
-    c("produto","Produto"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("rasgo_borracha","Rasgo Borracha"), c("qualidade","Qualidade"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_perfil","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
-    c("largura_papel_cm","Larg. Papel (cm)",{numeric:true}), c("tipo_cola","Tipo de Cola"),
-    c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}), c("padrao","Padrão"),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
-    c("observacao","Observação"), c("setor","Setor"), c("local","Local"),
-    c("recebimento_materiais_aq002","REC. MATERIAIS (AQ002)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
-    c("multi_serra_perfil_aq010","M.S.P. (AQ010)"), c("coladeira_alizar_aq0012","COL. ALIZAR (AQ012)"),
-    c("plaina_moldureira_rodape_aq043","P.M. RODAPÉ (AQ043)"), c("plaina_moldureira_batente_aq011","P.M. BATENTE (AQ011)"),
-  ],
-  "recobridora de perfil": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("maquina","Máquina"), c("recobrimento_perfil_aq025","RECOB. PERFIL (AQ025)"),
-    c("produto","Produto"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("rasgo_borracha","Rasgo Borracha"), c("qualidade","Qualidade"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_perfil","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
-    c("largura_papel_cm","Larg. Papel (cm)",{numeric:true}), c("tipo_cola","Tipo de Cola"),
-    c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}), c("padrao","Padrão"),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
-    c("observacao","Observação"), c("setor","Setor"), c("local","Local"),
-    c("recebimento_materiais_aq002","REC. MATERIAIS (AQ002)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
-    c("multi_serra_perfil_aq010","M.S.P. (AQ010)"), c("coladeira_alizar_aq0012","COL. ALIZAR (AQ012)"),
-    c("plaina_moldureira_rodape_aq043","P.M. RODAPÉ (AQ043)"), c("plaina_moldureira_batente_aq011","P.M. BATENTE (AQ011)"),
-  ],
-  "montadora de grade": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("nucleo","Núcleo"),
-    c("largura_cm","Larg. (cm)",{numeric:true}), c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
-  ],
-  "montagem do kit": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("maquina","Máquina"), c("linha","Linha"),
-    c("nucleo","Núcleo"), c("padrao","Padrão"), c("acabamento","Acabamento"),
-    c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("largura_kit_cm","Larg. Kit (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}),
-    c("altura_kit_cm","Alt. Kit (cm)",{numeric:true}), c("espessura_mm","Esp. Porta (mm)",{numeric:true}),
-    c("entre_folha_rebaixo","Folha/Rebaixo",{numeric:true}),
-    c("entre_folha_travessa","Folha/Travessa",{numeric:true}),
-    c("entre_folha_marco","Folha/Marco",{numeric:true}),
-    c("sistema_trava","Sistema de Trava"),
-    c("qualidade_visual_final","Qual. Visual"), c("etiqueta_identificacao","Etiqueta"),
-    c("sentido_abertura_dir","Sentido Dir."), c("sentido_abertura_esq","Sentido Esq."),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-  ],
-  "prensa fria": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("fornecedor","Fornecedor"), c("linha","Linha"),
-    c("prensa_fria_aq017","PRENSA FRIA (AQ017)"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("nucleo","Núcleo"), c("padrao","Padrão"),
-    c("pressao_kgf_cm2","Pressão (kgF/cm²)",{numeric:true}),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. Porta (mm)",{numeric:true}),
-    c("numero_maquina","N° Máquina"),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-    c("observacao","Observação"),
-    c("seccionadora_aq009","SECC. (AQ009)"), c("linha_pintura_aq021","L. PINTURA TAMPO (AQ021)"),
-    c("recobrimento_aq019","RECOBRIMENTO (AQ019)"), c("montadora_grade_aq039","MONT. GRADE (AQ039)"),
-    c("mesa_montagem_aq016","MESA MONT. (AQ016)"), c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"),
-  ],
-  "embalagem de kit": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("cliente","Cliente"), c("nome_cliente","Nome Cliente"),
-    c("largura_kit_cm","Larg. Kit (cm)",{numeric:true}),
-    c("largura_batente_cm","Larg. Batente (cm)",{numeric:true}),
-    c("linha","Linha"), c("nucleo","Núcleo"), c("padrao","Padrão"),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-    c("observacao","Observação"), c("montagem_kit_aq029","MONT. KIT (AQ029)"),
-  ],
-  "embalagem de portas": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("cliente","Cliente"), c("nome_cliente","Nome Cliente"),
-    c("linha","Linha"), c("nucleo","Núcleo"), c("padrao","Padrão"),
-    c("largura_cm","Larg. (cm)",{numeric:true}), c("comprimento_cm","Comp. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-    c("observacao","Observação"), c("embalagem_portas_aq024","EMBALAGEM PORTAS (AQ024)"), c("colagem_borda_aq020","COL. BORDA (AQ020)"),
-  ],
-  "embalagem de perfil": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("produto","Produto"), c("modelo_batente","Modelo do Batente"), c("unidade","Unid."),
-    c("material_certificado_fsc","Mat. Certif. (FSC)"), c("padrao","Padrão"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
-    c("dim_cabeceira_alizar_cm","Dim. Cab. Alizar (cm)",{numeric:true}),
-    c("largura_rebaixo_bat_mm","Larg. Rebaixo Bat. (mm)",{numeric:true}),
-    c("prof_rebaixo_bat_mm","Prof. Rebaixo Bat. (mm)",{numeric:true}),
-    c("qualidade_visual_final","Qual. Visual Final"),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("tipo_defeito_1","Tipo de Defeito"), c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}),
-  ],
-  "linha de pintura de portas": [
-    c("data","Data",{date:true}), c("hora_inicial","H. Inicial"), c("hora_final","H. Final"),
-    c("cliente","Cliente"), c("linha_pintura_portas_aq018","L. PINTURA PORTAS (AQ018)"),
-    c("linha","Linha"), c("material_certificado_fsc","Mat. Certif. (FSC)"),
-    c("nucleo","Núcleo"), c("padrao","Padrão"),
-    c("comprimento_cm","Comp. (cm)",{numeric:true}), c("largura_cm","Larg. (cm)",{numeric:true}), c("espessura_mm","Esp. (mm)",{numeric:true}),
-    c("qualidade","Qualidade"), c("gramatura_gm2","Gramatura (g/m²)",{numeric:true}),
-    c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-    c("tipo_defeito_1","Defeito 1"), c("qtd_nao_conforme_1","Qtd. NC 1",{numeric:true}),
-    c("observacao","Observação"),
-    c("recebimento_insumos_aq044","REC. INSUMOS (AQ044)"), c("colagem_borda_aq020","COL. BORDA (AQ020)"),
-    c("usinagem_portas_aq023","FURAÇÃO/CORTE (AQ023)"), c("usinagem_friso_aq022","USIN. FRISO (AQ022)"),
-  ],
-};
-
-const COLUNAS_DEFAULT: ColunaDef[] = [
-  c("data","Data",{date:true}), c("hora_final","H. Final"), c("produto","Produto"),
-  c("linha","Linha"), c("nucleo","Núcleo"), c("padrao","Cor/Padrão"),
-  c("largura_cm","Larg. (cm)",{numeric:true}), c("qtd_conforme","Qtd. Conforme",{numeric:true}),
-  c("qtd_nao_conforme_1","Qtd. NC",{numeric:true}), c("tipo_defeito_1","Defeito 1"),
-];
-
-function getColunasParaMaquina(nomeMaquina: string): ColunaDef[] {
-  const chave = nomeMaquina.trim().toLowerCase();
-  for (const [k, cols] of Object.entries(COLUNAS_MAQUINA)) {
-    if (chave.includes(k)) return cols;
-  }
-  return COLUNAS_DEFAULT;
-}
-
-function fmtCelula(val: unknown, col: ColunaDef): string {
-  if (val == null || val === "") return "—";
-  if (col.date) { try { return format(parseISO(String(val)), "dd/MM/yyyy"); } catch { return String(val); } }
-  if (col.numeric) { const n = Number(val); return isNaN(n) ? String(val) : n.toLocaleString("pt-BR"); }
-  const s = String(val);
-  return col.uppercase ? s.toUpperCase() : s;
+// A tabela indicadores_producao guarda o setor como texto livre (configurado
+// na tela de Metas) — não necessariamente "portas"/"guarnicao". Faz um match
+// por palavra-chave em vez de igualdade exata.
+function matchSetorLabel(label: string, alvo: "portas" | "guarnicao"): boolean {
+  const l = (label ?? "").toLowerCase();
+  return alvo === "portas" ? l.includes("porta") : l.includes("guarn");
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getSemanasMes(): { label: string; inicio: string; fim: string }[] {
-  const inicio = startOfMonth(new Date());
+function getSemanasMes(ano: number, mes: number): { label: string; inicio: string; fim: string }[] {
+  const refMes = new Date(ano, mes - 1, 1);
+  const inicio = startOfMonth(refMes);
+  const fimMes = endOfMonth(refMes);
   const semanas = [];
   for (let i = 0; i < 5; i++) {
     const seg = startOfWeek(addWeeks(inicio, i), { weekStartsOn: 1 });
     const sex = endOfWeek(seg, { weekStartsOn: 1 });
-    const fimMes = endOfMonth(new Date());
     if (seg > fimMes) break;
     semanas.push({
       label: `Sem ${i + 1}`,
@@ -457,770 +220,54 @@ function norm(s: string) {
   return s.trim().toLowerCase();
 }
 
-const MESES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
-
-// ─── Histórico de Produção ────────────────────────────────────────────────────
-
-function HistoricoSheet({ maquina, open, onClose, canEdit }: {
-  maquina: Maquina | null;
-  open: boolean;
-  onClose: () => void;
-  canEdit: boolean;
-}) {
-  const hoje = new Date();
-  const [anoFiltro, setAnoFiltro] = useState<string>(String(hoje.getFullYear()));
-  const histReqRef = useRef(0);
-  const [todosMD, setTodosMD] = useState<boolean>(true);
-  const [selecaoMD, setSelecaoMD] = useState<Set<string>>(new Set());
-  const [mesesExpandidos, setMesesExpandidos] = useState<Set<string>>(new Set());
-  const [todosRegistros, setTodosRegistros] = useState<RegistroProducao[]>([]);
-  const [loadingHist, setLoadingHist] = useState(false);
-  const [editReg, setEditReg] = useState<RegistroProducao | null>(null);
-  const [editForm, setEditForm] = useState<Record<string, unknown>>({});
-  const [savingEdit, setSavingEdit] = useState(false);
-
-  // Filtragem client-side por mês/dia
-  const registros = todosMD
-    ? todosRegistros
-    : todosRegistros.filter(r => {
-        const mm = r.data.slice(5, 7);
-        const dd = r.data.slice(8, 10);
-        return selecaoMD.has(mm) || selecaoMD.has(`${mm}-${dd}`);
-      });
-
-  const buscarHistorico = useCallback(async () => {
-    if (!maquina?.nome) return;
-    histReqRef.current += 1;
-    const myReq = histReqRef.current;
-    setLoadingHist(true);
-
-    const nomeMaquina = (maquina.nome as string).trim();
-    const nomeAlternativo = /alizar/i.test(nomeMaquina)
-      ? nomeMaquina.replace(/alizar/gi, "ALIZA")
-      : null;
-    const nomesQuery = nomeAlternativo ? [nomeMaquina, nomeAlternativo] : [nomeMaquina];
-    const TAM = 1000;
-    let pagina = 0;
-    const todos: RegistroProducao[] = [];
-
-    while (true) {
-      let query = supabase
-        .from("registros_producao")
-        .select("*")
-        .in("maquina", nomesQuery)
-        .order("data", { ascending: false })
-        .order("hora_inicial", { ascending: true, nullsFirst: false })
-        .range(pagina * TAM, (pagina + 1) * TAM - 1);
-
-      if (anoFiltro !== "todos") {
-        query = query.gte("data", `${anoFiltro}-01-01`).lte("data", `${anoFiltro}-12-31`);
-      }
-
-      const { data, error } = await query;
-      if (myReq !== histReqRef.current) return;
-      if (error) {
-        toast.error("Erro ao buscar histórico: " + error.message);
-        break;
-      }
-      if (!data || data.length === 0) break;
-      todos.push(...data);
-      if (data.length < TAM) break;
-      pagina++;
+// "MOLDUREIRA DE ALIZAR X" é o nome canônico cadastrado, mas alguns registros
+// de produção foram lançados como "MOLDUREIRA DE ALIZA X" (sem o R final) —
+// mapeia a variante pro nome canônico pra não perder produção na agregação.
+function buildAliasMap(maquinas: Maquina[]): Record<string, string> {
+  const aliasMap: Record<string, string> = {};
+  for (const m of maquinas) {
+    const n = norm(String(m.nome ?? ""));
+    if (n.includes("alizar")) {
+      aliasMap[n.replace(/alizar/g, "aliza")] = n;
     }
-
-    if (myReq !== histReqRef.current) return;
-    setTodosRegistros(todos);
-    setLoadingHist(false);
-  }, [maquina, anoFiltro]);
-
-  useEffect(() => {
-    if (open && maquina) buscarHistorico();
-  }, [open, maquina, buscarHistorico]);
-
-  // Dados para o gráfico — agrupa por dia se apenas 1 mês, por ano-mês se "todos", por mês caso contrário
-  const dadosGrafico = (() => {
-    const MESES_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-
-    const anosComDados = new Set(registros.map(r => r.data.slice(0, 4)));
-    const mesesComDados = new Set(registros.map(r => r.data.slice(5, 7)));
-
-    // Um único mês → mostra por dia
-    if (anosComDados.size <= 1 && mesesComDados.size <= 1 && registros.length > 0) {
-      const mm = [...mesesComDados][0];
-      const anoNum = anoFiltro === "todos" ? hoje.getFullYear() : Number(anoFiltro);
-      const diasNo = getDaysInMonth(new Date(anoNum, Number(mm) - 1, 1));
-      const mapa: Record<string, number> = {};
-      for (let d = 1; d <= diasNo; d++) mapa[String(d).padStart(2, "0")] = 0;
-      for (const r of registros) {
-        const d = r.data.slice(8, 10);
-        mapa[d] = (mapa[d] ?? 0) + (Number(r.qtd_conforme) || 0);
-      }
-      return Object.entries(mapa)
-        .sort(([a], [b]) => Number(a) - Number(b))
-        .map(([label, producao]) => ({ label, producao }));
-    }
-
-    // "Todos" ou múltiplos anos → agrupa por ano-mês ordenado cronologicamente
-    if (anoFiltro === "todos" || anosComDados.size > 1) {
-      const mapa: Record<string, number> = {};
-      for (const r of registros) {
-        const ym = r.data.slice(0, 7); // "2024-01"
-        mapa[ym] = (mapa[ym] ?? 0) + (Number(r.qtd_conforme) || 0);
-      }
-      return Object.entries(mapa)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([ym, producao]) => {
-          const [ano, mm] = ym.split("-");
-          return { label: `${MESES_PT[Number(mm) - 1]}/${ano.slice(2)}`, producao };
-        });
-    }
-
-    // Ano específico → agrupa por mês, ordenado numericamente
-    const mapa: Record<string, number> = {};
-    for (let m = 1; m <= 12; m++) mapa[String(m).padStart(2, "0")] = 0;
-    for (const r of registros) {
-      const m = r.data.slice(5, 7);
-      mapa[m] = (mapa[m] ?? 0) + (Number(r.qtd_conforme) || 0);
-    }
-    // Limite: ano atual → até o mês corrente; ano passado → até o último mês com dados
-    const ultimoComDados = Object.entries(mapa)
-      .filter(([, v]) => v > 0).map(([m]) => Number(m))
-      .reduce((max, m) => Math.max(max, m), 0);
-    const limite = anoFiltro === String(hoje.getFullYear())
-      ? Math.max(hoje.getMonth() + 1, ultimoComDados)
-      : ultimoComDados || 12;
-    return Object.entries(mapa)
-      .sort(([a], [b]) => Number(a) - Number(b))
-      .filter(([m]) => Number(m) <= limite)
-      .map(([m, producao]) => ({
-        label: MESES[Number(m) - 1].slice(0, 3),
-        producao,
-      }));
-  })();
-
-  const total = registros.reduce((s, r) => s + (Number(r.qtd_conforme) || 0), 0);
-
-  const anos = Array.from({ length: 5 }, (_, i) => String(hoje.getFullYear() - i));
-
-  const labelMesDia = todosMD ? "Todos" : selecaoMD.size === 0 ? "Nenhum" : `${selecaoMD.size} selecionado(s)`;
-
-  function toggleTodos() {
-    setTodosMD(p => !p);
-    setSelecaoMD(new Set());
   }
-
-  function toggleMes(mm: string) {
-    setTodosMD(false);
-    setSelecaoMD(prev => {
-      const next = new Set(prev);
-      const anoNum = anoFiltro === "todos" ? hoje.getFullYear() : Number(anoFiltro);
-      const diasNo = getDaysInMonth(new Date(anoNum, Number(mm) - 1, 1));
-      if (next.has(mm)) {
-        next.delete(mm);
-        for (let d = 1; d <= diasNo; d++) next.delete(`${mm}-${String(d).padStart(2, "0")}`);
-      } else {
-        next.add(mm);
-        for (let d = 1; d <= diasNo; d++) next.delete(`${mm}-${String(d).padStart(2, "0")}`);
-      }
-      return next;
-    });
-  }
-
-  function toggleDia(mm: string, dd: string) {
-    setTodosMD(false);
-    setSelecaoMD(prev => {
-      const next = new Set(prev);
-      const key = `${mm}-${dd}`;
-      if (next.has(mm)) {
-        next.delete(mm);
-        const anoNum = anoFiltro === "todos" ? hoje.getFullYear() : Number(anoFiltro);
-        const diasNo = getDaysInMonth(new Date(anoNum, Number(mm) - 1, 1));
-        for (let d = 1; d <= diasNo; d++) {
-          const dk = `${mm}-${String(d).padStart(2, "0")}`;
-          if (dk !== key) next.add(dk);
-        }
-      } else if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }
-
-  function toggleExpandir(mm: string) {
-    setMesesExpandidos(prev => {
-      const next = new Set(prev);
-      if (next.has(mm)) next.delete(mm); else next.add(mm);
-      return next;
-    });
-  }
-
-  function gerarPDF() {
-    const doc = new jsPDF({ orientation: "landscape" });
-    const nomeMaquina = (maquina?.nome as string) ?? "Máquina";
-    const periodoLabel = todosMD
-      ? (anoFiltro === "todos" ? "Todos os períodos" : anoFiltro)
-      : anoFiltro;
-
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    const margin = 14;
-    const green: [number, number, number] = [26, 91, 46];
-
-    // ─── CABEÇALHO ──────────────────────────────────────────────────
-    // Logo (proporção original: 3134×695 → 68×15mm)
-    doc.addImage(LOGO_CONCREM_B64, "PNG", margin, 7, 68, 15);
-
-    // Título e dados à direita
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.setTextColor(30, 30, 30);
-    doc.text("RELATÓRIO DE PRODUÇÃO", pageW - margin, 13, { align: "right" });
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(90, 90, 90);
-    doc.text(`Máquina: ${nomeMaquina}`, pageW - margin, 19, { align: "right" });
-    doc.text(`Período: ${periodoLabel}`, pageW - margin, 24, { align: "right" });
-    doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`, pageW - margin, 29, { align: "right" });
-
-    // Linha separadora verde
-    doc.setFillColor(...green);
-    doc.rect(margin, 32, pageW - margin * 2, 0.7, "F");
-
-    // ─── BOXES DE KPI ───────────────────────────────────────────────
-    const kpis = [
-      { label: "TOTAL DE REGISTROS", value: registros.length.toString() },
-      { label: "TOTAL PRODUZIDO", value: `${total.toLocaleString("pt-BR")} pç` },
-      { label: "PERÍODO", value: periodoLabel },
-      { label: "GERADO EM", value: format(new Date(), "dd/MM/yyyy HH:mm") },
-    ];
-    const boxCount = kpis.length;
-    const boxGap = 3;
-    const boxW = (pageW - margin * 2 - boxGap * (boxCount - 1)) / boxCount;
-    const boxH = 19;
-    const boxY = 36;
-
-    kpis.forEach((kpi, i) => {
-      const boxX = margin + i * (boxW + boxGap);
-      doc.setFillColor(242, 247, 242);
-      doc.setDrawColor(210, 225, 212);
-      doc.roundedRect(boxX, boxY, boxW, boxH, 2, 2, "FD");
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(6.5);
-      doc.setTextColor(100, 100, 100);
-      doc.text(kpi.label, boxX + boxW / 2, boxY + 6.5, { align: "center" });
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10.5);
-      doc.setTextColor(26, 26, 26);
-      doc.text(kpi.value, boxX + boxW / 2, boxY + 14, { align: "center" });
-    });
-
-    let yPos = boxY + boxH + 8;
-
-    // ─── RESUMO POR PERÍODO ─────────────────────────────────────────
-    const temDadosGrafico = dadosGrafico.some((d) => d.producao > 0);
-    if (temDadosGrafico) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(40, 40, 40);
-      doc.text("Resumo por Período", margin, yPos);
-
-      autoTable(doc, {
-        startY: yPos + 3,
-        head: [["Período", "Produção (pç)"]],
-        body: dadosGrafico.map((d) => [d.label, d.producao.toLocaleString("pt-BR")]),
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: green, textColor: [255, 255, 255], fontStyle: "bold" },
-        alternateRowStyles: { fillColor: [242, 247, 242] },
-        columnStyles: { 1: { halign: "right" } },
-        tableWidth: 85,
-      });
-
-      yPos = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
-    }
-
-    // ─── REGISTROS DETALHADOS ───────────────────────────────────────
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(40, 40, 40);
-    doc.text("Registros Detalhados", margin, yPos);
-
-    const colunasPDF = getColunasParaMaquina(nomeMaquina);
-    const muitasColunas = colunasPDF.length > 12;
-    autoTable(doc, {
-      startY: yPos + 3,
-      head: [colunasPDF.map((col) => col.label)],
-      body: registros.map((r) =>
-        colunasPDF.map((col) => fmtCelula((r as Record<string, unknown>)[col.key], col))
-      ),
-      styles: {
-        fontSize: muitasColunas ? 6 : 7.5,
-        cellPadding: muitasColunas ? 1.2 : 2,
-        overflow: "ellipsize",
-        minCellHeight: 5,
-      },
-      headStyles: {
-        fillColor: green,
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-        overflow: "ellipsize",
-        minCellHeight: 6,
-        halign: "center",
-      },
-      alternateRowStyles: { fillColor: [242, 247, 242] },
-      margin: { left: margin, right: margin },
-    });
-
-    // ─── RODAPÉ COM NÚMERO DE PÁGINA ────────────────────────────────
-    const totalPages = doc.getNumberOfPages();
-    for (let p = 1; p <= totalPages; p++) {
-      doc.setPage(p);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      doc.setTextColor(160, 160, 160);
-      doc.text(
-        `Página ${p} de ${totalPages}  —  Concrem Portas Premium`,
-        pageW / 2,
-        pageH - 5,
-        { align: "center" }
-      );
-    }
-
-    const nomeArquivo = `relatorio-${norm(nomeMaquina).replace(/\s+/g, "-")}-${periodoLabel.replace(/[\s/]+/g, "-")}.pdf`;
-    doc.save(nomeArquivo);
-  }
-
-  function gerarExcel() {
-    const nomeMaquina = (maquina?.nome as string) ?? "Máquina";
-    const periodoLabel = todosMD
-      ? (anoFiltro === "todos" ? "todos" : anoFiltro)
-      : anoFiltro;
-
-    const colunasXLS = getColunasParaMaquina(nomeMaquina);
-    const cabecalho = colunasXLS.map((col) => col.label);
-    const linhas = registros.map((r) =>
-      colunasXLS.map((col) => {
-        const val = (r as Record<string,unknown>)[col.key];
-        if (val == null || val === "") return "";
-        if (col.date) { try { return format(parseISO(String(val)), "dd/MM/yyyy"); } catch { return String(val); } }
-        if (col.numeric) { const n = Number(val); return isNaN(n) ? String(val) : n; }
-        return String(val);
-      })
-    );
-
-    const ws = XLSX.utils.aoa_to_sheet([cabecalho, ...linhas]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, nomeMaquina.slice(0, 31));
-
-    const nomeArquivo = `relatorio-${norm(nomeMaquina).replace(/\s+/g, "-")}-${periodoLabel}.xlsx`;
-    XLSX.writeFile(wb, nomeArquivo);
-  }
-
-  function openEdit(r: RegistroProducao) {
-    setEditReg(r);
-    setEditForm({ ...r });
-  }
-
-  async function salvarEdicao() {
-    if (!editReg) return;
-    setSavingEdit(true);
-    const colunas = getColunasParaMaquina(maquina?.nome ?? "");
-    const payload: Record<string, unknown> = {};
-    for (const col of colunas) {
-      const raw = editForm[col.key];
-      if (col.numeric) {
-        payload[col.key] = raw === "" || raw === undefined || raw === null ? null : Number(raw);
-      } else {
-        payload[col.key] = raw === "" ? null : (raw ?? null);
-      }
-    }
-    const { error } = await supabase.from("registros_producao").update(payload).eq("id", editReg.id);
-    setSavingEdit(false);
-    if (error) { toast.error("Erro ao salvar: " + error.message); return; }
-    toast.success("Registro atualizado.");
-    setEditReg(null);
-    buscarHistorico();
-  }
-
-  return (
-    <>
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-[90vw] w-full h-[calc(100vh-140px)] flex flex-col gap-0 p-0 overflow-hidden mt-[50px]">
-        <DialogHeader className="px-6 py-4 border-b">
-          <DialogTitle className="flex items-center gap-2">
-            Produção — {(maquina?.nome as string) ?? ""}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="flex-shrink-0 overflow-y-auto px-6 py-4 space-y-4 max-h-[280px]">
-          {/* Filtros */}
-          <div className="flex flex-wrap gap-2 items-end">
-            {/* Ano */}
-            <div className="grid gap-1">
-              <Label className="text-xs">Ano</Label>
-              <Select value={anoFiltro} onValueChange={setAnoFiltro}>
-                <SelectTrigger className="h-8 text-xs w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  {anos.map((a) => (
-                    <SelectItem key={a} value={a}>{a}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Mês, Dia — tree select */}
-            <div className="grid gap-1">
-              <Label className="text-xs">Mês, Dia</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="h-8 text-xs w-44 border border-input rounded-md px-2 flex items-center justify-between bg-background hover:bg-accent transition-colors"
-                  >
-                    <span className="truncate">{labelMesDia}</span>
-                    <ChevronDown className="h-3 w-3 ml-1 shrink-0 text-muted-foreground" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="p-0 w-52" align="start">
-                  <div className="max-h-72 overflow-y-auto text-xs">
-                    {/* Selecionar tudo */}
-                    <label className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent cursor-pointer">
-                      <input type="checkbox" checked={todosMD} onChange={toggleTodos} className="h-3.5 w-3.5 accent-primary" />
-                      <span>Selecionar tudo</span>
-                    </label>
-                    <div className="border-t my-0.5" />
-                    {/* Meses */}
-                    {MESES.map((nomeMes, i) => {
-                      const mm = String(i + 1).padStart(2, "0");
-                      const anoNum = anoFiltro === "todos" ? hoje.getFullYear() : Number(anoFiltro);
-                      const diasNo = getDaysInMonth(new Date(anoNum, i, 1));
-                      const checkedMes = todosMD || selecaoMD.has(mm);
-                      const indetermMes = !todosMD && !selecaoMD.has(mm) &&
-                        Array.from({ length: diasNo }, (_, d) => String(d + 1).padStart(2, "0"))
-                          .some(d => selecaoMD.has(`${mm}-${d}`));
-                      const expandido = mesesExpandidos.has(mm);
-                      return (
-                        <div key={mm}>
-                          <div className="flex items-center gap-1 px-2 py-1 hover:bg-accent">
-                            <button
-                              type="button"
-                              onClick={() => toggleExpandir(mm)}
-                              className="p-0.5 text-muted-foreground hover:text-foreground"
-                            >
-                              {expandido
-                                ? <ChevronDown className="h-3 w-3" />
-                                : <ChevronRight className="h-3 w-3" />}
-                            </button>
-                            <label className="flex items-center gap-2 cursor-pointer flex-1">
-                              <input
-                                type="checkbox"
-                                checked={checkedMes}
-                                ref={el => { if (el) el.indeterminate = indetermMes; }}
-                                onChange={() => toggleMes(mm)}
-                                className="h-3.5 w-3.5 accent-primary"
-                              />
-                              {nomeMes.toLowerCase()}
-                            </label>
-                          </div>
-                          {expandido && (
-                            <div className="pl-8">
-                              {Array.from({ length: diasNo }, (_, d) => {
-                                const dd = String(d + 1).padStart(2, "0");
-                                const checkedDia = todosMD || selecaoMD.has(mm) || selecaoMD.has(`${mm}-${dd}`);
-                                return (
-                                  <label key={dd} className="flex items-center gap-2 px-3 py-0.5 hover:bg-accent cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={checkedDia}
-                                      onChange={() => toggleDia(mm, dd)}
-                                      className="h-3.5 w-3.5 accent-primary"
-                                    />
-                                    {d + 1}
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <Button size="sm" onClick={buscarHistorico} disabled={loadingHist} className="h-8 gap-1.5">
-              {loadingHist ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              Buscar
-            </Button>
-
-            {registros.length > 0 && (
-              <>
-                <Button size="sm" variant="outline" onClick={gerarPDF} className="h-8 gap-1.5">
-                  <FileText className="h-3.5 w-3.5" />
-                  PDF
-                </Button>
-                <Button size="sm" variant="outline" onClick={gerarExcel} className="h-8 gap-1.5 text-emerald-700 border-emerald-300 hover:bg-emerald-50">
-                  <FileSpreadsheet className="h-3.5 w-3.5" />
-                  Excel
-                </Button>
-              </>
-            )}
-          </div>
-
-          {/* Resumo */}
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{registros.length} registro(s)</span>
-            <span className="font-semibold">{total.toLocaleString("pt-BR")} pç no total</span>
-          </div>
-
-          {/* Gráfico */}
-          {dadosGrafico.some((d) => d.producao > 0) && (
-            <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={dadosGrafico} barSize={dadosGrafico.length <= 12 ? 20 : 10}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis hide />
-                <Tooltip
-                  contentStyle={{ fontSize: 11, padding: "4px 8px" }}
-                  formatter={(v: number) => [v.toLocaleString("pt-BR") + " pç", "Produção"]}
-                />
-                <Bar dataKey="producao" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} opacity={0.85} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-
-        </div>
-
-        {/* Tabela — container com posição absoluta garante que as barras de rolagem
-            apareçam dentro dos limites visíveis do dialog */}
-        <div className="flex-1 min-h-0 relative border-t">
-          <div className="absolute inset-0 overflow-x-scroll overflow-y-auto">
-            {loadingHist ? (
-              <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
-            ) : registros.length === 0 ? (
-              <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                Nenhum registro encontrado para o período.
-              </div>
-            ) : (() => {
-                const colunas = getColunasParaMaquina(maquina?.nome ?? "");
-                return (
-                  <table className="w-full min-w-max text-sm border-collapse">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        {colunas.map((col) => (
-                          <th key={col.key} style={col.wide ? {minWidth: 280} : undefined} className={`px-3 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap${col.numeric ? " text-right" : " text-left"}`}>
-                            {col.label}
-                          </th>
-                        ))}
-                        {canEdit && <th className="px-3 py-2 text-xs font-medium text-muted-foreground text-right">Ações</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {registros.map((r, i) => (
-                        <tr key={r.id} className={`border-b hover:bg-muted/30 transition-colors${i % 2 === 0 ? "" : " bg-muted/10"}`}>
-                          {colunas.map((col, ci) => (
-                            <td key={col.key} style={col.wide ? {minWidth: 280} : undefined} className={`px-3 py-2 text-xs whitespace-nowrap${col.numeric ? " text-right tabular-nums" : ""}`}>
-                              {ci === 0 && canEdit ? (
-                                <span className="inline-flex items-center gap-1">
-                                  <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => openEdit(r)}>
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
-                                  {fmtCelula((r as Record<string,unknown>)[col.key], col)}
-                                </span>
-                              ) : fmtCelula((r as Record<string,unknown>)[col.key], col)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                );
-              })()}
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    {/* Dialog de edição de registro */}
-    <Dialog open={!!editReg} onOpenChange={(v) => { if (!v) setEditReg(null); }}>
-      <DialogContent className="sm:max-w-3xl w-full">
-        <DialogHeader>
-          <DialogTitle>Editar Registro</DialogTitle>
-        </DialogHeader>
-        {editReg && (() => {
-          const colunasEdit = getColunasParaMaquina(maquina?.nome ?? "");
-          return (
-            <div className="max-h-[60vh] overflow-y-auto py-2 pr-1">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {colunasEdit.map((col) => {
-                  const inputType = col.date
-                    ? "date"
-                    : (col.key === "hora_inicial" || col.key === "hora_final")
-                      ? "time"
-                      : col.numeric
-                        ? "number"
-                        : "text";
-                  return (
-                    <div key={col.key} className="space-y-1.5">
-                      <Label className="text-xs">{col.label}</Label>
-                      <Input
-                        type={inputType}
-                        value={String(editForm[col.key] ?? "")}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, [col.key]: e.target.value }))}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
-        <DialogFooter>
-          <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-          <Button onClick={salvarEdicao} disabled={savingEdit}>
-            {savingEdit && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Salvar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-    </>
-  );
+  return aliasMap;
 }
 
-// ─── Card de Máquina ──────────────────────────────────────────────────────────
+// Período anterior "equivalente" pra comparação: se o mês/ano selecionado é o
+// atual (ainda em andamento), o período de comparação não pode ser o mês/ano
+// anterior INTEIRO — senão compara N dias decorridos contra o mês/ano cheio,
+// o que sempre faz o período atual parecer pior. Nesse caso, trunca o período
+// anterior no mesmo dia-do-mês (ou dia-do-ano) de hoje. Se o período
+// selecionado já é passado (totalmente encerrado), compara cheio com cheio.
+function periodoAnteriorEquivalente(ano: number, mes: number): { inicio: string; fim: string } {
+  const hoje = new Date();
 
-function MaquinaCard({
-  maquina,
-  producaoPorSemana,
-  totalMes,
-  onClick,
-  onEdit,
-  onLancar,
-  canEdit,
-}: {
-  maquina: Maquina;
-  producaoPorSemana: { label: string; producao: number }[];
-  totalMes: number;
-  onClick: () => void;
-  onEdit: (m: Maquina) => void;
-  onLancar?: (() => void) | null;
-  canEdit: boolean;
-}) {
-  const nome = (maquina.nome as string) || `Máquina ${maquina.id}`;
-  const isEmbPerfil = nome.trim().toUpperCase() === "EMBALAGEM DE PERFIL";
-  const status = (maquina.status as string) || null;
-  const isAtiva =
-    !status ||
-    status.toLowerCase() === "ativa" ||
-    status.toLowerCase() === "ativo" ||
-    status.toLowerCase() === "active";
+  if (mes === 0) {
+    // "Todos os meses" = ano inteiro
+    const anoAnterior = ano - 1;
+    const isAnoAtual = ano === hoje.getFullYear();
+    if (!isAnoAtual) {
+      return { inicio: `${anoAnterior}-01-01`, fim: `${anoAnterior}-12-31` };
+    }
+    const fimEquivalente = new Date(anoAnterior, hoje.getMonth(), hoje.getDate());
+    return { inicio: `${anoAnterior}-01-01`, fim: format(fimEquivalente, "yyyy-MM-dd") };
+  }
 
-  return (
-    <Card
-      className={`flex flex-col cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 border-l-4 ${
-        isAtiva ? "border-l-primary" : "border-l-muted-foreground/30"
-      }`}
-      onClick={onClick}
-    >
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
-              isAtiva ? "bg-primary/10" : "bg-muted"
-            }`}>
-              <Cog className={`h-5 w-5 ${isAtiva ? "text-primary" : "text-muted-foreground"}`} />
-            </div>
-            <div className="min-w-0">
-              <CardTitle className="text-sm font-bold leading-tight truncate">{nome}</CardTitle>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={`h-2 w-2 rounded-full shrink-0 ${
-                  isAtiva ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40"
-                }`} />
-                <span className="text-xs text-muted-foreground">
-                  {status ?? "Ativa"}
-                </span>
-              </div>
-            </div>
-          </div>
-          {canEdit && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-              onClick={(e) => { e.stopPropagation(); onEdit(maquina); }}
-              title="Editar nome"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
-      </CardHeader>
+  const mAnterior = mes === 1 ? 12 : mes - 1;
+  const anoRef = mes === 1 ? ano - 1 : ano;
+  const inicio = `${anoRef}-${String(mAnterior).padStart(2, "0")}-01`;
 
-      <CardContent className="flex flex-col gap-3 flex-1 pt-1">
-        {/* Produção do mês em destaque */}
-        <div className={`rounded-lg px-3 py-2 ${isAtiva ? "bg-primary/5" : "bg-muted/50"}`}>
-          <p className="text-xs text-muted-foreground mb-0.5">
-            {format(new Date(), "MMMM yyyy", { locale: ptBR })}
-          </p>
-          <p className={`text-2xl font-bold leading-tight ${isAtiva ? "text-primary" : "text-muted-foreground"}`}>
-            {totalMes.toLocaleString("pt-BR")}
-            <span className="text-sm font-normal ml-1 text-muted-foreground">pç</span>
-          </p>
-        </div>
+  const isMesAtual = ano === hoje.getFullYear() && mes === hoje.getMonth() + 1;
+  if (!isMesAtual) {
+    const fim = format(endOfMonth(new Date(anoRef, mAnterior - 1, 1)), "yyyy-MM-dd");
+    return { inicio, fim };
+  }
 
-        {/* Mini gráfico */}
-        {totalMes > 0 ? (
-          <ResponsiveContainer width="100%" height={72}>
-            <BarChart data={producaoPorSemana} barSize={14}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis hide />
-              <Tooltip
-                contentStyle={{ fontSize: 11, padding: "4px 8px" }}
-                formatter={(v: number) => [v.toLocaleString("pt-BR") + " pç", "Produção"]}
-              />
-              <Bar dataKey="producao" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} opacity={0.85} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="h-[72px] flex items-center justify-center text-xs text-muted-foreground border border-dashed rounded-lg">
-            Sem registros no mês
-          </div>
-        )}
-
-        <div className="flex flex-col gap-2 mt-auto pt-1">
-          {isEmbPerfil && (
-            <Button
-              size="sm"
-              variant="default"
-              className="w-full text-xs"
-              onClick={(e) => { e.stopPropagation(); onLancar?.(); }}
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Lançar Produção
-            </Button>
-          )}
-          <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground/60">
-            <History className="h-3 w-3" />
-            Ver histórico completo
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  const diasNoMesAnterior = getDaysInMonth(new Date(anoRef, mAnterior - 1, 1));
+  const diaEquivalente = Math.min(hoje.getDate(), diasNoMesAnterior);
+  const fim = format(new Date(anoRef, mAnterior - 1, diaEquivalente), "yyyy-MM-dd");
+  return { inicio, fim };
 }
 
 // ─── Página Principal ─────────────────────────────────────────────────────────
@@ -1240,8 +287,22 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editMaquina, setEditMaquina] = useState<Maquina | null>(null);
   const [editNome, setEditNome] = useState("");
-  const [lancamentoOpen, setLancamentoOpen] = useState(false);
+  const [lancamentoMaquina, setLancamentoMaquina] = useState<Maquina | null>(null);
   const [busca, setBusca] = useState("");
+  const [abaAtiva, setAbaAtiva] = useState("visao-geral");
+
+  // ── Aba Máquinas: período, filtros, visão ──
+  const [anoMaq,     setAnoMaq]     = useState(String(new Date().getFullYear()));
+  const [mesMaq,     setMesMaq]     = useState(String(new Date().getMonth() + 1));
+  const [rawRegistrosMaq, setRawRegistrosMaq] = useState<{ maquina: string | null; data: string | null; qtd_conforme: number | null; linha: string | null }[]>([]);
+  const [comparativoMaq, setComparativoMaq] = useState<{ total: number; porMaquina: Record<string, number> } | null>(null);
+  const [viewMode,   setViewMode]   = useState<ViewMode>("list");
+  const [statusFiltroMaq, setStatusFiltroMaq] = useState<StatusFiltro>("todas");
+  const [linhasSelMaq,    setLinhasSelMaq]    = useState<Set<string>>(new Set());
+  const [sortByMaq,  setSortByMaq]  = useState<MachineSortKey>("producao");
+  const [sortDirMaq, setSortDirMaq] = useState<SortDir>("desc");
+  const [pageMaq,     setPageMaq]     = useState(1);
+  const [pageSizeMaq, setPageSizeMaq] = useState(25);
 
   // ── Dashboard states ──
   const [anoD,       setAnoD]       = useState(String(new Date().getFullYear()));
@@ -1250,6 +311,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   const [setorD,     setSetorD]     = useState<SetorDash>("todos");
   const [maqsSel,    setMaqsSel]    = useState<Set<string>>(new Set()); // vazio = todas
   const [dashRows,   setDashRows]   = useState<RowDash[]>([]);
+  const [dashRowsAno, setDashRowsAno] = useState<RowDash[]>([]); // ano inteiro, p/ tendência mensal
   const [loadingD,   setLoadingD]   = useState(false);
   const [dashErro,   setDashErro]   = useState<string | null>(null);
   // drill-down selections
@@ -1258,8 +320,13 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   const [selPadrao,       setSelPadrao]       = useState<string | null>(null);
   const [showAllPadrao,   setShowAllPadrao]   = useState(false);
   const [showAllLargura,  setShowAllLargura]  = useState(false);
+  const [showAllLinhas,   setShowAllLinhas]   = useState(false);
   const [showAllMaq,      setShowAllMaq]      = useState(false);
-  const [showAllLinha,    setShowAllLinha]    = useState(false);
+
+  // ── Cabeçalho executivo / KPIs adicionais ──
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [comparativo, setComparativo] = useState<{ total: number; diasComProducao: number } | null>(null);
+  const [metaProducao, setMetaProducao] = useState<number | null>(null);
 
   const canEdit = ["administrador", "supervisor"].includes((user.perfil ?? "").toLowerCase());
 
@@ -1267,6 +334,15 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   const handleSetorD = (s: SetorDash) => { setSetorD(s); setMaqsSel(new Set()); clearDrill(); };
   const handleAnoD   = (v: string)    => { setAnoD(v);   setDiasSel(new Set()); clearDrill(); };
   const handleMesD   = (v: string)    => { setMesD(v);   setDiasSel(new Set()); clearDrill(); };
+
+  function limparFiltros() {
+    setSetorD("todos");
+    setAnoD(String(new Date().getFullYear()));
+    setMesD(String(new Date().getMonth() + 1));
+    setDiasSel(new Set());
+    setMaqsSel(new Set());
+    clearDrill();
+  }
 
   // Seleções independentes — cada uma filtra as demais dimensões
   const clickMaq    = (orig: string) => setSelMaq(p    => p    === orig ? null : orig);
@@ -1282,7 +358,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   });
   const clickPadrao = (pad: string)  => setSelPadrao(p => p    === pad  ? null : pad);
 
-  const semanas = getSemanasMes();
+  const semanas = getSemanasMes(Number(anoMaq), Number(mesMaq));
   const dashReqRef = useRef(0);
 
   const buscarDash = useCallback(async () => {
@@ -1318,38 +394,119 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
     if (myReq !== dashReqRef.current) return;
     setDashRows(todas);
     setLoadingD(false);
+    setLastSyncedAt(new Date());
   }, [anoD, mesD]);
 
   useEffect(() => { void buscarDash(); }, [buscarDash]);
+
+  // ── Ano inteiro (independente do filtro de Mês/Dia) — alimenta só o card
+  // "Produção Mensal", que precisa de uma tendência de 12 meses mesmo quando
+  // um mês específico está selecionado nos demais filtros. ──
+  const dashAnoReqRef = useRef(0);
+  const buscarDashAno = useCallback(async () => {
+    dashAnoReqRef.current += 1;
+    const myReq = dashAnoReqRef.current;
+    const inicio = `${anoD}-01-01`;
+    const fim = `${anoD}-12-31`;
+    const TAM = 1000;
+    let pagina = 0;
+    const todas: RowDash[] = [];
+    while (true) {
+      const { data, error } = await supabase
+        .from("registros_producao")
+        .select("maquina,data,linha,produto,padrao,largura_cm,qtd_conforme")
+        .gte("data", inicio)
+        .lte("data", fim)
+        .order("data", { ascending: true })
+        .range(pagina * TAM, (pagina + 1) * TAM - 1);
+      if (myReq !== dashAnoReqRef.current) return;
+      if (error || !data || data.length === 0) break;
+      todas.push(...(data as RowDash[]));
+      if (data.length < TAM) break;
+      pagina++;
+    }
+    if (myReq !== dashAnoReqRef.current) return;
+    setDashRowsAno(todas);
+  }, [anoD]);
+
+  useEffect(() => { void buscarDashAno(); }, [buscarDashAno]);
+
+  // ── Comparativo com o período anterior equivalente (mesma tabela, leitura extra) ──
+  const comparativoReqRef = useRef(0);
+  const buscarComparativo = useCallback(async () => {
+    comparativoReqRef.current += 1;
+    const myReq = comparativoReqRef.current;
+
+    const { inicio, fim } = periodoAnteriorEquivalente(Number(anoD), Number(mesD));
+
+    const TAM = 1000;
+    let pagina = 0;
+    const todas: { maquina: string | null; data: string; qtd_conforme: number | null }[] = [];
+    while (true) {
+      const { data, error } = await supabase
+        .from("registros_producao")
+        .select("maquina,data,qtd_conforme")
+        .gte("data", inicio)
+        .lte("data", fim)
+        .order("data", { ascending: true })
+        .range(pagina * TAM, (pagina + 1) * TAM - 1);
+      if (myReq !== comparativoReqRef.current) return;
+      if (error || !data || data.length === 0) break;
+      todas.push(...data);
+      if (data.length < TAM) break;
+      pagina++;
+    }
+    if (myReq !== comparativoReqRef.current) return;
+
+    const filtradas = setorD === "todos" ? todas : todas.filter(r => getSetorDash(r.maquina ?? "") === setorD);
+    const total = filtradas.reduce((s, r) => s + (r.qtd_conforme ?? 0), 0);
+    const diasComProducao = new Set(filtradas.filter(r => (r.qtd_conforme ?? 0) > 0).map(r => r.data)).size;
+    setComparativo({ total, diasComProducao });
+  }, [anoD, mesD, setorD]);
+
+  useEffect(() => { void buscarComparativo(); }, [buscarComparativo]);
+
+  // ── Meta de produção (indicadores_producao), definida na tela de Metas ──
+  const buscarMeta = useCallback(async () => {
+    let query = supabase.from("indicadores_producao").select("meta_producao, setor, mes");
+    query = mesD === "0"
+      ? query.gte("mes", `${anoD}-01-01`).lt("mes", `${Number(anoD) + 1}-01-01`)
+      : query.eq("mes", `${anoD}-${String(Number(mesD)).padStart(2, "0")}-01`);
+
+    const { data, error } = await query;
+    if (error || !data) { setMetaProducao(null); return; }
+
+    const relevantes = setorD === "todos" ? data : data.filter(r => matchSetorLabel(r.setor ?? "", setorD));
+    const soma = relevantes.reduce((s, r) => s + (Number(r.meta_producao) || 0), 0);
+    setMetaProducao(relevantes.length > 0 ? soma : null);
+  }, [anoD, mesD, setorD]);
+
+  useEffect(() => { void buscarMeta(); }, [buscarMeta]);
 
   const fetchDados = useCallback(async (setSpin: (v: boolean) => void) => {
     setSpin(true);
     setErro(null);
 
-    const dataInicio = format(startOfMonth(new Date()), "yyyy-MM-dd");
-    const dataFim    = format(endOfMonth(new Date()), "yyyy-MM-dd");
+    const ano = Number(anoMaq);
+    const mes = Number(mesMaq);
+    const refMes = new Date(ano, mes - 1, 1);
+    const dataInicio = format(startOfMonth(refMes), "yyyy-MM-dd");
+    const dataFim    = format(endOfMonth(refMes), "yyyy-MM-dd");
+    const semanasAtual = getSemanasMes(ano, mes);
 
     const { data: maquinasData, error: err1 } = await supabase.from("maquinas").select("*").order("nome");
     if (err1) { setErro(err1.message); setSpin(false); return; }
     setMaquinas(maquinasData ?? []);
+    const aliasMap = buildAliasMap(maquinasData ?? []);
 
-    // Alias: "MOLDUREIRA DE ALIZA X" → "MOLDUREIRA DE ALIZAR X"
-    const aliasMap: Record<string, string> = {};
-    for (const m of maquinasData ?? []) {
-      const n = norm(String((m as Maquina).nome ?? ""));
-      if (n.includes("alizar")) {
-        aliasMap[n.replace(/alizar/g, "aliza")] = n;
-      }
-    }
-
-    type Registro = { maquina: string | null; data: string | null; qtd_conforme: number | null };
+    type Registro = { maquina: string | null; data: string | null; qtd_conforme: number | null; linha: string | null };
     const registros: Registro[] = [];
     const TAM_PAG = 1000;
     let pagina = 0;
     while (true) {
       const { data: lote, error: err2 } = await supabase
         .from("registros_producao")
-        .select("maquina, data, qtd_conforme")
+        .select("maquina, data, qtd_conforme, linha")
         .gte("data", dataInicio)
         .lte("data", dataFim)
         .order("data", { ascending: true })
@@ -1361,13 +518,16 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
       pagina++;
     }
 
+    setRawRegistrosMaq(registros);
+
     const mapa: Record<string, Record<string, number>> = {};
-    for (const r of registros ?? []) {
+    for (const r of registros) {
       if (!r.maquina || !r.data) continue;
+      const data = r.data;
       const raw = norm(r.maquina);
       const chave = aliasMap[raw] ?? raw;
       const qtd = Number(r.qtd_conforme) || 0;
-      const semana = semanas.find((s) => r.data >= s.inicio && r.data <= s.fim);
+      const semana = semanasAtual.find((s) => data >= s.inicio && data <= s.fim);
       if (!semana) continue;
       if (!mapa[chave]) mapa[chave] = {};
       mapa[chave][semana.label] = (mapa[chave][semana.label] ?? 0) + qtd;
@@ -1375,9 +535,52 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
 
     setProducao(mapa);
     setSpin(false);
-  }, []);
+  }, [anoMaq, mesMaq]);
 
   useEffect(() => { fetchDados(setLoading); }, [fetchDados]);
+
+  // ── Comparativo com o período anterior (aba Máquinas) — mesmo padrão de
+  // buscarComparativo (Visão Geral), leitura extra só de maquina/qtd_conforme. ──
+  const comparativoMaqReqRef = useRef(0);
+  const buscarComparativoMaq = useCallback(async () => {
+    comparativoMaqReqRef.current += 1;
+    const myReq = comparativoMaqReqRef.current;
+
+    const { inicio, fim } = periodoAnteriorEquivalente(Number(anoMaq), Number(mesMaq));
+
+    const TAM = 1000;
+    let pagina = 0;
+    const todas: { maquina: string | null; qtd_conforme: number | null }[] = [];
+    while (true) {
+      const { data, error } = await supabase
+        .from("registros_producao")
+        .select("maquina, qtd_conforme")
+        .gte("data", inicio)
+        .lte("data", fim)
+        .order("data", { ascending: true })
+        .range(pagina * TAM, (pagina + 1) * TAM - 1);
+      if (myReq !== comparativoMaqReqRef.current) return;
+      if (error || !data || data.length === 0) break;
+      todas.push(...data);
+      if (data.length < TAM) break;
+      pagina++;
+    }
+    if (myReq !== comparativoMaqReqRef.current) return;
+
+    const porMaquina: Record<string, number> = {};
+    let total = 0;
+    for (const r of todas) {
+      const qtd = Number(r.qtd_conforme) || 0;
+      total += qtd;
+      if (r.maquina) {
+        const chave = norm(r.maquina);
+        porMaquina[chave] = (porMaquina[chave] ?? 0) + qtd;
+      }
+    }
+    setComparativoMaq({ total, porMaquina });
+  }, [anoMaq, mesMaq]);
+
+  useEffect(() => { void buscarComparativoMaq(); }, [buscarComparativoMaq]);
 
   function abrirEdicao(m: Maquina) {
     setEditMaquina(m);
@@ -1434,31 +637,153 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
 
   if (erro) {
     return (
-      <div className="flex items-center justify-center h-64 gap-3 text-destructive">
-        <AlertCircle className="h-5 w-5" />
-        <span>Erro ao carregar: {erro}</span>
-      </div>
+      <EmptyState
+        icon={AlertCircle}
+        title="Erro ao carregar a produção"
+        description={erro}
+      />
     );
   }
 
   if (maquinas.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        Nenhuma máquina encontrada.
-      </div>
+      <EmptyState
+        title="Nenhuma máquina cadastrada"
+        description="Adicione uma máquina para começar a acompanhar a produção."
+      />
     );
   }
 
-  const totalGeralMes = Object.values(producao).reduce((acc, mapa) => {
-    return acc + Object.values(mapa).reduce((s, v) => s + v, 0);
-  }, 0);
-  const totalAtivas = maquinas.filter((m) => {
-    const s = (m.status as string)?.toLowerCase();
-    return !s || s === "ativa" || s === "ativo" || s === "active";
-  }).length;
+  // ── Derivados: aba Máquinas ──
+  const totalAtivas = maquinas.filter((m) => isMaquinaAtiva(m.status as string | undefined)).length;
+  const totalInativas = maquinas.length - totalAtivas;
+
+  const totalGeralMaq = rawRegistrosMaq.reduce((s, r) => s + (Number(r.qtd_conforme) || 0), 0);
+
+  const aliasMapMaq = buildAliasMap(maquinas);
+  const producaoPorMaquinaMap: Record<string, number> = {};
+  const linhasPorMaquinaMap: Record<string, Set<string>> = {};
+  for (const r of rawRegistrosMaq) {
+    if (!r.maquina) continue;
+    const raw = norm(r.maquina);
+    const chave = aliasMapMaq[raw] ?? raw;
+    producaoPorMaquinaMap[chave] = (producaoPorMaquinaMap[chave] ?? 0) + (Number(r.qtd_conforme) || 0);
+    if (r.linha) {
+      if (!linhasPorMaquinaMap[chave]) linhasPorMaquinaMap[chave] = new Set();
+      linhasPorMaquinaMap[chave].add(r.linha);
+    }
+  }
+
+  const linhasDisponiveisMaq = Array.from(
+    new Set(rawRegistrosMaq.map((r) => r.linha).filter((l): l is string => !!l)),
+  ).sort();
+
+  const mediaPorMaquina = (() => {
+    const comProducao = Object.values(producaoPorMaquinaMap).filter((v) => v > 0).length;
+    return comProducao > 0 ? Math.round(totalGeralMaq / comProducao) : 0;
+  })();
+
+  const deltaGeralMaq = comparativoMaq && comparativoMaq.total > 0
+    ? ((totalGeralMaq - comparativoMaq.total) / comparativoMaq.total) * 100
+    : null;
+
+  // Uma linha por máquina: produção, participação %, sparkline semanal e Δ% vs período anterior
+  const linhasTabelaMaq = maquinas.map((m) => {
+    const chave = norm(m.nome ?? "");
+    const chaveAlias = chave.replace(/alizar/g, "aliza");
+    const producaoTotal = producaoPorMaquinaMap[chave] ?? 0;
+    const participacaoPct = totalGeralMaq > 0 ? (producaoTotal / totalGeralMaq) * 100 : 0;
+    const producaoAnterior = comparativoMaq?.porMaquina[chave] ?? comparativoMaq?.porMaquina[chaveAlias] ?? 0;
+    const deltaPct = producaoAnterior > 0 ? ((producaoTotal - producaoAnterior) / producaoAnterior) * 100 : null;
+    const dadosSemana = producao[chave] ?? {};
+    const sparklineData = semanas.map((s) => ({ value: dadosSemana[s.label] ?? 0 }));
+    return {
+      maquina: m,
+      producaoTotal,
+      participacaoPct,
+      deltaPct,
+      sparklineData,
+      linhasDaMaquina: linhasPorMaquinaMap[chave] ?? new Set<string>(),
+    };
+  });
+
+  const linhasFiltradasMaq = linhasTabelaMaq.filter((r) => {
+    const ativa = isMaquinaAtiva(r.maquina.status as string | undefined);
+    if (statusFiltroMaq === "ativas" && !ativa) return false;
+    if (statusFiltroMaq === "inativas" && ativa) return false;
+    if (linhasSelMaq.size > 0) {
+      const temAlguma = Array.from(linhasSelMaq).some((l) => r.linhasDaMaquina.has(l));
+      if (!temAlguma) return false;
+    }
+    const termo = norm(busca);
+    if (termo) {
+      const nomeMatch = norm(r.maquina.nome ?? "").includes(termo);
+      const linhaMatch = Array.from(r.linhasDaMaquina).some((l) => norm(l).includes(termo));
+      if (!nomeMatch && !linhaMatch) return false;
+    }
+    return true;
+  });
+
+  const linhasOrdenadasMaq = [...linhasFiltradasMaq].sort((a, b) => {
+    let cmp = 0;
+    if (sortByMaq === "nome") cmp = (a.maquina.nome ?? "").localeCompare(b.maquina.nome ?? "");
+    else if (sortByMaq === "producao") cmp = a.producaoTotal - b.producaoTotal;
+    else if (sortByMaq === "tendencia") cmp = (a.deltaPct ?? -Infinity) - (b.deltaPct ?? -Infinity);
+    else if (sortByMaq === "status") {
+      cmp = Number(isMaquinaAtiva(a.maquina.status as string | undefined)) - Number(isMaquinaAtiva(b.maquina.status as string | undefined));
+    }
+    return sortDirMaq === "asc" ? cmp : -cmp;
+  });
+
+  const totalPaginasMaq = Math.max(1, Math.ceil(linhasOrdenadasMaq.length / pageSizeMaq));
+  const paginaAtualMaq = Math.min(pageMaq, totalPaginasMaq);
+  const linhasPaginaMaq = linhasOrdenadasMaq.slice((paginaAtualMaq - 1) * pageSizeMaq, paginaAtualMaq * pageSizeMaq);
+
+  const destaqueAlta = [...linhasFiltradasMaq].filter((r) => r.producaoTotal > 0).sort((a, b) => b.producaoTotal - a.producaoTotal)[0];
+  const destaqueQueda = [...linhasFiltradasMaq]
+    .filter((r) => r.deltaPct !== null && r.deltaPct <= -15)
+    .sort((a, b) => (a.deltaPct ?? 0) - (b.deltaPct ?? 0))[0];
+
+  function toggleLinhaMaq(l: string) {
+    setPageMaq(1);
+    setLinhasSelMaq((prev) => {
+      const next = new Set(prev);
+      if (next.has(l)) next.delete(l); else next.add(l);
+      return next;
+    });
+  }
+
+  function limparFiltrosMaq() {
+    setStatusFiltroMaq("todas");
+    setLinhasSelMaq(new Set());
+    setAnoMaq(String(new Date().getFullYear()));
+    setMesMaq(String(new Date().getMonth() + 1));
+    setBusca("");
+    setPageMaq(1);
+  }
+
+  function handleSortMaq(key: MachineSortKey) {
+    setPageMaq(1);
+    if (sortByMaq === key) {
+      setSortDirMaq((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortByMaq(key);
+      setSortDirMaq(key === "nome" ? "asc" : "desc");
+    }
+  }
+
+  function handleSortChangeMaq(key: MachineSortKey, dir: SortDir) {
+    setPageMaq(1);
+    setSortByMaq(key);
+    setSortDirMaq(dir);
+  }
+
+  function getLancarAction(m: Maquina) {
+    return () => setLancamentoMaquina(m);
+  }
 
   // ── Cálculos do Dashboard — filtro facetado ──
-  const dashPorSetor = (setorD === "todos" || setorD === "boletim")
+  const dashPorSetor = setorD === "todos"
     ? dashRows
     : dashRows.filter(r => getSetorDash(r.maquina ?? "") === setorD);
 
@@ -1484,39 +809,43 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   // Gráfico de máquinas: vê todas as máquinas, filtrado por linha + padrão
   // (a própria dimensão máquina NÃO filtra seu próprio gráfico — selMaq só destaca)
   const ctxMaqChart = dashFiltrados.filter(r => byLinha(r) && byPadrao(r));
+  const totalMaq = ctxMaqChart.reduce((s, r) => s + (r.qtd_conforme ?? 0), 0);
   const dashMaqMap: Record<string, number> = {};
   for (const r of ctxMaqChart) {
     const m = r.maquina ?? "—";
     dashMaqMap[m] = (dashMaqMap[m] ?? 0) + (r.qtd_conforme ?? 0);
   }
   const dashPorMaquinaAll = Object.entries(dashMaqMap)
-    .map(([orig, total]) => ({ maquina: orig.toUpperCase(), orig, total }))
+    .map(([orig, total]) => ({ maquina: orig.toUpperCase(), orig, total, pct: totalMaq > 0 ? (total / totalMaq) * 100 : 0 }))
     .filter(x => x.total > 0)
     .sort((a, b) => b.total - a.total);
   const dashPorMaquina = showAllMaq ? dashPorMaquinaAll : dashPorMaquinaAll.slice(0, 10);
 
-  // Gráfico mensal: todas as dimensões aplicadas
-  const ctxDaily = dashFiltrados.filter(r => byMaq(r) && byLinha(r) && byPadrao(r));
+  // Gráfico mensal: sempre a tendência do ano inteiro (dashRowsAno, busca própria
+  // que ignora Mês/Dia — não fazem sentido para uma tendência anual), mas ainda
+  // respeitando Unidade/Máquina/Linha/Padrão como os demais cards.
+  const ctxDaily = dashRowsAno.filter(r =>
+    (setorD === "todos" || getSetorDash(r.maquina ?? "") === setorD) &&
+    (maqsSel.size === 0 || maqsSel.has(r.maquina ?? "")) &&
+    byMaq(r) && byLinha(r) && byPadrao(r)
+  );
   const _MESES_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
   const dashMesMap: Record<string, number> = {};
-  if (mesD === "0") {
-    for (let m = 1; m <= 12; m++) {
-      dashMesMap[`${anoD}-${String(m).padStart(2, "0")}`] = 0;
-    }
+  for (let m = 1; m <= 12; m++) {
+    dashMesMap[`${anoD}-${String(m).padStart(2, "0")}`] = 0;
   }
   for (const r of ctxDaily) {
     const mes = r.data.slice(0, 7); // "2026-05"
     dashMesMap[mes] = (dashMesMap[mes] ?? 0) + (r.qtd_conforme ?? 0);
   }
-  // Limite: ano atual → até o mês corrente; ano passado → até o último mês com dados
+  // Limite: ano atual → nunca passa do mês corrente (meses futuros não têm
+  // produção ainda, então não devem aparecer); ano passado → até o último mês com dados.
   const _agora = new Date();
   const anoAtualStr = String(_agora.getFullYear());
   const mesAtualKey = `${anoD}-${String(_agora.getMonth() + 1).padStart(2, "0")}`;
   const ultimoDashKey = Object.entries(dashMesMap)
     .filter(([, v]) => v > 0).map(([k]) => k).sort().pop() ?? "";
-  const limiteDashKey = anoD === anoAtualStr
-    ? (ultimoDashKey > mesAtualKey ? ultimoDashKey : mesAtualKey)
-    : (ultimoDashKey || `${anoD}-12`);
+  const limiteDashKey = anoD === anoAtualStr ? mesAtualKey : (ultimoDashKey || `${anoD}-12`);
   const dashPorDia = Object.entries(dashMesMap)
     .sort(([a], [b]) => a.localeCompare(b))
     .filter(([key]) => key <= limiteDashKey)
@@ -1537,6 +866,11 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
     .map(([linha, total]) => ({ linha, total, pct: total1 > 0 ? (total / total1) * 100 : 0 }))
     .filter(x => x.total > 0 && x.linha !== "—")
     .sort((a, b) => b.total - a.total);
+  // "Produção por Linha" mostra só essas por padrão; as demais ficam atrás do "ver mais".
+  const LINHAS_PRODUCAO_DESTAQUE = ["Essenziale", "Innovazione", "Sofisticato"];
+  const dashPorLinhaDestaque = dashPorLinha.filter(x => LINHAS_PRODUCAO_DESTAQUE.some(l => l.toLowerCase() === x.linha.toLowerCase()));
+  const dashPorLinhaDemais = dashPorLinha.filter(x => !LINHAS_PRODUCAO_DESTAQUE.some(l => l.toLowerCase() === x.linha.toLowerCase()));
+
 
   // Tabela Padrão: filtrada por máquina + linha (não pelo próprio padrão)
   const ctxPadrao = dashFiltrados.filter(r => byMaq(r) && byLinha(r));
@@ -1562,73 +896,214 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
     .map(([largura, total]) => ({ largura, total, pct: total3 > 0 ? (total / total3) * 100 : 0 }))
     .filter(x => x.total > 0).sort((a, b) => b.total - a.total);
 
-  // máquinas disponíveis para filtro do dashboard
+  // máquinas e linhas disponíveis para filtro do dashboard
   const maqsDash = Array.from(new Set(dashPorSetor.map(r => r.maquina ?? ""))).filter(Boolean).sort();
+  const linhasDash = Array.from(new Set(dashPorSetor.map(r => r.linha || r.produto || "").filter(Boolean))).sort();
 
   const temSelecao = !!(selMaq || selLinhas.size > 0 || selPadrao);
+
+  // Produção por Unidade (Portas/Guarnição) — ignora o próprio filtro de Unidade
+  // (senão a distribuição colapsaria pra uma linha só), mas respeita dia/máquina/linha/padrão.
+  const dashSemUnidadeDia = diasSel.size === 0 ? dashRows : dashRows.filter(r => diasSel.has(Number(r.data.slice(8, 10))));
+  const dashSemUnidadeMaq = maqsSel.size === 0 ? dashSemUnidadeDia : dashSemUnidadeDia.filter(r => maqsSel.has(r.maquina ?? ""));
+  const ctxUnidade = dashSemUnidadeMaq.filter(r => byMaq(r) && byLinha(r) && byPadrao(r));
+  const total4 = ctxUnidade.reduce((s, r) => s + (r.qtd_conforme ?? 0), 0);
+  const dashUnidadeMap: Record<string, number> = {};
+  for (const r of ctxUnidade) {
+    const s = getSetorDash(r.maquina ?? "");
+    const label = s === "portas" ? "Portas" : s === "guarnicao" ? "Guarnição" : "Outros";
+    dashUnidadeMap[label] = (dashUnidadeMap[label] ?? 0) + (r.qtd_conforme ?? 0);
+  }
+  const dashPorUnidade = Object.entries(dashUnidadeMap)
+    .map(([unidade, total]) => ({ unidade, total, pct: total4 > 0 ? (total / total4) * 100 : 0 }))
+    .filter(x => x.total > 0)
+    .sort((a, b) => b.total - a.total);
+
+  // Período legível pro cabeçalho executivo
+  const periodoLabel = mesD === "0"
+    ? `Ano de ${anoD}`
+    : diasSel.size === 1
+      ? `${[...diasSel][0]} de ${MESES_DASH[Number(mesD) - 1]} de ${anoD}`
+      : diasSel.size > 1
+        ? `${diasSel.size} dias · ${MESES_DASH[Number(mesD) - 1]}/${anoD}`
+        : `${MESES_DASH[Number(mesD) - 1]} de ${anoD}`;
+
+  // Comparação com período anterior + meta de produção
+  const prevTotal = comparativo?.total ?? null;
+  const prevMedia = comparativo && comparativo.diasComProducao > 0
+    ? Math.round(comparativo.total / comparativo.diasComProducao) : null;
+  const deltaTotal = prevTotal && prevTotal > 0 ? ((totalDash - prevTotal) / prevTotal) * 100 : null;
+  const deltaMedia = prevMedia && prevMedia > 0 ? ((mediaDiaria - prevMedia) / prevMedia) * 100 : null;
+  const metaPct = metaProducao && metaProducao > 0 ? (totalDash / metaProducao) * 100 : null;
+  const sparklineTotal = dashPorDia.slice(-12).map(d => ({ value: d.total }));
+
+  function exportarExcel() {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ["Indicador", "Valor"],
+      ["Período", periodoLabel],
+      ["Produção Total", totalDash],
+      ["Média de Produção Diária", mediaDiaria],
+      ["Meta de Produção", metaProducao ?? "Não definida"],
+      ["Meta Atingida (%)", metaPct !== null ? metaPct.toFixed(1) : "—"],
+      ["Linhas Ativas", dashPorLinha.length],
+    ]), "KPIs");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ["Unidade", "Quantidade", "%"],
+      ...dashPorUnidade.map(r => [r.unidade, r.total, r.pct.toFixed(2)]),
+    ]), "Por Unidade");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ["Padrão", "Quantidade", "%"],
+      ...dashPorPadrao.map(r => [r.padrao, r.total, r.pct.toFixed(2)]),
+    ]), "Por Padrão");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ["Largura (cm)", "Quantidade", "%"],
+      ...dashPorLargura.map(r => [r.largura, r.total, r.pct.toFixed(2)]),
+    ]), "Por Largura");
+    const sufixoMes = mesD !== "0" ? `-${String(Number(mesD)).padStart(2, "0")}` : "";
+    XLSX.writeFile(wb, `producao-visao-geral-${anoD}${sufixoMes}.xlsx`);
+  }
 
   return (
     <div className="w-full space-y-5">
 
-      {/* ══ DASHBOARD DE PRODUÇÃO ══ */}
-      <div className="space-y-4">
-        {/* Toggle de Setor */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
-          {(["todos", "portas", "guarnicao"] as SetorDash[]).map(s => (
-            <button
-              key={s}
-              onClick={() => handleSetorD(s)}
-              className="px-4 py-1.5 rounded-md text-xs font-semibold transition-all"
-              style={
-                setorD === s
-                  ? { background: COR_VERDE, color: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }
-                  : { background: "transparent", color: "#6b7280" }
-              }
-            >
-              {SETOR_DASH_LABELS[s]}
-            </button>
-          ))}
-          <button
-            onClick={() => handleSetorD("boletim")}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold transition-all"
-            style={
-              setorD === "boletim"
-                ? { background: COR_VERDE, color: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }
-                : { background: "transparent", color: "#6b7280" }
-            }
+      <SectionHeader
+        title="Produção"
+        description="Acompanhe os indicadores de produção e o catálogo de máquinas da fábrica."
+      />
+
+      <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+          <TabsTrigger value="visao-geral" className="gap-1.5">
+            <LayoutDashboard className="h-3.5 w-3.5" />Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="maquinas" className="gap-1.5">
+            <Factory className="h-3.5 w-3.5" />Máquinas
+          </TabsTrigger>
+          <TabsTrigger value="boletim" className="gap-1.5">
+            <BarChart2 className="h-3.5 w-3.5" />Boletim
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ══════════════════ ABA: VISÃO GERAL (chrome da página segue o tema normal do app; só os cartões analíticos abaixo são escuros) ══════════════════ */}
+        <TabsContent value="visao-geral" className="mt-4 space-y-6">
+          {/* Cabeçalho executivo — chrome normal da página */}
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">Produção</h2>
+              <p className="text-sm mt-1 text-muted-foreground">
+                Acompanhe em tempo real os indicadores e a performance da produção.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5 text-xs text-muted-foreground">
+              <span className="px-3 py-1.5 rounded-lg font-medium bg-card border border-border">
+                {periodoLabel}
+              </span>
+              <Button size="sm" variant="outline" onClick={exportarExcel} className="h-8 gap-1.5">
+                <Download className="h-3.5 w-3.5" /> Exportar
+              </Button>
+              <span>
+                Última sincronização: {lastSyncedAt ? format(lastSyncedAt, "HH:mm:ss") : "—"}
+              </span>
+              <ConnectionBadge />
+            </div>
+          </div>
+
+          {/* KPIs — cartões analíticos individuais (estilo Grafana/Power BI) */}
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            <BarChart2 className="h-3 w-3" />
-            {SETOR_DASH_LABELS.boletim}
-          </button>
-        </div>
+            <motion.div variants={KPI_FADE}>
+              <MetricCard
+                dark icon={BarChart3} iconColor={DASH_GREEN}
+                label="Produção Total"
+                value={loadingD ? "…" : totalDash.toLocaleString("pt-BR")}
+                trend={loadingD ? undefined : deltaTotal}
+                hint="vs. período anterior"
+                sparkline={sparklineTotal}
+              />
+            </motion.div>
+            <motion.div variants={KPI_FADE}>
+              <MetricCard
+                dark icon={BarChart3} iconColor={DASH_GREEN}
+                label="Média de Produção"
+                value={loadingD ? "…" : mediaDiaria.toLocaleString("pt-BR")}
+                trend={loadingD ? undefined : deltaMedia}
+                hint="peças / dia"
+              />
+            </motion.div>
+            <motion.div variants={KPI_FADE}>
+              <MetricCard
+                dark icon={Workflow} iconColor={DASH_GREEN}
+                label="Linhas Ativas"
+                value={loadingD ? "…" : dashPorLinha.length}
+                hint="produzindo no período"
+              />
+            </motion.div>
+          </motion.div>
 
-        {/* Boletim Mensal */}
-        {setorD === "boletim" && <BoletimMensal />}
-
-        {/* Filtros + KPIs */}
-        {setorD !== "boletim" && <div className="flex flex-wrap items-end gap-4">
-          {/* KPIs */}
-          <Card className="border-green-200 bg-green-50 shrink-0">
-            <CardContent className="p-4">
-              <p className="text-xs text-green-700 font-medium">Qtd. Conforme</p>
-              <p className="text-3xl font-bold text-green-800 leading-none mt-1">
-                {loadingD ? "…" : totalDash.toLocaleString("pt-BR")}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="border-green-200 bg-green-50 shrink-0">
-            <CardContent className="p-4">
-              <p className="text-xs text-green-700 font-medium">Média de Produção Diária</p>
-              <p className="text-3xl font-bold text-green-800 leading-none mt-1">
-                {loadingD ? "…" : mediaDiaria.toLocaleString("pt-BR")}
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Filtros */}
-          <div className="flex flex-wrap gap-3 items-end ml-auto">
+          {/* Barra de filtros — chrome normal da página (não é um componente analítico) */}
+          <div className="rounded-xl p-3 flex flex-wrap items-end gap-3 bg-card border border-border">
             <div className="space-y-1">
-              <Label className="text-xs">Ano</Label>
+              <Label className="text-xs text-muted-foreground">Unidade</Label>
+              <Select value={setorD} onValueChange={(v) => handleSetorD(v as SetorDash)}>
+                <SelectTrigger className="h-8 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(["todos", "portas", "guarnicao"] as SetorDash[]).map(s => (
+                    <SelectItem key={s} value={s}>{SETOR_DASH_LABELS[s]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Linha</Label>
+              {(() => {
+                const nenhuma = selLinhas.size === 0;
+                const labelBtn = nenhuma ? "Todas" : `${selLinhas.size} linha${selLinhas.size > 1 ? "s" : ""}`;
+                const toggleLinhaFiltro = (l: string) => {
+                  setSelLinhas(prev => {
+                    const next = new Set(prev);
+                    if (next.has(l)) next.delete(l); else next.add(l);
+                    return next;
+                  });
+                };
+                return (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="h-8 text-xs w-36 border border-input rounded-md px-2 flex items-center justify-between text-foreground bg-transparent"
+                      >
+                        <span className="truncate">{labelBtn}</span>
+                        <ChevronDown className="h-3 w-3 ml-1 shrink-0 text-muted-foreground" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-56" align="start">
+                      <div className="max-h-72 overflow-y-auto text-xs">
+                        {linhasDash.map(l => (
+                          <label key={l} className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selLinhas.has(l)}
+                              onChange={() => toggleLinhaFiltro(l)}
+                              className="h-3.5 w-3.5 accent-primary"
+                            />
+                            <span className="leading-tight">{l}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                );
+              })()}
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Ano</Label>
               <Select value={anoD} onValueChange={handleAnoD}>
                 <SelectTrigger className="h-8 w-24 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1636,8 +1111,9 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-1">
-              <Label className="text-xs">Mês</Label>
+              <Label className="text-xs text-muted-foreground">Mês</Label>
               <Select value={mesD} onValueChange={handleMesD}>
                 <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1648,8 +1124,9 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
                 </SelectContent>
               </Select>
             </div>
+
             {mesD !== "0" && <div className="space-y-1">
-              <Label className="text-xs">Dia</Label>
+              <Label className="text-xs text-muted-foreground">Dia</Label>
               {(() => {
                 const totalDias = getDaysInMonth(new Date(Number(anoD), Number(mesD) - 1, 1));
                 const nomeMes = MESES_DASH[Number(mesD) - 1].toLowerCase();
@@ -1671,7 +1148,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="h-8 text-xs w-28 border border-input rounded-md px-2 flex items-center justify-between bg-background hover:bg-accent transition-colors"
+                        className="h-8 text-xs w-28 border border-input rounded-md px-2 flex items-center justify-between text-foreground bg-transparent"
                       >
                         <span className="truncate">{labelBtn}</span>
                         <ChevronDown className="h-3 w-3 ml-1 shrink-0 text-muted-foreground" />
@@ -1683,8 +1160,8 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
                           <input type="checkbox" checked={todosSel} onChange={toggleTodos} className="h-3.5 w-3.5 accent-primary" />
                           <span>Selecionar todos</span>
                         </label>
-                        <div className="border-t my-0.5" />
-                        <div className="px-3 py-1 text-muted-foreground font-medium text-xs">{nomeMes}</div>
+                        <div className="border-t border-border my-0.5" />
+                        <div className="px-3 py-1 font-medium text-xs text-muted-foreground">{nomeMes}</div>
                         {Array.from({ length: totalDias }, (_, i) => i + 1).map(d => (
                           <label key={d} className="flex items-center gap-2 px-5 py-0.5 hover:bg-accent cursor-pointer">
                             <input
@@ -1702,8 +1179,9 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
                 );
               })()}
             </div>}
+
             <div className="space-y-1">
-              <Label className="text-xs">Máquina</Label>
+              <Label className="text-xs text-muted-foreground">Máquina</Label>
               {(() => {
                 const todasExpl = maqsSel.size === maqsDash.length && maqsDash.length > 0;
                 const nenhuma   = maqsSel.size === 0;
@@ -1726,7 +1204,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="h-8 text-xs w-52 border border-input rounded-md px-2 flex items-center justify-between bg-background hover:bg-accent transition-colors"
+                        className="h-8 text-xs w-40 border border-input rounded-md px-2 flex items-center justify-between text-foreground bg-transparent"
                       >
                         <span className="truncate">{labelBtn}</span>
                         <ChevronDown className="h-3 w-3 ml-1 shrink-0 text-muted-foreground" />
@@ -1738,7 +1216,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
                           <input type="checkbox" checked={todasExpl} onChange={toggleTodas} className="h-3.5 w-3.5 accent-primary" />
                           <span>Selecionar todas</span>
                         </label>
-                        <div className="border-t my-0.5" />
+                        <div className="border-t border-border my-0.5" />
                         {maqsDash.map(m => (
                           <label key={m} className="flex items-center gap-2 px-3 py-1 hover:bg-accent cursor-pointer">
                             <input
@@ -1756,466 +1234,363 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
                 );
               })()}
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => buscarDash()}
-              disabled={loadingD}
-              className="h-8 gap-1.5 self-end"
-            >
+
+            <Button size="sm" variant="outline" onClick={() => buscarDash()} disabled={loadingD} className="h-8 gap-1.5">
               <RefreshCw className={`h-3.5 w-3.5 ${loadingD ? "animate-spin" : ""}`} />
-              {loadingD ? "Carregando..." : "Sincronizar"}
+              {loadingD ? "Carregando..." : "Atualizar"}
+            </Button>
+
+            <Button size="sm" variant="ghost" onClick={limparFiltros} className="h-8 gap-1.5 text-muted-foreground">
+              <X className="h-3.5 w-3.5" /> Limpar filtros
             </Button>
           </div>
-        </div>}
 
-        {setorD !== "boletim" && dashErro && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 font-mono">
-            {dashErro}
-          </div>
-        )}
+          {temSelecao && (
+            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+              <span>Filtro ativo:</span>
+              {selMaq && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-primary text-primary-foreground">
+                  {selMaq.toUpperCase()}
+                  <button onClick={() => { setSelMaq(null); setSelLinhas(new Set()); setSelPadrao(null); }} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
+                </span>
+              )}
+              {selLinhas.size > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-primary/80 text-primary-foreground">
+                  {selLinhas.size === 1 ? `Linha: ${[...selLinhas][0]}` : `Linhas (${selLinhas.size})`}
+                  <button onClick={() => { setSelLinhas(new Set()); setSelPadrao(null); }} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
+                </span>
+              )}
+              {selPadrao && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-primary/60 text-primary-foreground">
+                  Padrão: {selPadrao}
+                  <button onClick={() => setSelPadrao(null)} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
+                </span>
+              )}
+              <button onClick={clearDrill} className="underline hover:text-foreground">Limpar tudo</button>
+            </div>
+          )}
 
-        {setorD !== "boletim" && (loadingD ? (
-          <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
-        ) : (
-          <>
-            {/* Breadcrumb de seleção ativa */}
-            {temSelecao && (
-              <div className="flex items-center gap-2 flex-wrap text-xs">
-                <span className="text-muted-foreground">Filtro ativo:</span>
-                {selMaq && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium text-white" style={{ background: COR_VERDE }}>
-                    {selMaq.toUpperCase()}
-                    <button onClick={() => { setSelMaq(null); setSelLinhas(new Set()); setSelPadrao(null); }} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
-                  </span>
-                )}
-                {selLinhas.size > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium text-white" style={{ background: "#166534" }}>
-                    {selLinhas.size === 1 ? `Linha: ${[...selLinhas][0]}` : `Linhas (${selLinhas.size}): ${[...selLinhas].join(", ")}`}
-                    <button onClick={() => { setSelLinhas(new Set()); setSelPadrao(null); }} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
-                  </span>
-                )}
-                {selPadrao && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium text-white" style={{ background: "#14532d" }}>
-                    Padrão: {selPadrao}
-                    <button onClick={() => setSelPadrao(null)} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
-                  </span>
-                )}
-                <button onClick={clearDrill} className="text-muted-foreground underline hover:text-foreground">
-                  Limpar tudo
-                </button>
-              </div>
-            )}
+          {dashErro && (
+            <div className="rounded-md border px-4 py-3 text-xs font-mono border-destructive/30 bg-destructive/10 text-destructive">
+              {dashErro}
+            </div>
+          )}
 
-            {/* Gráficos */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-              {/* Produção por Máquina — clicável */}
-              {(() => {
-                const chartConfig: ChartConfig = {
-                  total: { label: "Conforme", color: COR_VERDE },
-                  label: { color: "#ffffff" },
-                };
-                return (
-                  <Card className={selMaq ? "ring-2 ring-green-400" : ""}>
-                    <CardContent className="pt-4 px-3 pb-2">
-                      <p className="text-xs font-semibold text-muted-foreground mb-2 px-2">
-                        Produção de Portas
-                        <span className="ml-2 font-normal opacity-60">(clique para filtrar)</span>
-                      </p>
+          {loadingD ? (
+            <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
+          ) : (
+            <>
+                {/* Gráficos principais — 60/40, cartões que seguem o tema (claro/escuro) */}
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+                  {/* Produção por Máquina — 60% */}
+                  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="lg:col-span-3">
+                    <div className="bg-card text-card-foreground border border-border rounded-2xl p-5 shadow-sm">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Workflow size={15} className="text-primary" />
+                        <p className="text-sm font-semibold">Produção por Máquina</p>
+                        <span className="text-xs opacity-60 text-muted-foreground">(clique para filtrar)</span>
+                      </div>
                       {dashPorMaquina.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-8">Sem dados.</p>
+                        <EmptyState icon={BarChart3} title="Sem dados" description="Nenhum registro para o período e filtros selecionados." />
                       ) : (
                         <>
-                          <ChartContainer
-                            config={chartConfig}
-                            className="w-full [&_.recharts-wrapper]:!aspect-auto"
-                            style={{ height: Math.max(160, dashPorMaquina.length * 44) }}
-                          >
-                            <BarChart
-                              layout="vertical"
-                              data={dashPorMaquina}
-                              margin={{ top: 0, right: 64, left: 0, bottom: 0 }}
-                              barSize={22}
-                            >
-                              <YAxis
-                                dataKey="maquina"
-                                type="category"
-                                tickLine={false}
-                                axisLine={false}
-                                hide
-                              />
-                              <XAxis dataKey="total" type="number" hide />
-                              <ChartTooltip
-                                cursor={false}
-                                content={
-                                  <ChartTooltipContent
-                                    indicator="line"
-                                    formatter={(value) => [
-                                      (value as number).toLocaleString("pt-BR"),
-                                      "Conforme",
-                                    ]}
+                          {(() => {
+                            const linhasVisiveis = dashPorMaquina.map(r => ({
+                              ...r,
+                              rotulo: `${r.total.toLocaleString("pt-BR")} · ${r.pct.toFixed(0)}%`,
+                            }));
+                            return (
+                              <ResponsiveContainer width="100%" height={Math.max(180, linhasVisiveis.length * 40)}>
+                                <BarChart
+                                  layout="vertical"
+                                  data={linhasVisiveis}
+                                  margin={{ top: 0, right: 56, left: 8, bottom: 0 }}
+                                  barSize={20}
+                                >
+                                  <YAxis dataKey="maquina" type="category" tickLine={false} axisLine={false} hide />
+                                  <XAxis type="number" hide />
+                                  <Tooltip
+                                    cursor={{ fill: "hsl(var(--accent))" }}
+                                    contentStyle={{ background: CHART_TOOLTIP_BG, border: `1px solid ${CHART_TOOLTIP_BORDER}`, borderRadius: 8, fontSize: 12, color: CHART_TOOLTIP_TEXT }}
+                                    formatter={(v: number) => [v.toLocaleString("pt-BR"), "Conforme"]}
                                   />
-                                }
-                              />
-                              <Bar
-                                dataKey="total"
-                                radius={4}
-                                style={{ cursor: "pointer" }}
-                                onClick={(d: { orig: string }) => clickMaq(d.orig)}
-                              >
-                                {dashPorMaquina.map((item) => (
-                                  <Cell
-                                    key={item.orig}
-                                    fill={!selMaq || selMaq === item.orig ? COR_VERDE : "#bbf7d0"}
-                                  />
-                                ))}
-                                <LabelList
-                                  dataKey="maquina"
-                                  position="insideLeft"
-                                  offset={10}
-                                  style={{ fill: "#ffffff", fontSize: 11, fontWeight: 500 }}
-                                />
-                                <LabelList
-                                  dataKey="total"
-                                  position="right"
-                                  offset={8}
-                                  style={{ fontSize: 11, fontWeight: 600 }}
-                                  formatter={(v: number) => v.toLocaleString("pt-BR")}
-                                />
-                              </Bar>
-                            </BarChart>
-                          </ChartContainer>
+                                  <Bar dataKey="total" radius={4} style={{ cursor: "pointer" }} onClick={(d: { orig: string }) => clickMaq(d.orig)}>
+                                    {linhasVisiveis.map((item) => (
+                                      <Cell key={item.orig} fill={!selMaq || selMaq === item.orig ? DASH_GREEN : "hsl(var(--primary) / 0.25)"} />
+                                    ))}
+                                    <LabelList
+                                      dataKey="maquina"
+                                      content={(props: { x?: number; y?: number; width?: number; height?: number; index?: number }) => {
+                                        const { x = 0, y = 0, width = 0, height = 0, index = 0 } = props;
+                                        const item = linhasVisiveis[index];
+                                        if (!item) return null;
+                                        const cy = y + height / 2 + 4;
+                                        // Estima se o nome cabe dentro da barra (~6.3px por caractere em 11px);
+                                        // se não couber, joga nome + valor pra fora, à direita da barra.
+                                        const nomeCabe = width - 20 > item.maquina.length * 6.3;
+                                        if (nomeCabe) {
+                                          return (
+                                            <g>
+                                              <text x={x + 10} y={cy} fontSize={11} fontWeight={500} fill="#fff">{item.maquina}</text>
+                                              <text x={x + width + 8} y={cy} fontSize={11} fontWeight={600} fill="hsl(var(--card-foreground))">{item.rotulo}</text>
+                                            </g>
+                                          );
+                                        }
+                                        return (
+                                          <text x={x + width + 8} y={cy} fontSize={11} fontWeight={500} fill="hsl(var(--card-foreground))">
+                                            {item.maquina} · {item.rotulo}
+                                          </text>
+                                        );
+                                      }}
+                                    />
+                                  </Bar>
+                                </BarChart>
+                              </ResponsiveContainer>
+                            );
+                          })()}
                           {dashPorMaquinaAll.length > 10 && (
                             <button
-                              onClick={() => setShowAllMaq(p => !p)}
-                              className="mt-2 w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1 border-t border-dashed"
+                              onClick={() => setShowAllMaq(v => !v)}
+                              className="mt-2 w-full text-xs text-muted-foreground transition-colors py-1 border-t border-dashed border-border"
                             >
-                              {showAllMaq
-                                ? "Ver menos ↑"
-                                : `Ver mais ${dashPorMaquinaAll.length - 10} máquina${dashPorMaquinaAll.length - 10 > 1 ? "s" : ""} ↓`}
+                              {showAllMaq ? "Ver menos ↑" : `Ver todas as máquinas (${dashPorMaquinaAll.length}) ↓`}
                             </button>
                           )}
                         </>
                       )}
-                    </CardContent>
-                  </Card>
-                );
-              })()}
+                    </div>
+                  </motion.div>
 
-              {/* Produção Mensal — reage à máquina selecionada */}
-              {(() => {
-                const chartConfig: ChartConfig = {
-                  total: { label: "Conforme", color: COR_VERDE },
-                };
-                return (
-                  <Card>
-                    <CardHeader className="pb-2 pt-4 px-5">
-                      <CardTitle className="text-sm font-semibold text-muted-foreground">
-                        Produção Mensal
-                        {selMaq && (
-                          <span className="ml-2 font-normal" style={{ color: COR_VERDE }}>
-                            · {selMaq.toUpperCase()}
-                          </span>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-3 pb-4">
+                  {/* Produção Mensal — 40%, área */}
+                  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }} className="lg:col-span-2">
+                    <div className="bg-card text-card-foreground border border-border rounded-2xl p-5 h-full shadow-sm">
+                      <div className="flex items-center gap-2 mb-3">
+                        <BarChart3 size={15} style={{ color: DASH_GREEN }} />
+                        <p className="text-sm font-semibold">Produção Mensal</p>
+                        {selMaq && <span className="text-xs" style={{ color: DASH_GREEN }}>· {selMaq.toUpperCase()}</span>}
+                      </div>
                       {dashPorDia.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-8">Sem dados.</p>
+                        <EmptyState icon={BarChart3} title="Sem dados" description="Nenhum registro para o período e filtros selecionados." />
                       ) : (
-                        <ChartContainer config={chartConfig} className="w-full [&_.recharts-wrapper]:!aspect-auto" style={{ height: 260 }}>
-                          <BarChart data={dashPorDia} margin={{ top: 24, right: 8, left: -10, bottom: 4 }}>
-                            <CartesianGrid vertical={false} />
+                        <ResponsiveContainer width="100%" height={260}>
+                          <AreaChart data={dashPorDia} margin={{ top: 16, right: 8, left: -16, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="producaoMensalFill" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor={DASH_GREEN} stopOpacity={0.4} />
+                                <stop offset="100%" stopColor={DASH_GREEN} stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid vertical={false} stroke={CHART_GRID} strokeDasharray="3 3" />
                             <XAxis
-                              dataKey="label"
-                              tickLine={false}
-                              tickMargin={10}
-                              axisLine={false}
-                              tick={{ fontSize: 10 }}
-                              tickFormatter={(v: string) => v.slice(0, 3)}
+                              dataKey="label" tickLine={false} tickMargin={10} axisLine={false}
+                              tick={{ fontSize: 10, fill: CHART_AXIS }} tickFormatter={(v: string) => v.slice(0, 3)}
                             />
-                            <ChartTooltip
-                              cursor={false}
-                              content={
-                                <ChartTooltipContent
-                                  hideLabel
-                                  formatter={(value, name) => [
-                                    (value as number).toLocaleString("pt-BR"),
-                                    name === "total" ? "Conforme" : name,
-                                  ]}
-                                />
-                              }
+                            <YAxis hide />
+                            <Tooltip
+                              contentStyle={{ background: CHART_TOOLTIP_BG, border: `1px solid ${CHART_TOOLTIP_BORDER}`, borderRadius: 8, fontSize: 12, color: CHART_TOOLTIP_TEXT }}
+                              formatter={(v: number) => [v.toLocaleString("pt-BR"), "Conforme"]}
                             />
-                            <Bar dataKey="total" fill="var(--color-total)" radius={8}>
-                              <LabelList
-                                position="top"
-                                offset={12}
-                                className="fill-foreground"
-                                fontSize={12}
-                                formatter={(v: number) => v > 0 ? v.toLocaleString("pt-BR") : ""}
-                              />
-                            </Bar>
-                          </BarChart>
-                        </ChartContainer>
+                            <Area
+                              type="monotone" dataKey="total" stroke={DASH_GREEN} strokeWidth={2}
+                              fill="url(#producaoMensalFill)"
+                              dot={{ r: 3, fill: DASH_GREEN, strokeWidth: 0 }}
+                              activeDot={{ r: 5 }}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
                       )}
-                    </CardContent>
-                  </Card>
-                );
-              })()}
-            </div>
+                    </div>
+                  </motion.div>
+                </div>
 
-            {/* Tabelas por Linha / Padrão / Largura — drill-down em cascata */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Por Linha */}
-              <Card className={selLinhas.size > 0 ? "ring-2 ring-green-400" : ""}>
-                <CardContent className="px-0 pb-0 pt-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr style={{ background: COR_VERDE }}>
-                          <th className="px-3 py-2 text-left text-xs font-semibold text-white">
-                            Linha <span className="font-normal opacity-60">(clique · Ctrl+clique)</span>
-                          </th>
-                          <th className="px-3 py-2 text-right text-xs font-semibold text-white">Qtd.</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold text-white">%</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dashPorLinha.length === 0 ? (
-                          <tr><td colSpan={3} className="px-3 py-5 text-center text-xs text-muted-foreground">Sem dados.</td></tr>
-                        ) : (
-                          <>
-                            {(() => {
-                              const extras = dashPorLinha.filter(r => !LINHAS_PRINCIPAIS.has(r.linha));
-                              const visiveis = showAllLinha
-                                ? dashPorLinha
-                                : dashPorLinha.filter(r => LINHAS_PRINCIPAIS.has(r.linha) || selLinhas.has(r.linha));
-                              return (
-                                <>
-                                  {visiveis.map((row) => {
-                                    const ativo = selLinhas.has(row.linha);
-                                    return (
-                                      <tr
-                                        key={row.linha}
-                                        onClick={(e) => clickLinha(row.linha, e.ctrlKey || e.metaKey)}
-                                        style={{
-                                          background: ativo ? "#dcfce7" : undefined,
-                                          borderBottom: "1px solid #f3f4f6",
-                                          cursor: "pointer",
-                                          fontWeight: ativo ? 700 : undefined,
-                                        }}
-                                        className="hover:bg-green-50 transition-colors"
-                                      >
-                                        <td className="px-3 py-1.5 text-xs">{row.linha}</td>
-                                        <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{row.total.toLocaleString("pt-BR")}</td>
-                                        <td className="px-3 py-1.5">{pctBarD(row.pct)}</td>
-                                      </tr>
-                                    );
-                                  })}
-                                  {extras.length > 0 && (
-                                    <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
-                                      <td colSpan={3} className="px-3 py-1.5 text-center">
-                                        <button
-                                          onClick={() => setShowAllLinha(v => !v)}
-                                          className="text-xs font-medium hover:underline"
-                                          style={{ color: COR_VERDE }}
-                                        >
-                                          {showAllLinha ? "Ver menos ↑" : `Ver mais (${extras.length}) ↓`}
-                                        </button>
-                                      </td>
-                                    </tr>
-                                  )}
-                                </>
-                              );
-                            })()}
-                            <tr style={{ background: "#f0fdf4", borderTop: "2px solid #bbf7d0" }}>
-                              <td className="px-3 py-1.5 text-xs font-bold">Total</td>
-                              <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{total1.toLocaleString("pt-BR")}</td>
-                              <td className="px-3 py-1.5 text-xs font-bold" style={{ color: COR_VERDE }}>100,00%</td>
-                            </tr>
-                          </>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* 3 distribuições: Unidade / Padrão / Largura */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <DistribuicaoCard
+                    icone={Workflow} titulo="Produção por Linha"
+                    linhas={(showAllLinhas ? dashPorLinha : dashPorLinhaDestaque).map(r => ({ key: r.linha, label: r.linha, total: r.total, pct: r.pct, ativo: selLinhas.has(r.linha) }))}
+                    totalGeral={total1}
+                    onClickLinha={(key) => clickLinha(key)}
+                    verMais={dashPorLinhaDemais.length > 0 ? { expandido: showAllLinhas, restante: dashPorLinhaDemais.length, onToggle: () => setShowAllLinhas(v => !v) } : undefined}
+                    vazio="Nenhuma linha no período selecionado."
+                  />
+                  <DistribuicaoCard
+                    icone={BadgeCheck} titulo="Produção por Padrão"
+                    linhas={(showAllPadrao ? dashPorPadrao : dashPorPadrao.slice(0, 6)).map(r => ({ key: r.padrao, label: r.padrao, total: r.total, pct: r.pct, ativo: selPadrao === r.padrao }))}
+                    totalGeral={total2}
+                    onClickLinha={(key) => clickPadrao(key)}
+                    verMais={dashPorPadrao.length > 6 ? { expandido: showAllPadrao, restante: dashPorPadrao.length - 6, onToggle: () => setShowAllPadrao(v => !v) } : undefined}
+                    vazio="Nenhum padrão no período selecionado."
+                  />
+                  <DistribuicaoCard
+                    icone={Ruler} titulo="Produção por Largura"
+                    linhas={(showAllLargura ? dashPorLargura : dashPorLargura.slice(0, 6)).map(r => ({ key: r.largura, label: `${r.largura} cm`, total: r.total, pct: r.pct }))}
+                    totalGeral={total3}
+                    verMais={dashPorLargura.length > 6 ? { expandido: showAllLargura, restante: dashPorLargura.length - 6, onToggle: () => setShowAllLargura(v => !v) } : undefined}
+                    vazio="Nenhuma largura no período selecionado."
+                  />
+                </div>
+              </>
+            )}
+        </TabsContent>
 
-              {/* Por Padrão */}
-              <Card className={selPadrao ? "ring-2 ring-green-400" : ""}>
-                <CardContent className="px-0 pb-0 pt-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr style={{ background: COR_VERDE }}>
-                          <th className="px-3 py-2 text-left text-xs font-semibold text-white">
-                            Padrão <span className="font-normal opacity-60">(clique)</span>
-                          </th>
-                          <th className="px-3 py-2 text-right text-xs font-semibold text-white">Qtd.</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold text-white">%</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dashPorPadrao.length === 0 ? (
-                          <tr><td colSpan={3} className="px-3 py-5 text-center text-xs text-muted-foreground">Sem dados.</td></tr>
-                        ) : (
-                          <>
-                            {(showAllPadrao ? dashPorPadrao : dashPorPadrao.slice(0, 6)).map((row) => {
-                              const ativo = selPadrao === row.padrao;
-                              return (
-                                <tr
-                                  key={row.padrao}
-                                  onClick={() => clickPadrao(row.padrao)}
-                                  style={{
-                                    background: ativo ? "#dcfce7" : undefined,
-                                    borderBottom: "1px solid #f3f4f6",
-                                    cursor: "pointer",
-                                    fontWeight: ativo ? 700 : undefined,
-                                  }}
-                                  className="hover:bg-green-50 transition-colors"
-                                >
-                                  <td className="px-3 py-1.5 text-xs">{row.padrao}</td>
-                                  <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{row.total.toLocaleString("pt-BR")}</td>
-                                  <td className="px-3 py-1.5">{pctBarD(row.pct)}</td>
-                                </tr>
-                              );
-                            })}
-                            {dashPorPadrao.length > 6 && (
-                              <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
-                                <td colSpan={3} className="px-3 py-1.5 text-center">
-                                  <button
-                                    onClick={() => setShowAllPadrao(v => !v)}
-                                    className="text-xs font-medium hover:underline"
-                                    style={{ color: COR_VERDE }}
-                                  >
-                                    {showAllPadrao ? "▲ ver menos" : `▼ ver mais (${dashPorPadrao.length - 6} itens)`}
-                                  </button>
-                                </td>
-                              </tr>
-                            )}
-                            <tr style={{ background: "#f0fdf4", borderTop: "2px solid #bbf7d0" }}>
-                              <td className="px-3 py-1.5 text-xs font-bold">Total</td>
-                              <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{total2.toLocaleString("pt-BR")}</td>
-                              <td className="px-3 py-1.5 text-xs font-bold" style={{ color: COR_VERDE }}>100,00%</td>
-                            </tr>
-                          </>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* ══════════════════ ABA: MÁQUINAS ══════════════════ */}
+        <TabsContent value="maquinas" className="space-y-4 mt-4">
 
-              {/* Por Largura */}
-              <Card>
-                <CardContent className="px-0 pb-0 pt-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr style={{ background: COR_VERDE }}>
-                          <th className="px-3 py-2 text-left text-xs font-semibold text-white">Largura (cm)</th>
-                          <th className="px-3 py-2 text-right text-xs font-semibold text-white">Qtd.</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold text-white">%</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dashPorLargura.length === 0 ? (
-                          <tr><td colSpan={3} className="px-3 py-5 text-center text-xs text-muted-foreground">Sem dados.</td></tr>
-                        ) : (
-                          <>
-                            {(showAllLargura ? dashPorLargura : dashPorLargura.slice(0, 6)).map((row) => (
-                              <tr key={row.largura} style={{ borderBottom: "1px solid #f3f4f6" }}
-                                className="hover:bg-green-50 transition-colors">
-                                <td className="px-3 py-1.5 text-xs font-medium">{row.largura}</td>
-                                <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{row.total.toLocaleString("pt-BR")}</td>
-                                <td className="px-3 py-1.5">{pctBarD(row.pct)}</td>
-                              </tr>
-                            ))}
-                            {dashPorLargura.length > 6 && (
-                              <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
-                                <td colSpan={3} className="px-3 py-1.5 text-center">
-                                  <button
-                                    onClick={() => setShowAllLargura(v => !v)}
-                                    className="text-xs font-medium hover:underline"
-                                    style={{ color: COR_VERDE }}
-                                  >
-                                    {showAllLargura ? "▲ ver menos" : `▼ ver mais (${dashPorLargura.length - 6} itens)`}
-                                  </button>
-                                </td>
-                              </tr>
-                            )}
-                            <tr style={{ background: "#f0fdf4", borderTop: "2px solid #bbf7d0" }}>
-                              <td className="px-3 py-1.5 text-xs font-bold">Total</td>
-                              <td className="px-3 py-1.5 text-xs text-right font-bold" style={{ color: COR_VERDE }}>{total3.toLocaleString("pt-BR")}</td>
-                              <td className="px-3 py-1.5 text-xs font-bold" style={{ color: COR_VERDE }}>100,00%</td>
-                            </tr>
-                          </>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </>
-        ))}
-      </div>
+          {/* KPIs */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <MetricCard tone="neutral" label="Total de Máquinas" value={maquinas.length} hint={`${totalAtivas} ativas`} />
+            <MetricCard
+              tone="neutral"
+              label="Produção Total"
+              value={totalGeralMaq.toLocaleString("pt-BR")}
+              trend={deltaGeralMaq}
+              hint="vs. período anterior"
+            />
+            <MetricCard
+              tone="neutral"
+              label="Média por Máquina"
+              value={mediaPorMaquina.toLocaleString("pt-BR")}
+              hint="peças conformes"
+              className="hidden sm:block"
+            />
+          </div>
 
-      {/* ══ DIVISOR ══ */}
-      <div className="border-t pt-4">
-        <p className="text-sm font-semibold text-muted-foreground mb-4">Produção por Máquina — Mês Atual</p>
-      </div>
+          {/* Indicadores rápidos + destaques */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-status-success" /> {totalAtivas} Ativas
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-muted-foreground/40" /> {totalInativas} Inativas
+            </span>
+            {destaqueAlta && (
+              <button
+                type="button"
+                onClick={() => setBusca(destaqueAlta.maquina.nome ?? "")}
+                className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+              >
+                🔥 Alta produção: <span className="font-medium">{destaqueAlta.maquina.nome}</span>
+              </button>
+            )}
+            {destaqueQueda && (
+              <button
+                type="button"
+                onClick={() => setBusca(destaqueQueda.maquina.nome ?? "")}
+                className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+              >
+                ⬇ Produção caiu: <span className="font-medium">{destaqueQueda.maquina.nome}</span> ({destaqueQueda.deltaPct?.toFixed(0)}%)
+              </button>
+            )}
+          </div>
 
-      {/* Cabeçalho resumo */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <Card className="px-4 py-3">
-          <p className="text-xs text-muted-foreground">Total de Máquinas</p>
-          <p className="text-2xl font-bold text-foreground">{maquinas.length}</p>
-          <p className="text-xs text-muted-foreground">{totalAtivas} ativas</p>
-        </Card>
-        <Card className="px-4 py-3">
-          <p className="text-xs text-muted-foreground">Produção no Mês</p>
-          <p className="text-2xl font-bold text-primary">{totalGeralMes.toLocaleString("pt-BR")}</p>
-          <p className="text-xs text-muted-foreground">peças conformes</p>
-        </Card>
-        <Card className="px-4 py-3 hidden sm:block">
-          <p className="text-xs text-muted-foreground">Período</p>
-          <p className="text-sm font-semibold text-foreground capitalize">
-            {format(new Date(), "MMMM yyyy", { locale: ptBR })}
-          </p>
-          <p className="text-xs text-muted-foreground">{semanas.length} semanas</p>
-        </Card>
-      </div>
-
-      <div className="flex items-center justify-end gap-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Buscar máquina..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="pl-8 h-8 w-48 text-sm"
+          {/* Toolbar + filtros */}
+          <SearchToolbar
+            busca={busca}
+            onBuscaChange={(v) => { setBusca(v); setPageMaq(1); }}
+            sortBy={sortByMaq}
+            sortDir={sortDirMaq}
+            onSortChange={handleSortChangeMaq}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            onSync={() => fetchDados(setSyncing)}
+            syncing={syncing}
+            onAdicionar={() => { setForm(EMPTY_MAQUINA); setDialogOpen(true); }}
           />
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => fetchDados(setSyncing)}
-          disabled={syncing}
-          className="gap-1.5"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Sincronizando..." : "Sincronizar"}
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => { setForm(EMPTY_MAQUINA); setDialogOpen(true); }}
-          className="gap-1.5"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Adicionar Máquina
-        </Button>
-      </div>
+          <MachineFilters
+            statusFiltro={statusFiltroMaq}
+            onStatusChange={(v) => { setStatusFiltroMaq(v); setPageMaq(1); }}
+            linhasDisponiveis={linhasDisponiveisMaq}
+            linhasSelecionadas={linhasSelMaq}
+            onToggleLinha={toggleLinhaMaq}
+            anos={ANOS_DASH}
+            ano={anoMaq}
+            onAnoChange={(v) => { setAnoMaq(v); setPageMaq(1); }}
+            meses={MESES_DASH}
+            mes={mesMaq}
+            onMesChange={(v) => { setMesMaq(v); setPageMaq(1); }}
+            onLimpar={limparFiltrosMaq}
+          />
+
+          {/* Área principal: tabela (desktop) ou cards (toggle "Cards" ou mobile) */}
+          {(() => {
+            const cardsGrid = (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {linhasPaginaMaq.map((r) => (
+                  <MaquinaCard
+                    key={r.maquina.id}
+                    maquina={r.maquina}
+                    producaoPorSemana={semanas.map((s) => ({ label: s.label, producao: (producao[norm(r.maquina.nome ?? "")] ?? {})[s.label] ?? 0 }))}
+                    totalMes={r.producaoTotal}
+                    periodoLabel={`${MESES_DASH[Number(mesMaq) - 1]} ${anoMaq}`}
+                    onClick={() => setMaquinaSelecionada(r.maquina)}
+                    onEdit={abrirEdicao}
+                    onLancar={getLancarAction(r.maquina)}
+                    canEdit={canEdit}
+                  />
+                ))}
+              </div>
+            );
+
+            return viewMode === "list" ? (
+              <>
+                <div className="hidden md:block">
+                  <MachineTable
+                    rows={linhasPaginaMaq}
+                    sortBy={sortByMaq}
+                    sortDir={sortDirMaq}
+                    onSort={handleSortMaq}
+                    onRowClick={(m) => setMaquinaSelecionada(m)}
+                    onEdit={abrirEdicao}
+                    getLancarAction={getLancarAction}
+                    canEdit={canEdit}
+                  />
+                </div>
+                <div className="md:hidden">{cardsGrid}</div>
+              </>
+            ) : cardsGrid;
+          })()}
+
+          {/* Paginação */}
+          {linhasOrdenadasMaq.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Mostrar</span>
+                <Select value={String(pageSizeMaq)} onValueChange={(v) => { setPageSizeMaq(Number(v)); setPageMaq(1); }}>
+                  <SelectTrigger className="h-7 w-16 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[10, 25, 50, 100].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <span>de {linhasOrdenadasMaq.length} máquinas</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="icon" variant="outline" className="h-7 w-7"
+                  disabled={paginaAtualMaq <= 1}
+                  onClick={() => setPageMaq((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs text-muted-foreground px-1.5">
+                  Página {paginaAtualMaq} de {totalPaginasMaq}
+                </span>
+                <Button
+                  size="icon" variant="outline" className="h-7 w-7"
+                  disabled={paginaAtualMaq >= totalPaginasMaq}
+                  onClick={() => setPageMaq((p) => Math.min(totalPaginasMaq, p + 1))}
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ══════════════════ ABA: BOLETIM MENSAL ══════════════════ */}
+        <TabsContent value="boletim" className="mt-4">
+          <BoletimMensal />
+        </TabsContent>
+      </Tabs>
 
       {/* Dialog: Adicionar Máquina */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -2284,40 +1659,20 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
         canEdit={canEdit}
       />
 
-      {/* Form: Lançamento manual — Embalagem de Perfil */}
+      {/* Form: Lançamento manual — Embalagem de Perfil tem formulário dedicado
+          (selects encadeados de produto/largura/padrão); as demais máquinas
+          usam o formulário genérico, guiado pelo mesmo mapa de colunas do
+          histórico (colunasMaquina.ts). */}
       <EmbalagemPerfilForm
-        open={lancamentoOpen}
-        onClose={() => setLancamentoOpen(false)}
+        open={norm(lancamentoMaquina?.nome ?? "") === norm("EMBALAGEM DE PERFIL")}
+        onClose={() => setLancamentoMaquina(null)}
         onSaved={() => fetchDados(setSyncing)}
       />
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {maquinas.filter((m) => norm(m.nome ?? "").includes(norm(busca))).map((m) => {
-          const chave = norm(m.nome ?? "");
-          const chaveAlias = chave.replace(/alizar/g, "aliza");
-          const dadosMaquina = producao[chave] ?? producao[chaveAlias] ?? {};
-          const producaoPorSemana = semanas.map((s) => ({
-            label: s.label,
-            producao: dadosMaquina[s.label] ?? 0,
-          }));
-          const totalMes = producaoPorSemana.reduce((acc, s) => acc + s.producao, 0);
-
-          const isEmbalagemPerfil = norm(m.nome ?? "") === norm("EMBALAGEM DE PERFIL");
-
-          return (
-            <MaquinaCard
-              key={m.id}
-              maquina={m}
-              producaoPorSemana={producaoPorSemana}
-              totalMes={totalMes}
-              onClick={() => setMaquinaSelecionada(m)}
-              onEdit={abrirEdicao}
-              onLancar={isEmbalagemPerfil ? () => setLancamentoOpen(true) : undefined}
-              canEdit={canEdit}
-            />
-          );
-        })}
-      </div>
+      <LancarProducaoForm
+        maquina={lancamentoMaquina && norm(lancamentoMaquina.nome ?? "") !== norm("EMBALAGEM DE PERFIL") ? lancamentoMaquina : null}
+        onClose={() => setLancamentoMaquina(null)}
+        onSaved={() => fetchDados(setSyncing)}
+      />
     </div>
   );
 }

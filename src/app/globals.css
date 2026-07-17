@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,79 +6,193 @@
 
 @layer base {
   :root {
-    --background: 140 10% 96%;
-    --foreground: 150 60% 10%;
+    --background: 214 32% 97%;
+    --foreground: 210 24% 24%;
 
     --card: 0 0% 100%;
-    --card-foreground: 150 60% 10%;
+    --card-foreground: 210 24% 24%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 150 60% 10%;
+    --popover-foreground: 210 24% 24%;
 
-    --primary: 146 88% 17%;
+    --primary: 144 100% 17%;
     --primary-foreground: 0 0% 100%;
+    --primary-hover: 144 90% 24%;
 
-    --secondary: 145 12% 90%;
-    --secondary-foreground: 146 60% 15%;
+    --secondary: 210 51% 24%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 140 10% 93%;
-    --muted-foreground: 150 10% 45%;
+    --muted: 214 32% 91%;
+    --muted-foreground: 213 12% 52%;
 
-    --accent: 145 14% 88%;
-    --accent-foreground: 146 88% 17%;
+    --accent: 214 32% 91%;
+    --accent-foreground: 210 24% 24%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 93% 74%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 145 15% 84%;
-    --input: 145 15% 84%;
-    --ring: 146 88% 17%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 144 100% 17%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --success: 146 88% 17%;
+    --success: 144 100% 17%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
+    --warning: 27 90% 65%;
     --warning-foreground: 0 0% 100%;
 
-    --sidebar-background: 146 88% 17%;
+    --status-success: 144 100% 17%;
+    --status-warning: 27 90% 65%;
+    --status-danger: 0 93% 74%;
+    --status-info: 204 71% 57%;
+    --status-foreground: 0 0% 100%;
+
+    --card-blue: 204 71% 57%;
+    --card-green: 144 100% 17%;
+    --card-red: 0 93% 74%;
+    --card-orange: 27 90% 65%;
+    --card-purple: 262 52% 56%;
+    --card-pink: 340 82% 52%;
+    --card-teal: 144 100% 17%;
+    --card-magenta: 291 100% 49%;
+    --card-brown: 16 18% 48%;
+    --card-lime: 75 100% 50%;
+    --card-dark-blue: 210 51% 24%;
+    --card-cyan: 144 100% 17%;
+
+    /* Sidebar com cor de marca fixa (#01270F, verde-petróleo), igual nos dois
+       temas — só o conteúdo (header/cards/página) segue claro/escuro. Os
+       acentos por estado (hover/ativo/etc.) usam a paleta emerald/red do
+       Tailwind diretamente nos componentes (nav-main/nav-user/app-sidebar). */
+    --sidebar-background: 142 93% 8%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 146 88% 17%;
-    --sidebar-accent: 146 70% 22%;
+    --sidebar-primary: 210 51% 24%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 147 90% 11%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 146 60% 25%;
-    --sidebar-ring: 146 88% 17%;
+    --sidebar-border: 164 86% 16%;
+    --sidebar-ring: 158 64% 52%;
+
+    /* Camada iOS: hierarquia extra de texto/separadores/fills e paleta de sistema,
+       aditiva à marca (primary/secondary continuam turquesa/navy). */
+    --text-tertiary: rgba(60, 60, 67, 0.6);
+    --separator-opaque: 240 2% 78%;
+    --separator-non-opaque: rgba(60, 60, 67, 0.29);
+    --fill-primary: rgba(120, 120, 128, 0.2);
+    --fill-secondary: rgba(120, 120, 128, 0.16);
+    --fill-tertiary: rgba(118, 118, 128, 0.12);
+
+    --ios-blue: 211 100% 50%;
+    --ios-green: 135 59% 49%;
+    --ios-red: 3 100% 59%;
+    --ios-orange: 35 100% 50%;
+    --ios-yellow: 48 100% 50%;
+    --ios-purple: 280 68% 60%;
+    --ios-pink: 349 100% 59%;
+    --ios-teal: 199 94% 67%;
+
+    --ios-gray: 240 2% 57%;
+    --ios-gray-2: 240 3% 69%;
+    --ios-gray-3: 240 5% 79%;
+    --ios-gray-4: 240 6% 83%;
+    --ios-gray-5: 240 11% 91%;
+    --ios-gray-6: 240 24% 96%;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
   }
 
   .dark {
-    --background: 150 20% 8%;
-    --foreground: 140 10% 92%;
-    --card: 150 20% 12%;
-    --card-foreground: 140 10% 92%;
-    --popover: 150 20% 12%;
-    --popover-foreground: 140 10% 92%;
-    --primary: 146 80% 35%;
+    --background: 220 20% 5%;
+    --foreground: 214 32% 92%;
+
+    --card: 220 15% 9%;
+    --card-foreground: 214 32% 92%;
+
+    --popover: 220 15% 9%;
+    --popover-foreground: 214 32% 92%;
+
+    --primary: 144 55% 40%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 150 15% 18%;
-    --secondary-foreground: 140 10% 92%;
-    --muted: 150 15% 16%;
-    --muted-foreground: 145 10% 55%;
-    --accent: 150 15% 20%;
-    --accent-foreground: 140 10% 92%;
-    --destructive: 0 62.8% 30.6%;
+    --primary-hover: 144 55% 46%;
+
+    --secondary: 210 51% 32%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 20% 20%;
+    --muted-foreground: 213 12% 65%;
+
+    --accent: 210 20% 18%;
+    --accent-foreground: 214 32% 92%;
+
+    --destructive: 0 93% 68%;
     --destructive-foreground: 0 0% 100%;
-    --border: 150 15% 20%;
-    --input: 150 15% 20%;
-    --ring: 146 80% 35%;
-    --sidebar-background: 150 30% 6%;
+
+    --border: 210 20% 22%;
+    --input: 210 20% 22%;
+    --ring: 144 55% 40%;
+
+    --success: 144 55% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 27 90% 60%;
+    --warning-foreground: 0 0% 100%;
+
+    --status-success: 144 55% 40%;
+    --status-warning: 27 90% 60%;
+    --status-danger: 0 93% 68%;
+    --status-info: 204 71% 60%;
+    --status-foreground: 0 0% 100%;
+
+    --card-blue: 204 71% 60%;
+    --card-green: 144 55% 40%;
+    --card-red: 0 93% 68%;
+    --card-orange: 27 90% 60%;
+    --card-purple: 262 52% 60%;
+    --card-pink: 340 82% 56%;
+    --card-teal: 144 55% 40%;
+    --card-magenta: 291 100% 55%;
+    --card-brown: 16 18% 52%;
+    --card-lime: 75 90% 55%;
+    --card-dark-blue: 210 51% 34%;
+    --card-cyan: 144 55% 40%;
+
+    --sidebar-background: 142 93% 8%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 146 80% 35%;
+    --sidebar-primary: 210 51% 34%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 150 20% 12%;
+    --sidebar-accent: 147 90% 11%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 150 15% 15%;
-    --sidebar-ring: 146 80% 35%;
+    --sidebar-border: 164 86% 16%;
+    --sidebar-ring: 158 64% 52%;
+
+    --text-tertiary: rgba(235, 235, 245, 0.6);
+    --separator-opaque: 240 2% 22%;
+    --separator-non-opaque: rgba(84, 84, 88, 0.6);
+    --fill-primary: rgba(120, 120, 128, 0.36);
+    --fill-secondary: rgba(120, 120, 128, 0.32);
+    --fill-tertiary: rgba(118, 118, 128, 0.24);
+
+    --ios-blue: 210 100% 52%;
+    --ios-green: 135 64% 50%;
+    --ios-red: 3 100% 61%;
+    --ios-orange: 37 100% 52%;
+    --ios-yellow: 50 100% 52%;
+    --ios-purple: 280 85% 65%;
+    --ios-pink: 348 100% 61%;
+    --ios-teal: 197 100% 70%;
+
+    --ios-gray: 240 2% 57%;
+    --ios-gray-2: 240 1% 39%;
+    --ios-gray-3: 240 1% 29%;
+    --ios-gray-4: 240 2% 23%;
+    --ios-gray-5: 240 2% 18%;
+    --ios-gray-6: 240 3% 11%;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.4);
   }
 }
 
@@ -89,10 +203,11 @@
 
   body {
     @apply bg-background text-foreground font-sans;
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Manrope', sans-serif;
     -webkit-font-smoothing: antialiased;
     font-weight: 400;
     letter-spacing: -0.005em;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
@@ -103,6 +218,14 @@
 
   .page-fade {
     animation: pageFadeIn 0.18s ease-out both;
+  }
+
+  .tabs-scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .tabs-scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }
 

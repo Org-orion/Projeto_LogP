@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { format, subDays } from "date-fns";
 import { supabase } from "@/lib/supabase";
 
@@ -68,6 +68,9 @@ async function fetchNfAlerts(): Promise<NfAlert[]> {
 export function useNfAlerts() {
   const [data, setData] = useState<NfAlert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Nome de canal único por instância — mesmo motivo do useNcAlerts.ts (hook
+  // agora usado simultaneamente em NotificationPanel e no indicador de abas).
+  const instanceId = useId().replace(/[^a-zA-Z0-9]/g, "");
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +85,7 @@ export function useNfAlerts() {
     load();
 
     const channel = supabase
-      .channel("nf-alerts-rt")
+      .channel(`nf-alerts-rt-${instanceId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "registros_producao" }, () => {
         load();
       })
@@ -95,7 +98,7 @@ export function useNfAlerts() {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [instanceId]);
 
   return { data, isLoading };
 }

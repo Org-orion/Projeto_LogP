@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "@flaticon/flaticon-uicons/css/regular/straight.css";
 import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body>
+      <body className="h-screen overflow-hidden">
         <Providers>{children}</Providers>
       </body>
     </html>

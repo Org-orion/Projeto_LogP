@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { format, subDays } from "date-fns";
 import { supabase } from "@/lib/supabase";
 
@@ -54,6 +54,10 @@ async function fetchNcAlerts(): Promise<NcAlert[]> {
 export function useNcAlerts() {
   const [data, setData] = useState<NcAlert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Nome de canal único por instância — este hook agora roda em mais de um
+  // lugar ao mesmo tempo (NotificationPanel + indicador na barra de abas), e
+  // o Supabase não permite duas assinaturas ativas com o mesmo nome de canal.
+  const instanceId = useId().replace(/[^a-zA-Z0-9]/g, "");
 
   useEffect(() => {
     let cancelled = false;
@@ -68,7 +72,7 @@ export function useNcAlerts() {
     load();
 
     const channel = supabase
-      .channel("nc-alerts-rt")
+      .channel(`nc-alerts-rt-${instanceId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "registros_producao" }, () => {
         load();
       })
@@ -78,7 +82,7 @@ export function useNcAlerts() {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [instanceId]);
 
   return { data, isLoading };
 }
