@@ -188,6 +188,13 @@ function getSetorDash(maquina: string): "portas" | "guarnicao" | null {
   return null;
 }
 
+// Seccionadora 1/2 não têm "linha" de produção — usa o produto produzido no
+// lugar em "Produção por Linha", em vez de cair num balde "—" genérico.
+function chaveLinhaOuProduto(r: { maquina?: string | null; linha?: string | null; produto?: string | null }): string {
+  if (/seccionadora/i.test(r.maquina ?? "")) return r.produto || "—";
+  return r.linha || r.produto || "—";
+}
+
 // A tabela indicadores_producao guarda o setor como texto livre (configurado
 // na tela de Metas) — não necessariamente "portas"/"guarnicao". Faz um match
 // por palavra-chave em vez de igualdade exata.
@@ -797,7 +804,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
 
   // Helpers de filtro por dimensão
   const byMaq    = (r: RowDash) => !selMaq    || (r.maquina ?? "")    === selMaq;
-  const byLinha  = (r: RowDash) => selLinhas.size === 0 || selLinhas.has(r.linha || r.produto || "—");
+  const byLinha  = (r: RowDash) => selLinhas.size === 0 || selLinhas.has(chaveLinhaOuProduto(r));
   const byPadrao = (r: RowDash) => !selPadrao || (r.padrao  || "—")   === selPadrao;
 
   // KPIs — aplica todos os filtros de clique (máquina, linha, padrão)
@@ -859,7 +866,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   const total1 = ctxLinha.reduce((s, r) => s + (r.qtd_conforme ?? 0), 0);
   const dashLinhaMap: Record<string, number> = {};
   for (const r of ctxLinha) {
-    const l = r.linha || r.produto || "—";
+    const l = chaveLinhaOuProduto(r);
     dashLinhaMap[l] = (dashLinhaMap[l] ?? 0) + (r.qtd_conforme ?? 0);
   }
   const dashPorLinha = Object.entries(dashLinhaMap)
@@ -898,7 +905,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
 
   // máquinas e linhas disponíveis para filtro do dashboard
   const maqsDash = Array.from(new Set(dashPorSetor.map(r => r.maquina ?? ""))).filter(Boolean).sort();
-  const linhasDash = Array.from(new Set(dashPorSetor.map(r => r.linha || r.produto || "").filter(Boolean))).sort();
+  const linhasDash = Array.from(new Set(dashPorSetor.map(r => chaveLinhaOuProduto(r)).filter(l => l && l !== "—"))).sort();
 
   const temSelecao = !!(selMaq || selLinhas.size > 0 || selPadrao);
 
