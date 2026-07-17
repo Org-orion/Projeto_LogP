@@ -110,7 +110,7 @@ function DistribuicaoCard({ icone: Icone, titulo, linhas, totalGeral, onClickLin
         <Icone size={15} className="text-primary" />
         <p className="text-sm font-semibold">{titulo}</p>
       </div>
-      {linhas.length === 0 ? (
+      {linhas.length === 0 && !verMais ? (
         <EmptyState icon={Icone} title="Sem dados" description={vazio} />
       ) : (
         <div className="overflow-x-auto">
