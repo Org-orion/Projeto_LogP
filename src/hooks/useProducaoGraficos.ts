@@ -43,18 +43,37 @@ export function useProducaoGraficos(): ProducaoGraficos {
       const fim = dateStr(hoje);
       const mesInicio = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-01`;
 
-      const [{ data: rows14 }, { data: rowsMes }] = await Promise.all([
-        supabase
+      const TAM = 1000;
+
+      // Tendência 14 dias — paginado
+      const rows14: { data: string; qtd_conforme: number | null }[] = [];
+      for (let p = 0; ; p++) {
+        const { data: lote } = await supabase
           .from("registros_producao")
           .select("data, qtd_conforme")
           .gte("data", inicio14)
-          .lte("data", fim),
-        supabase
+          .lte("data", fim)
+          .order("data", { ascending: true })
+          .range(p * TAM, (p + 1) * TAM - 1);
+        if (!lote || lote.length === 0) break;
+        rows14.push(...lote);
+        if (lote.length < TAM) break;
+      }
+
+      // Top máquinas do mês — paginado
+      const rowsMes: { maquina: string; qtd_conforme: number | null }[] = [];
+      for (let p = 0; ; p++) {
+        const { data: lote } = await supabase
           .from("registros_producao")
           .select("maquina, qtd_conforme")
           .gte("data", mesInicio)
-          .lte("data", fim),
-      ]);
+          .lte("data", fim)
+          .order("data", { ascending: true })
+          .range(p * TAM, (p + 1) * TAM - 1);
+        if (!lote || lote.length === 0) break;
+        rowsMes.push(...lote);
+        if (lote.length < TAM) break;
+      }
 
       if (cancelled) return;
 

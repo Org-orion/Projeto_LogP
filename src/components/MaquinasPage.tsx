@@ -13,12 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, AlertCircle, RefreshCw, Plus, ChevronDown,
-  LayoutDashboard, Factory, BarChart3, Workflow,
+  LayoutDashboard, Factory, BarChart3, Workflow, BarChart2,
   Download, X, BadgeCheck, Ruler, ChevronLeft, ChevronRight, type LucideIcon,
 } from "lucide-react";
 import { SpinnerCustom } from "@/components/ui/spinner";
 import EmbalagemPerfilForm from "@/components/EmbalagemPerfilForm";
 import { LancarProducaoForm } from "@/components/production/LancarProducaoForm";
+import BoletimMensal from "@/components/BoletimMensal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import {
@@ -226,6 +227,20 @@ function norm(s: string) {
   return s.trim().toLowerCase();
 }
 
+// "MOLDUREIRA DE ALIZAR X" é o nome canônico cadastrado, mas alguns registros
+// de produção foram lançados como "MOLDUREIRA DE ALIZA X" (sem o R final) —
+// mapeia a variante pro nome canônico pra não perder produção na agregação.
+function buildAliasMap(maquinas: Maquina[]): Record<string, string> {
+  const aliasMap: Record<string, string> = {};
+  for (const m of maquinas) {
+    const n = norm(String(m.nome ?? ""));
+    if (n.includes("alizar")) {
+      aliasMap[n.replace(/alizar/g, "aliza")] = n;
+    }
+  }
+  return aliasMap;
+}
+
 // Período anterior "equivalente" pra comparação: se o mês/ano selecionado é o
 // atual (ainda em andamento), o período de comparação não pode ser o mês/ano
 // anterior INTEIRO — senão compara N dias decorridos contra o mês/ano cheio,
@@ -371,6 +386,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
         .select("maquina,data,linha,produto,padrao,largura_cm,qtd_conforme")
         .gte("data", inicio)
         .lte("data", fim)
+        .order("data", { ascending: true })
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
       if (myReq !== dashReqRef.current) return;
       if (error) {
@@ -408,6 +424,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
         .select("maquina,data,linha,produto,padrao,largura_cm,qtd_conforme")
         .gte("data", inicio)
         .lte("data", fim)
+        .order("data", { ascending: true })
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
       if (myReq !== dashAnoReqRef.current) return;
       if (error || !data || data.length === 0) break;
@@ -438,6 +455,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
         .select("maquina,data,qtd_conforme")
         .gte("data", inicio)
         .lte("data", fim)
+        .order("data", { ascending: true })
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
       if (myReq !== comparativoReqRef.current) return;
       if (error || !data || data.length === 0) break;
@@ -486,6 +504,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
     const { data: maquinasData, error: err1 } = await supabase.from("maquinas").select("*").order("nome");
     if (err1) { setErro(err1.message); setSpin(false); return; }
     setMaquinas(maquinasData ?? []);
+    const aliasMap = buildAliasMap(maquinasData ?? []);
 
     type Registro = { maquina: string | null; data: string | null; qtd_conforme: number | null; linha: string | null };
     const registros: Registro[] = [];
@@ -497,6 +516,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
         .select("maquina, data, qtd_conforme, linha")
         .gte("data", dataInicio)
         .lte("data", dataFim)
+        .order("data", { ascending: true })
         .range(pagina * TAM_PAG, (pagina + 1) * TAM_PAG - 1);
       if (err2) { setErro(err2.message); setSpin(false); return; }
       if (!lote || lote.length === 0) break;
@@ -511,7 +531,8 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
     for (const r of registros) {
       if (!r.maquina || !r.data) continue;
       const data = r.data;
-      const chave = norm(r.maquina);
+      const raw = norm(r.maquina);
+      const chave = aliasMap[raw] ?? raw;
       const qtd = Number(r.qtd_conforme) || 0;
       const semana = semanasAtual.find((s) => data >= s.inicio && data <= s.fim);
       if (!semana) continue;
@@ -543,6 +564,7 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
         .select("maquina, qtd_conforme")
         .gte("data", inicio)
         .lte("data", fim)
+        .order("data", { ascending: true })
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
       if (myReq !== comparativoMaqReqRef.current) return;
       if (error || !data || data.length === 0) break;
@@ -645,11 +667,13 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
 
   const totalGeralMaq = rawRegistrosMaq.reduce((s, r) => s + (Number(r.qtd_conforme) || 0), 0);
 
+  const aliasMapMaq = buildAliasMap(maquinas);
   const producaoPorMaquinaMap: Record<string, number> = {};
   const linhasPorMaquinaMap: Record<string, Set<string>> = {};
   for (const r of rawRegistrosMaq) {
     if (!r.maquina) continue;
-    const chave = norm(r.maquina);
+    const raw = norm(r.maquina);
+    const chave = aliasMapMaq[raw] ?? raw;
     producaoPorMaquinaMap[chave] = (producaoPorMaquinaMap[chave] ?? 0) + (Number(r.qtd_conforme) || 0);
     if (r.linha) {
       if (!linhasPorMaquinaMap[chave]) linhasPorMaquinaMap[chave] = new Set();
@@ -673,9 +697,10 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   // Uma linha por máquina: produção, participação %, sparkline semanal e Δ% vs período anterior
   const linhasTabelaMaq = maquinas.map((m) => {
     const chave = norm(m.nome ?? "");
+    const chaveAlias = chave.replace(/alizar/g, "aliza");
     const producaoTotal = producaoPorMaquinaMap[chave] ?? 0;
     const participacaoPct = totalGeralMaq > 0 ? (producaoTotal / totalGeralMaq) * 100 : 0;
-    const producaoAnterior = comparativoMaq?.porMaquina[chave] ?? 0;
+    const producaoAnterior = comparativoMaq?.porMaquina[chave] ?? comparativoMaq?.porMaquina[chaveAlias] ?? 0;
     const deltaPct = producaoAnterior > 0 ? ((producaoTotal - producaoAnterior) / producaoAnterior) * 100 : null;
     const dadosSemana = producao[chave] ?? {};
     const sparklineData = semanas.map((s) => ({ value: dadosSemana[s.label] ?? 0 }));
@@ -955,12 +980,15 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
       />
 
       <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="visao-geral" className="gap-1.5">
             <LayoutDashboard className="h-3.5 w-3.5" />Visão Geral
           </TabsTrigger>
           <TabsTrigger value="maquinas" className="gap-1.5">
             <Factory className="h-3.5 w-3.5" />Máquinas
+          </TabsTrigger>
+          <TabsTrigger value="boletim" className="gap-1.5">
+            <BarChart2 className="h-3.5 w-3.5" />Boletim
           </TabsTrigger>
         </TabsList>
 
@@ -1563,6 +1591,11 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
               </div>
             </div>
           )}
+        </TabsContent>
+
+        {/* ══════════════════ ABA: BOLETIM MENSAL ══════════════════ */}
+        <TabsContent value="boletim" className="mt-4">
+          <BoletimMensal />
         </TabsContent>
       </Tabs>
 

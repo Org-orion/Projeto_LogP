@@ -38,6 +38,7 @@ async function fetchAllPages(
       .ilike("maquina", maquinaPattern)
       .gte("data", inicio)
       .lte("data", fim)
+      .order("data", { ascending: true })
       .range(pagina * TAM, (pagina + 1) * TAM - 1);
 
     if (error || !data || data.length === 0) break;

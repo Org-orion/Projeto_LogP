@@ -97,6 +97,10 @@ export function HistoricoSheet({ maquina, open, onClose, canEdit }: {
     setLoadingHist(true);
 
     const nomeMaquina = (maquina.nome as string).trim();
+    const nomeAlternativo = /alizar/i.test(nomeMaquina)
+      ? nomeMaquina.replace(/alizar/gi, "ALIZA")
+      : null;
+    const nomesQuery = nomeAlternativo ? [nomeMaquina, nomeAlternativo] : [nomeMaquina];
     const TAM = 1000;
     let pagina = 0;
     const todos: RegistroProducao[] = [];
@@ -105,7 +109,7 @@ export function HistoricoSheet({ maquina, open, onClose, canEdit }: {
       let query = supabase
         .from("registros_producao")
         .select("*")
-        .eq("maquina", nomeMaquina)
+        .in("maquina", nomesQuery)
         .order("data", { ascending: false })
         .order("hora_inicial", { ascending: true, nullsFirst: false })
         .range(pagina * TAM, (pagina + 1) * TAM - 1);
@@ -597,10 +601,11 @@ export function HistoricoSheet({ maquina, open, onClose, canEdit }: {
 
         </div>
 
-        {/* Tabela — container com posição absoluta garante que as barras de rolagem
-            apareçam dentro dos limites visíveis do dialog */}
-        <div className="flex-1 min-h-0 relative border-t">
-          <div className="absolute inset-0 overflow-auto">
+        {/* Tabela */}
+        <div
+          className="flex-1 min-h-0 border-t"
+          style={{ overflowX: "scroll", overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "rgba(120,120,120,0.5) transparent" }}
+        >
             {loadingHist ? (
               <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
             ) : registros.length === 0 ? (
@@ -610,7 +615,7 @@ export function HistoricoSheet({ maquina, open, onClose, canEdit }: {
             ) : (() => {
                 const colunas = getColunasParaMaquina(maquina?.nome ?? "");
                 return (
-                  <table className="w-max text-sm border-collapse">
+                  <table className="w-full min-w-max text-sm border-collapse">
                     <thead>
                       <tr className="border-b bg-muted/50">
                         {colunas.map((col) => (
@@ -642,7 +647,6 @@ export function HistoricoSheet({ maquina, open, onClose, canEdit }: {
                   </table>
                 );
               })()}
-          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -81,7 +81,8 @@ function GramaturaPageInner() {
       .select("*")
       .eq("tipo", "gramatura")
       .order("data", { ascending: false })
-      .order("id",   { ascending: false });
+      .order("id",   { ascending: false })
+      .limit(2000);
     if (error) toast.error("Erro ao carregar medições: " + error.message);
     else setGramaturas(data ?? []);
     setLoadingGram(false);
