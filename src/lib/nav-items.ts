@@ -8,7 +8,6 @@ export type NavMeta = { parent: string | null; title: string };
 export const NAV_META: Record<string, NavMeta> = {
   home:            { parent: null,                    title: "Home" },
   machines:        { parent: "Produção",               title: "Produção" },
-  rastreabilidade: { parent: "Produção",               title: "Rastreabilidade" },
   consumo:         { parent: "Produção",               title: "Uso e Consumo" },
   pedidos:         { parent: "Produção",               title: "Pedidos" },
   metas:           { parent: "Produção",               title: "Metas" },
@@ -28,7 +27,7 @@ export const QUALIDADE_SUB_TITLES: Record<string, string> = {
 
 export const ALL_SECTIONS = Object.keys(NAV_META);
 
-export const PRODUCAO_SUBS = ["machines", "rastreabilidade", "consumo", "pedidos", "metas", "leituras"];
+export const PRODUCAO_SUBS = ["machines", "consumo", "pedidos", "metas", "leituras"];
 export const QUALIDADE_SUBS = ["gramatura", "recebimento", "nao-conformidades"];
 export const CERTIFICACOES_SUBS = ["material-fsc", "auditorias"];
 
@@ -37,7 +36,6 @@ export const CERTIFICACOES_SUBS = ["material-fsc", "auditorias"];
 // importam daqui) pra rótulo nunca divergir entre os dois lugares.
 export const PRODUCAO_LABELS: Record<string, string> = {
   machines: "Produção",
-  rastreabilidade: "Rastreabilidade",
   consumo: "Uso e Consumo",
   pedidos: "Pedidos",
   metas: "Metas",
@@ -84,6 +82,14 @@ export const QUALIDADE_ROUTE_SUBS: ConfigSubItem[] = [
   { id: "recebimento",       label: "Recebimento de Insumos",  href: "/qualidade/recebimento-insumos" },
   { id: "nao-conformidades", label: "Não Conformidades",       href: "/qualidade/nao-conformidades" },
   { id: "planos-acao",       label: "Planos de Ação",          href: "/qualidade/planos-acao" },
+];
+
+// Subitens de "Rastreabilidade" — migrado de aba SPA pra rota real
+// (/rastreabilidade/...), mesmo padrão de Qualidade. Só um item por enquanto
+// (a consulta principal); o mapa (/rastreabilidade/mapa) é acessado a partir
+// dela, não pela sidebar diretamente.
+export const RASTREABILIDADE_ROUTE_SUBS: ConfigSubItem[] = [
+  { id: "consulta", label: "Rastreabilidade", href: "/rastreabilidade" },
 ];
 
 // Subitens de "Administração" (RBAC: Usuários/Perfis/Permissões/Auditoria) —
@@ -137,6 +143,10 @@ export const PAGE_PERMISSION_GROUPS: PagePermissionGroup[] = [
   { grupo: "Geral", pages: [{ id: "home", label: NAV_META.home.title }] },
   { grupo: "Produção", pages: PRODUCAO_SUBS.map((id) => ({ id, label: PRODUCAO_LABELS[id] })) },
   {
+    grupo: "Rastreabilidade",
+    pages: RASTREABILIDADE_ROUTE_SUBS.map((s) => ({ id: `rastreabilidade:${s.id}`, label: s.label })),
+  },
+  {
     grupo: "Controle de Qualidade",
     pages: QUALIDADE_ROUTE_SUBS.map((s) => ({ id: `qualidade:${s.id}`, label: s.label })),
   },
@@ -157,7 +167,6 @@ export const PAGE_PERMISSION_GROUPS: PagePermissionGroup[] = [
 export const SECTION_ICON: Record<string, LucideIcon> = {
   home: Home,
   machines: Factory,
-  rastreabilidade: Factory,
   consumo: Factory,
   pedidos: Factory,
   metas: Factory,
@@ -173,4 +182,5 @@ export const ROUTE_MODULE_ICON: Record<string, LucideIcon> = {
   "/qualidade": ShieldCheck,
   "/configuracoes": Settings,
   "/admin": UserCog,
+  "/rastreabilidade": Factory,
 };

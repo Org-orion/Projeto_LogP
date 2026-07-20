@@ -27,7 +27,7 @@ import {
 import { useNavigation } from "@/context/navigation-context"
 import {
   PRODUCAO_SUBS, CERTIFICACOES_SUBS, CONFIGURACOES_SUBS, QUALIDADE_ROUTE_SUBS, ADMIN_ROUTE_SUBS,
-  PRODUCAO_LABELS, CERTIFICACOES_LABELS, hasPageAccess, hasAnyGroupAccess,
+  RASTREABILIDADE_ROUTE_SUBS, PRODUCAO_LABELS, CERTIFICACOES_LABELS, hasPageAccess, hasAnyGroupAccess,
 } from "@/lib/nav-items"
 import { goToSpaSection } from "@/lib/spa-bridge"
 
@@ -75,6 +75,18 @@ export function AppSidebar({ user, allowedSections, onLogout, ...props }: AppSid
         url: "#",
         onClick: () => goSection(id),
         isActive: inSpaRoot && active.section === id,
+      })),
+    },
+    hasAnyGroupAccess(user, "rastreabilidade") && {
+      title: "Rastreabilidade",
+      url: "#",
+      icon: Factory,
+      isActive: pathname?.startsWith("/rastreabilidade") ?? false,
+      items: RASTREABILIDADE_ROUTE_SUBS.filter((s) => hasPageAccess(user, `rastreabilidade:${s.id}`)).map((s) => ({
+        title: s.label,
+        url: "#",
+        href: s.href,
+        isActive: pathname === s.href,
       })),
     },
     hasAnyGroupAccess(user, "qualidade") && {

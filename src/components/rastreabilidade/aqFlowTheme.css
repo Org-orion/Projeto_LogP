@@ -1,0 +1,27 @@
+/*
+ * Overrides de tema do React Flow (@xyflow/react v12) — remapeia as custom
+ * properties próprias da lib (--xy-*) pras CSS vars semânticas do projeto
+ * (src/app/globals.css), pra funcionar em light/dark sem cor hardcoded.
+ * Importado só dentro de AqFlowMap.tsx (lazy), nunca em globals.css.
+ */
+
+.aq-flow-map {
+  --xy-background-color: hsl(var(--card));
+  --xy-background-pattern-dots-color: hsl(var(--border));
+  --xy-edge-stroke: hsl(var(--muted-foreground));
+  --xy-edge-stroke-selected: hsl(var(--primary));
+  --xy-controls-button-background-color: hsl(var(--card));
+  --xy-controls-button-background-color-hover: hsl(var(--muted));
+  --xy-controls-button-color: hsl(var(--foreground));
+  --xy-controls-button-color-hover: hsl(var(--foreground));
+  --xy-controls-button-border-color: hsl(var(--border));
+  --xy-minimap-background-color: hsl(var(--card));
+  --xy-minimap-mask-background-color: hsl(var(--muted) / 0.6);
+  --xy-minimap-node-background-color: hsl(var(--muted-foreground));
+  --xy-node-border-radius: 0.5rem;
+}
+
+.aq-flow-map .react-flow__attribution {
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}

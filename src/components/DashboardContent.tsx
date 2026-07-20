@@ -6,7 +6,6 @@ import { useWorkspace } from "@/context/workspace-context"
 
 const HomePage                = lazy(() => import("@/components/HomePage"))
 const MaquinasPage            = lazy(() => import("@/components/MaquinasPage"))
-const RastreabilidadePage     = lazy(() => import("@/components/RastreabilidadePage"))
 const UsoeConsumoPage         = lazy(() => import("@/components/UsoeConsumoPage"))
 const PedidosPage             = lazy(() => import("@/components/PedidosPage"))
 const MetasPage               = lazy(() => import("@/components/MetasPage"))
@@ -37,7 +36,6 @@ export function DashboardContent({ user, isAdmin }: DashboardContentProps) {
     switch (section) {
       case "home":           return <HomePage userName={user.nome} />
       case "machines":       return <MaquinasPage user={user} />
-      case "rastreabilidade": return <RastreabilidadePage />
       case "consumo":        return <UsoeConsumoPage />
       case "pedidos":        return <PedidosPage />
       case "metas":          return <MetasPage />

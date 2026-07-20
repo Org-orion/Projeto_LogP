@@ -80,15 +80,33 @@ export function HistoricoSheet({ maquina, open, onClose, canEdit }: {
   const [editReg, setEditReg] = useState<RegistroProducao | null>(null);
   const [editForm, setEditForm] = useState<Record<string, unknown>>({});
   const [savingEdit, setSavingEdit] = useState(false);
+  // Filtro por coluna (estilo planilha) — uma entrada de texto por coluna,
+  // aplicada em cima do filtro de Ano/Mês/Dia já existente (não substitui).
+  const [filtrosColuna, setFiltrosColuna] = useState<Record<string, string>>({});
+
+  const colunas = getColunasParaMaquina(maquina?.nome ?? "");
+
+  // Colunas mudam por máquina — filtros de coluna de uma máquina não fazem
+  // sentido pra outra, então limpa ao trocar (evita filtro "fantasma" preso).
+  useEffect(() => { setFiltrosColuna({}); }, [maquina?.id]);
 
   // Filtragem client-side por mês/dia
-  const registros = todosMD
+  const registrosPeriodo = todosMD
     ? todosRegistros
     : todosRegistros.filter(r => {
         const mm = r.data.slice(5, 7);
         const dd = r.data.slice(8, 10);
         return selecaoMD.has(mm) || selecaoMD.has(`${mm}-${dd}`);
       });
+
+  const temFiltroColuna = Object.values(filtrosColuna).some(v => v?.trim());
+  const registros = temFiltroColuna
+    ? registrosPeriodo.filter(r => colunas.every(col => {
+        const termo = filtrosColuna[col.key]?.trim().toLowerCase();
+        if (!termo) return true;
+        return fmtCelula((r as Record<string, unknown>)[col.key], col).toLowerCase().includes(termo);
+      }))
+    : registrosPeriodo;
 
   const buscarHistorico = useCallback(async () => {
     if (!maquina?.nome) return;
@@ -579,7 +597,14 @@ export function HistoricoSheet({ maquina, open, onClose, canEdit }: {
 
           {/* Resumo */}
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{registros.length} registro(s)</span>
+            <span className="text-muted-foreground flex items-center gap-2">
+              {registros.length} registro(s)
+              {temFiltroColuna && (
+                <Button variant="ghost" size="sm" className="h-6 text-[11px] px-1.5" onClick={() => setFiltrosColuna({})}>
+                  Limpar filtros de coluna
+                </Button>
+              )}
+            </span>
             <span className="font-semibold">{total.toLocaleString("pt-BR")} pç no total</span>
           </div>
 
@@ -608,13 +633,11 @@ export function HistoricoSheet({ maquina, open, onClose, canEdit }: {
         >
             {loadingHist ? (
               <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>
-            ) : registros.length === 0 ? (
+            ) : registrosPeriodo.length === 0 ? (
               <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
                 Nenhum registro encontrado para o período.
               </div>
-            ) : (() => {
-                const colunas = getColunasParaMaquina(maquina?.nome ?? "");
-                return (
+            ) : (
                   <table className="w-full min-w-max text-sm border-collapse">
                     <thead>
                       <tr className="border-b bg-muted/50">
@@ -625,9 +648,30 @@ export function HistoricoSheet({ maquina, open, onClose, canEdit }: {
                         ))}
                         {canEdit && <th className="px-3 py-2 text-xs font-medium text-muted-foreground text-right">Ações</th>}
                       </tr>
+                      {/* Filtro por coluna (estilo planilha) — uma linha de entradas de texto abaixo do cabeçalho. */}
+                      <tr className="border-b bg-muted/20">
+                        {colunas.map((col) => (
+                          <th key={`filtro-${col.key}`} style={col.wide ? {minWidth: 280} : undefined} className="px-2 py-1.5 font-normal">
+                            <input
+                              type="text"
+                              value={filtrosColuna[col.key] ?? ""}
+                              onChange={(e) => setFiltrosColuna(prev => ({ ...prev, [col.key]: e.target.value }))}
+                              placeholder="Filtrar..."
+                              className="h-6 w-full text-[11px] border border-input rounded px-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                          </th>
+                        ))}
+                        {canEdit && <th className="px-2 py-1.5" />}
+                      </tr>
                     </thead>
                     <tbody>
-                      {registros.map((r, i) => (
+                      {registros.length === 0 ? (
+                        <tr>
+                          <td colSpan={colunas.length + (canEdit ? 1 : 0)} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                            Nenhum registro encontrado para os filtros de coluna.
+                          </td>
+                        </tr>
+                      ) : registros.map((r, i) => (
                         <tr key={r.id} className={`border-b hover:bg-muted/30 transition-colors${i % 2 === 0 ? "" : " bg-muted/10"}`}>
                           {colunas.map((col, ci) => (
                             <td key={col.key} style={col.wide ? {minWidth: 280} : undefined} className={`px-3 py-2 text-xs whitespace-nowrap${col.numeric ? " text-right tabular-nums" : ""}`}>
@@ -645,8 +689,7 @@ export function HistoricoSheet({ maquina, open, onClose, canEdit }: {
                       ))}
                     </tbody>
                   </table>
-                );
-              })()}
+              )}
         </div>
       </DialogContent>
     </Dialog>
