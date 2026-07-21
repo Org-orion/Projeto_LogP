@@ -19,11 +19,15 @@ export interface KpiCardProps {
   title: string;
   value: number | null;
   unit?: string;
+  /** Formatação customizada do valor (ex.: moeda) — quando presente, substitui `value.toLocaleString()` + `unit`. */
+  valueFormatter?: (value: number) => string;
   loading?: boolean;
   /** Variação — só usada pra decidir a cor/direção da seta (alta/baixa/estável). Omitir quando não há base de comparação. */
   delta?: number | null;
   /** Ex.: "vs média 7 dias". Ignorado quando `avgLabel` é passado. */
   comparisonLabel?: string;
+  /** Texto estático mostrado quando não há `delta` nenhum (não é uma comparação — ex.: "SKU ABC123"). */
+  caption?: string;
   /** Texto já formatado com o valor absoluto da média (ex.: "Média 7 dias: 2.000 un") — mostrado no lugar do percentual quando presente. */
   avgLabel?: string;
   /** Últimos dias, do mais antigo para o mais recente (última posição = hoje). */
@@ -144,8 +148,8 @@ function WeekdayRow({ labels, todayIndex }: { labels: string[]; todayIndex: numb
 }
 
 export function KpiCard({
-  icon: Icon, title, value, unit = "un", loading = false,
-  delta, comparisonLabel, avgLabel, spark, weekdayLabels, progress, className,
+  icon: Icon, title, value, unit = "un", valueFormatter, loading = false,
+  delta, comparisonLabel, avgLabel, caption, spark, weekdayLabels, progress, className,
 }: KpiCardProps) {
   const temTendencia = delta !== undefined && delta !== null;
   const subiu = temTendencia && delta! > 0;
@@ -208,9 +212,9 @@ export function KpiCard({
         <>
           <div className="relative mt-3 flex items-baseline gap-1.5">
             <span className="text-3xl font-bold leading-none tracking-tight tabular-nums">
-              {value === null ? "—" : value.toLocaleString("pt-BR")}
+              {value === null ? "—" : valueFormatter ? valueFormatter(value) : value.toLocaleString("pt-BR")}
             </span>
-            <span className="text-xs font-medium text-white/60">{unit}</span>
+            {!valueFormatter && <span className="text-xs font-medium text-white/60">{unit}</span>}
           </div>
 
           <div className="relative mt-1.5 h-4 text-xs">
@@ -228,6 +232,8 @@ export function KpiCard({
               </span>
             ) : delta === null && (comparisonLabel || avgLabel) ? (
               <span className="text-white/40">sem histórico ainda</span>
+            ) : caption ? (
+              <span className="text-white/50">{caption}</span>
             ) : null}
           </div>
 

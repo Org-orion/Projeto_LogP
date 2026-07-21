@@ -12,7 +12,7 @@ import {
 import { useNavigation } from "@/context/navigation-context";
 import {
   NAV_META, QUALIDADE_SUB_TITLES, SECTION_ICON, ROUTE_MODULE_ICON,
-  QUALIDADE_ROUTE_SUBS, CONFIGURACOES_SUBS, ADMIN_ROUTE_SUBS, RASTREABILIDADE_ROUTE_SUBS,
+  QUALIDADE_ROUTE_SUBS, CONFIGURACOES_SUBS, ADMIN_ROUTE_SUBS, RASTREABILIDADE_ROUTE_SUBS, CUSTEIO_ROUTE_SUBS,
   getAllowedSections, type ConfigSubItem,
 } from "@/lib/nav-items";
 import { goToSpaSection } from "@/lib/spa-bridge";
@@ -67,6 +67,7 @@ const ROUTE_GROUPS: { prefix: string; subs: ConfigSubItem[]; parentLabel: string
   { prefix: "/configuracoes", subs: CONFIGURACOES_SUBS, parentLabel: "Configurações" },
   { prefix: "/admin", subs: ADMIN_ROUTE_SUBS, parentLabel: "Administração" },
   { prefix: "/rastreabilidade", subs: RASTREABILIDADE_ROUTE_SUBS, parentLabel: "Rastreabilidade" },
+  { prefix: "/custeio", subs: CUSTEIO_ROUTE_SUBS, parentLabel: "Custeio de Produto" },
 ];
 
 function resolveRouteMeta(pathname: string): { href: string; label: string; icon: LucideIcon } | null {

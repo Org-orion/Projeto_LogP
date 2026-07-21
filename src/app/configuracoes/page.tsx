@@ -2,39 +2,22 @@
 
 import Link from "next/link";
 import {
-  Factory, Clock, Target, CalendarDays, SlidersHorizontal, Plug, ShieldCheck,
-  Palette, Bell, LayoutDashboard, ScrollText, DatabaseBackup, type LucideIcon,
+  Plug, Palette, Bell, DatabaseBackup, type LucideIcon,
 } from "lucide-react";
 import { CONFIGURACOES_SUBS } from "@/lib/nav-items";
 import { SettingsPageHeader } from "@/components/configuracoes/SettingsPageHeader";
 
 const ICONS: Record<string, LucideIcon> = {
-  "estrutura-industrial": Factory,
-  turnos: Clock,
-  metas: Target,
-  calendario: CalendarDays,
-  parametros: SlidersHorizontal,
   integracoes: Plug,
-  seguranca: ShieldCheck,
   aparencia: Palette,
   notificacoes: Bell,
-  dashboards: LayoutDashboard,
-  logs: ScrollText,
   backup: DatabaseBackup,
 };
 
 const DESCRICOES: Record<string, string> = {
-  "estrutura-industrial": "Linhas de produção, setores, máquinas e centros de trabalho.",
-  turnos: "Horários de funcionamento, escalas e virada de dia.",
-  metas: "Metas operacionais por máquina, linha, setor ou centro de trabalho.",
-  calendario: "Feriados, paradas programadas e exceções de turno.",
-  parametros: "Regras e parâmetros globais de produção, OEE e alertas.",
   integracoes: "Conexões com ERP, MQTT, webhooks e outros sistemas externos.",
-  seguranca: "Autenticação, política de senha e sessões ativas.",
   aparencia: "Tema, densidade e preferências visuais.",
   notificacoes: "Canais e regras de disparo por tipo de evento.",
-  dashboards: "Widgets, layout e período padrão dos dashboards.",
-  logs: "Histórico de ações realizadas no sistema.",
   backup: "Backup automático e histórico de execuções.",
 };
 

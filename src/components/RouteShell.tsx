@@ -6,11 +6,13 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { WorkspaceTabs } from "@/components/workspace/WorkspaceTabs";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { WorkspaceProvider } from "@/context/workspace-context";
+import { SessionProvider } from "@/context/session-context";
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import { goToSpaSection } from "@/lib/spa-bridge";
+import type { SessionPayload } from "@/lib/session";
 
 interface RouteShellProps {
-  user: { nome: string; email: string; perfil?: string; paginas?: string[] };
+  user: SessionPayload;
   allowedSections: string[];
   children: ReactNode;
 }
@@ -37,17 +39,19 @@ export function RouteShell({ user, allowedSections, children }: RouteShellProps)
   }
 
   return (
-    <WorkspaceProvider>
-      <SidebarProvider className="h-screen overflow-hidden">
-        <AppSidebar user={user} allowedSections={allowedSections} onLogout={handleLogout} />
-        <SidebarInset className="flex flex-col overflow-hidden">
-          <WorkspaceTabs
-            onNavigateNC={() => router.push("/qualidade/nao-conformidades")}
-            onNavigateNF={() => goToSpaSection(router, "material-fsc")}
-          />
-          <main ref={scrollRef} className="flex-1 overflow-auto p-6">{children}</main>
-        </SidebarInset>
-      </SidebarProvider>
-    </WorkspaceProvider>
+    <SessionProvider user={user}>
+      <WorkspaceProvider>
+        <SidebarProvider className="h-screen overflow-hidden">
+          <AppSidebar user={user} allowedSections={allowedSections} onLogout={handleLogout} />
+          <SidebarInset className="flex flex-col overflow-hidden">
+            <WorkspaceTabs
+              onNavigateNC={() => router.push("/qualidade/nao-conformidades")}
+              onNavigateNF={() => goToSpaSection(router, "material-fsc")}
+            />
+            <main ref={scrollRef} className="flex-1 overflow-auto p-6">{children}</main>
+          </SidebarInset>
+        </SidebarProvider>
+      </WorkspaceProvider>
+    </SessionProvider>
   );
 }

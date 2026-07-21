@@ -1,7 +1,7 @@
 // Fonte única de verdade para navegação: breadcrumb, sidebar e permissões
 // compartilham esta configuração para não divergir.
 
-import { Factory, Home, ShieldCheck, BadgeCheck, Settings, UserCog, type LucideIcon } from "lucide-react";
+import { Factory, Home, ShieldCheck, BadgeCheck, Settings, UserCog, Calculator, type LucideIcon } from "lucide-react";
 
 export type NavMeta = { parent: string | null; title: string };
 
@@ -58,18 +58,13 @@ export function getAllowedSections(user: { perfil?: string; paginas?: string[] }
 // Subitens de "Configurações" — únicas páginas do app com rota real do Next.js
 // (/configuracoes/...); todo o resto do app continua no padrão SPA acima.
 export interface ConfigSubItem { id: string; label: string; href: string }
+// Estrutura Industrial/Turnos/Metas/Calendário Industrial/Parâmetros do
+// Sistema/Segurança/Logs do Sistema/Dashboards foram removidas por não serem
+// prioridade no momento (código completo, pode voltar a ser adicionado depois).
 export const CONFIGURACOES_SUBS: ConfigSubItem[] = [
-  { id: "estrutura-industrial", label: "Estrutura Industrial", href: "/configuracoes/estrutura-industrial" },
-  { id: "turnos",               label: "Turnos",                href: "/configuracoes/turnos" },
-  { id: "metas",                label: "Metas",                 href: "/configuracoes/metas" },
-  { id: "calendario",           label: "Calendário Industrial",  href: "/configuracoes/calendario" },
-  { id: "parametros",           label: "Parâmetros do Sistema",  href: "/configuracoes/parametros" },
   { id: "integracoes",          label: "Integrações",            href: "/configuracoes/integracoes" },
-  { id: "seguranca",            label: "Segurança",              href: "/configuracoes/seguranca" },
   { id: "aparencia",            label: "Aparência",              href: "/configuracoes/aparencia" },
   { id: "notificacoes",         label: "Notificações",           href: "/configuracoes/notificacoes" },
-  { id: "dashboards",           label: "Dashboards",             href: "/configuracoes/dashboards" },
-  { id: "logs",                 label: "Logs do Sistema",        href: "/configuracoes/logs" },
   { id: "backup",               label: "Backup",                 href: "/configuracoes/backup" },
 ];
 
@@ -90,6 +85,14 @@ export const QUALIDADE_ROUTE_SUBS: ConfigSubItem[] = [
 // dela, não pela sidebar diretamente.
 export const RASTREABILIDADE_ROUTE_SUBS: ConfigSubItem[] = [
   { id: "consulta", label: "Rastreabilidade", href: "/rastreabilidade" },
+];
+
+// Subitens de "Custeio de Produto" — rota real (/custeio/...), mesmo padrão
+// de Rastreabilidade/Qualidade. A Fase 1 (import de planilha "matriz" já
+// calculada) foi removida — o motor de cálculo próprio (Simulador) substitui
+// essa necessidade.
+export const CUSTEIO_ROUTE_SUBS: ConfigSubItem[] = [
+  { id: "dashboard", label: "Visão Geral", href: "/custeio" },
 ];
 
 // Subitens de "Administração" (RBAC: Usuários/Perfis/Permissões/Auditoria) —
@@ -147,6 +150,10 @@ export const PAGE_PERMISSION_GROUPS: PagePermissionGroup[] = [
     pages: RASTREABILIDADE_ROUTE_SUBS.map((s) => ({ id: `rastreabilidade:${s.id}`, label: s.label })),
   },
   {
+    grupo: "Custeio de Produto",
+    pages: CUSTEIO_ROUTE_SUBS.map((s) => ({ id: `custeio:${s.id}`, label: s.label })),
+  },
+  {
     grupo: "Controle de Qualidade",
     pages: QUALIDADE_ROUTE_SUBS.map((s) => ({ id: `qualidade:${s.id}`, label: s.label })),
   },
@@ -183,4 +190,5 @@ export const ROUTE_MODULE_ICON: Record<string, LucideIcon> = {
   "/configuracoes": Settings,
   "/admin": UserCog,
   "/rastreabilidade": Factory,
+  "/custeio": Calculator,
 };

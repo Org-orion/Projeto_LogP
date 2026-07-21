@@ -15,6 +15,7 @@ import { UserStats, type UserStatsData } from "@/components/admin/UserStats";
 import { EMPTY_USER_FORM, type UserFormValues } from "@/components/admin/UserForm";
 import { OperadoresTab } from "@/components/admin/OperadoresTab";
 import { RequirePagina } from "@/components/RequirePagina";
+import { useSessionUser } from "@/context/session-context";
 
 interface PerfilOption { id: number; nome: string }
 
@@ -35,7 +36,7 @@ function AdminUsersPageInner() {
   const [operadores, setOperadores] = useState<Operador[]>([]);
   const [perfis, setPerfis] = useState<PerfilOption[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const currentUserId = String(useSessionUser()?.id ?? "");
 
   const [filtroPerfil, setFiltroPerfil] = useState("todos");
   const [filtroStatus, setFiltroStatus] = useState("todos");
@@ -73,7 +74,6 @@ function AdminUsersPageInner() {
     fetchUsuarios();
     fetchPerfis();
     fetchOperadores();
-    fetch("/api/auth/me").then((r) => r.json()).then((j) => setCurrentUserId(j.user?.id ? String(j.user.id) : "")).catch(() => {});
   }, [fetchUsuarios, fetchPerfis, fetchOperadores]);
 
   const setores = useMemo(() => Array.from(new Set(usuarios.map((u) => u.setor).filter(Boolean))) as string[], [usuarios]);

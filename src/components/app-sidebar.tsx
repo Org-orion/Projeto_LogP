@@ -9,6 +9,7 @@ import {
   BadgeCheck,
   Settings,
   UserCog,
+  Calculator,
   LogOut,
 } from "lucide-react"
 
@@ -27,7 +28,7 @@ import {
 import { useNavigation } from "@/context/navigation-context"
 import {
   PRODUCAO_SUBS, CERTIFICACOES_SUBS, CONFIGURACOES_SUBS, QUALIDADE_ROUTE_SUBS, ADMIN_ROUTE_SUBS,
-  RASTREABILIDADE_ROUTE_SUBS, PRODUCAO_LABELS, CERTIFICACOES_LABELS, hasPageAccess, hasAnyGroupAccess,
+  RASTREABILIDADE_ROUTE_SUBS, CUSTEIO_ROUTE_SUBS, PRODUCAO_LABELS, CERTIFICACOES_LABELS, hasPageAccess, hasAnyGroupAccess,
 } from "@/lib/nav-items"
 import { goToSpaSection } from "@/lib/spa-bridge"
 
@@ -83,6 +84,18 @@ export function AppSidebar({ user, allowedSections, onLogout, ...props }: AppSid
       icon: Factory,
       isActive: pathname?.startsWith("/rastreabilidade") ?? false,
       items: RASTREABILIDADE_ROUTE_SUBS.filter((s) => hasPageAccess(user, `rastreabilidade:${s.id}`)).map((s) => ({
+        title: s.label,
+        url: "#",
+        href: s.href,
+        isActive: pathname === s.href,
+      })),
+    },
+    hasAnyGroupAccess(user, "custeio") && {
+      title: "Custeio de Produto",
+      url: "#",
+      icon: Calculator,
+      isActive: pathname?.startsWith("/custeio") ?? false,
+      items: CUSTEIO_ROUTE_SUBS.filter((s) => hasPageAccess(user, `custeio:${s.id}`)).map((s) => ({
         title: s.label,
         url: "#",
         href: s.href,

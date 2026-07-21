@@ -33,5 +33,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // Route Handlers (api/*) escrevem o próprio cookie de sessão via
+  // next/headers quando precisam (ver login/route.ts) — só Server
+  // Components/páginas dependem desse refresh no middleware. Excluir api/*
+  // evita revalidar o token contra a Supabase (round-trip de rede) duas
+  // vezes na mesma navegação: uma vez aqui, outra dentro da própria rota.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

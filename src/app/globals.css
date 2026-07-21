@@ -227,6 +227,24 @@
   .tabs-scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Scrollbar do menu de navegação do sidebar — sem isso, o navegador
+     desenha a scrollbar padrão (clara), que aparece como uma linha branca
+     colada na borda direita do sidebar escuro. */
+  [data-sidebar="content"] {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--sidebar-border)) transparent;
+  }
+  [data-sidebar="content"]::-webkit-scrollbar {
+    width: 6px;
+  }
+  [data-sidebar="content"]::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  [data-sidebar="content"]::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--sidebar-border));
+    border-radius: 3px;
+  }
 }
 
 @keyframes pageFadeIn {

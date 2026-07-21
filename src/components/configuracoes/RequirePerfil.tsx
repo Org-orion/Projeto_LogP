@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { ShieldAlert } from "lucide-react";
-import { SpinnerCustom } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/production/EmptyState";
+import { useSessionUser } from "@/context/session-context";
 
 interface RequirePerfilProps {
   perfis: string[];
@@ -11,31 +11,14 @@ interface RequirePerfilProps {
 }
 
 // Gate de permissão por perfil pras páginas mais sensíveis de Configurações —
-// reaproveita /api/auth/me (mesma checagem de sessão já usada em src/app/page.tsx),
-// já que as páginas de /configuracoes/* são client components e não recebem o
-// usuário via prop como o resto da SPA.
+// lê do SessionProvider (sessão já validada no servidor pelo layout.tsx) em
+// vez de rebater em /api/auth/me a cada montagem.
 export function RequirePerfil({ perfis, children }: RequirePerfilProps) {
-  const [status, setStatus] = useState<"carregando" | "autorizado" | "negado">("carregando");
+  const user = useSessionUser();
+  const perfilUsuario = (user?.perfil ?? "").toLowerCase();
+  const autorizado = perfis.some((p) => p.toLowerCase() === perfilUsuario);
 
-  useEffect(() => {
-    let cancelado = false;
-    fetch("/api/auth/me")
-      .then(async (res) => {
-        if (cancelado) return;
-        if (!res.ok) { setStatus("negado"); return; }
-        const json = await res.json();
-        const perfilUsuario = (json.user?.perfil ?? "").toLowerCase();
-        setStatus(perfis.some((p) => p.toLowerCase() === perfilUsuario) ? "autorizado" : "negado");
-      })
-      .catch(() => !cancelado && setStatus("negado"));
-    return () => { cancelado = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (status === "carregando") {
-    return <div className="flex items-center justify-center h-64"><SpinnerCustom /></div>;
-  }
-  if (status === "negado") {
+  if (!user || !autorizado) {
     return (
       <EmptyState
         icon={ShieldAlert}
