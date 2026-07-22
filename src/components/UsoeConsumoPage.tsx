@@ -2,16 +2,16 @@
 
 import { useState, useEffect, useMemo, Fragment } from "react";
 import { supabase } from "@/lib/supabase";
-import { format, startOfMonth, subMonths } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Factory, Package, Box, Layers, DollarSign, ChevronDown, Scissors } from "lucide-react";
 import { SpinnerCustom } from "@/components/ui/spinner";
 
@@ -101,18 +101,6 @@ function fmtBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function gerarMeses() {
-  const hoje = new Date();
-  const lista: { label: string; value: string }[] = [];
-  for (let i = 0; i <= 12; i++) {
-    const d = startOfMonth(i === 0 ? hoje : subMonths(hoje, i));
-    lista.push({
-      label: format(d, "MMMM/yyyy", { locale: ptBR }),
-      value: format(d, "yyyy-MM-dd"),
-    });
-  }
-  return lista;
-}
 
 function agrupar(dados: ResumoRPC[]): LinhaConsumo[] {
   const map: Record<string, LinhaConsumo> = {};
@@ -140,15 +128,16 @@ function agrupar(dados: ResumoRPC[]): LinhaConsumo[] {
   );
 }
 
-const MESES     = gerarMeses();
-const MES_ATUAL = format(startOfMonth(new Date()), "yyyy-MM-dd");
+const INICIO_PADRAO = format(startOfMonth(new Date()), "yyyy-MM-dd");
+const FIM_PADRAO    = format(endOfMonth(new Date()), "yyyy-MM-dd");
 const COR_VERDE = "hsl(var(--primary))";
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 export default function UsoeConsumoPage() {
-  const [aba, setAba]   = useState<"consumo" | "custo">("consumo");
-  const [mes, setMes]   = useState(MES_ATUAL);
+  const [aba, setAba] = useState<"consumo" | "custo">("consumo");
+  const [dataInicio, setDataInicio] = useState(INICIO_PADRAO);
+  const [dataFim,    setDataFim]    = useState(FIM_PADRAO);
 
   // dados brutos (carregados uma vez por mês)
   const [dadosSecc,      setDadosSecc]      = useState<ResumoRPC[]>([]);
@@ -164,13 +153,11 @@ export default function UsoeConsumoPage() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [year, month] = mes.split("-").map(Number);
-      const fim = format(new Date(year, month, 0), "yyyy-MM-dd");
 
       const [rSecc, rLix, rRec] = await Promise.all([
-        supabase.rpc("producao_seccionadora_resumo",  { p_inicio: mes, p_fim: fim }),
-        supabase.rpc("producao_lixadeira_resumo",     { p_inicio: mes, p_fim: fim }),
-        supabase.rpc("producao_recobrimento_resumo",  { p_inicio: mes, p_fim: fim }),
+        supabase.rpc("producao_seccionadora_resumo",  { p_inicio: dataInicio, p_fim: dataFim }),
+        supabase.rpc("producao_lixadeira_resumo",     { p_inicio: dataInicio, p_fim: dataFim }),
+        supabase.rpc("producao_recobrimento_resumo",  { p_inicio: dataInicio, p_fim: dataFim }),
       ]);
 
       // Fetch paginado de produtos (tabela pode ter 1000+ linhas de TAMPO)
@@ -215,8 +202,8 @@ export default function UsoeConsumoPage() {
           .from("registros_producao")
           .select("maquina, tipo_material, tipo_chapa, qtd_chapas, larg_recebido_cm, comp_recebido_cm, esp_recebido_mm, produto, produto_sobra, qtd_producao_1, qtd_producao_2, qtd_sobra, larg_sobra_cm, comp_sobra_cm, esp_sobra_mm")
           .ilike("maquina", "%seccionadora%")
-          .gte("data", mes)
-          .lte("data", fim)
+          .gte("data", dataInicio)
+          .lte("data", dataFim)
           .not("tipo_material", "is", null)
           .order("data", { ascending: true })
           .range(matPag * 1000, (matPag + 1) * 1000 - 1);
@@ -237,7 +224,7 @@ export default function UsoeConsumoPage() {
       setLoading(false);
     }
     void load();
-  }, [mes]);
+  }, [dataInicio, dataFim]);
 
   return (
     <div className="space-y-4 pb-16">
@@ -248,14 +235,30 @@ export default function UsoeConsumoPage() {
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Produção</p>
           <h1 className="text-xl font-bold" style={{ color: COR_VERDE }}>Uso e Consumo</h1>
         </div>
-        <Select value={mes} onValueChange={setMes}>
-          <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent className="max-h-64">
-            {MESES.map(m => (
-              <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-end gap-2">
+          <div className="space-y-1">
+            <Label className="text-[11px] text-muted-foreground">De</Label>
+            <Input
+              type="date" value={dataInicio} className="h-8 w-36 text-xs"
+              onChange={(e) => {
+                const v = e.target.value;
+                setDataInicio(v);
+                if (v > dataFim) setDataFim(v);
+              }}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px] text-muted-foreground">Até</Label>
+            <Input
+              type="date" value={dataFim} className="h-8 w-36 text-xs"
+              onChange={(e) => {
+                const v = e.target.value;
+                setDataFim(v);
+                if (v < dataInicio) setDataInicio(v);
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Abas */}
