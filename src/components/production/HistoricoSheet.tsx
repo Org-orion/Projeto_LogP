@@ -716,12 +716,24 @@ export function HistoricoSheet({ maquina, open, onClose, canEdit }: {
                   return (
                     <div key={col.key} className="space-y-1.5">
                       <Label className="text-xs">{col.label}</Label>
-                      <Input
-                        type={inputType}
-                        value={String(editForm[col.key] ?? "")}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, [col.key]: e.target.value }))}
-                        className="h-8 text-xs"
-                      />
+                      {col.options ? (
+                        <Select
+                          value={String(editForm[col.key] ?? "")}
+                          onValueChange={(v) => setEditForm(prev => ({ ...prev, [col.key]: v }))}
+                        >
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                          <SelectContent>
+                            {col.options.map((opt) => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          type={inputType}
+                          value={String(editForm[col.key] ?? "")}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, [col.key]: e.target.value }))}
+                          className="h-8 text-xs"
+                        />
+                      )}
                     </div>
                   );
                 })}

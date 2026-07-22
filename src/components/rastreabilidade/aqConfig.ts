@@ -51,6 +51,7 @@ export const AQ_COLUMN_MAP: Record<string, string> = {
   recebimento_chapa_aq001:         "AQ001",
   recebimento_chapa_aq01:          "AQ001",
   recebimento_materiais_aq002:     "AQ002",
+  pintura_friso_aq003:             "AQ003",
   recebimento_ferragens_aq005:     "AQ005",
   seccionadora_aq009:              "AQ009",
   multi_serra_perfil_aq010:        "AQ010",

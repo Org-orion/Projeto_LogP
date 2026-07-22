@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getColunasParaMaquina } from "./colunasMaquina";
@@ -99,12 +100,21 @@ export function LancarProducaoForm({ maquina, onClose, onSaved }: Props) {
                 <Label className="text-xs">
                   {col.label} {obrigatorio && <span className="text-destructive">*</span>}
                 </Label>
-                <Input
-                  type={inputType}
-                  value={form[col.key] ?? ""}
-                  onChange={(e) => set(col.key, e.target.value)}
-                  className="text-sm"
-                />
+                {col.options ? (
+                  <Select value={form[col.key] ?? ""} onValueChange={(v) => set(col.key, v)}>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      {col.options.map((opt) => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    type={inputType}
+                    value={form[col.key] ?? ""}
+                    onChange={(e) => set(col.key, e.target.value)}
+                    className="text-sm"
+                  />
+                )}
               </div>
             );
           })}

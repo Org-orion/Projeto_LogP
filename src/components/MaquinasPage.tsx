@@ -281,6 +281,21 @@ function periodoAnteriorEquivalente(ano: number, mes: number): { inicio: string;
 
 const EMPTY_MAQUINA = { nome: "" };
 
+// `maquinas.codigo`/`maquinas.setor` são NOT NULL sem default — derivados do
+// nome pra "Adicionar Máquina" continuar sendo só um campo. Convenção vista
+// nas linhas já cadastradas: setor = nome sem o número final (ex.: "FURAÇÃO E
+// CORTE DAS PORTAS 1" → setor "FURAÇÃO E CORTE DAS PORTAS"); codigo = nome em
+// slug maiúsculo sem acento (ex.: "SECCIONADORA 3" → "SECCIONADORA_3").
+function derivarCodigoESetor(nome: string): { codigo: string; setor: string } {
+  const nomeUpper = nome.trim().toUpperCase();
+  const codigo = nomeUpper
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const setor = nomeUpper.replace(/\s+\d+$/, "").trim() || nomeUpper;
+  return { codigo, setor };
+}
+
 export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
   const [producao, setProducao] = useState<Record<string, Record<string, number>>>({});
@@ -622,7 +637,9 @@ export default function MaquinasPage({ user }: { user: { perfil?: string } }) {
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from("maquinas").insert({ nome: form.nome.trim() });
+    const nome = form.nome.trim();
+    const { codigo, setor } = derivarCodigoESetor(nome);
+    const { error } = await supabase.from("maquinas").insert({ nome, codigo, setor });
     setSaving(false);
     if (error) {
       toast.error("Erro ao salvar: " + error.message);
